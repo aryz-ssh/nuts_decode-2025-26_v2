@@ -1,4 +1,6 @@
 
+//old code
+/*
 
 package org.firstinspires.ftc.teamcode;
 
@@ -102,4 +104,95 @@ public class ColorSensorTester extends LinearOpMode {
     }
     */
 
+}
+*/
+//New Code
+        package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
+import com.qualcomm.robotcore.hardware.NormalizedRGBA;
+
+@TeleOp(name = "ColorSensorTester")
+public class ColorSensorTester extends LinearOpMode {
+
+    private NormalizedColorSensor colorSensor;
+
+    public enum DetectedColor {
+        RED,
+        BLUE,
+        YELLOW,
+        PURPLE,
+        GREEN,
+        UNKNOWN
+    }
+
+    @Override
+    public void runOpMode() throws InterruptedException {
+        // Initialize hardware
+        colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_color_distance");
+
+        telemetry.addLine("ColorSensorTester ready");
+        telemetry.addData("Sensor", "sensor_color_distance");
+        telemetry.update();
+
+        // Wait for Play
+        waitForStart();
+
+        while (opModeIsActive()) {
+            // Read normalized RGBA from sensor
+            NormalizedRGBA colors = colorSensor.getNormalizedColors();
+
+            // Avoid division by zero when normalizing
+            float alpha = colors.alpha;
+            if (alpha <= 0.0001f) {
+                alpha = 1.0f;
+            }
+
+            // Normalize RGB by alpha (brightness)
+            float normRed   = colors.red   / alpha;
+            float normGreen = colors.green / alpha;
+            float normBlue  = colors.blue  / alpha;
+
+            // Send raw & normalized values to telemetry
+            telemetry.addData("raw R G B A", "%.3f  %.3f  %.3f  %.3f",
+                    colors.red, colors.green, colors.blue, colors.alpha);
+            telemetry.addData("norm R G B", "%.3f  %.3f  %.3f",
+                    normRed, normGreen, normBlue);
+
+            // Detect color using a helper method
+            DetectedColor detected = getDetectedColor(normRed, normGreen, normBlue);
+            telemetry.addData("Detected Color", detected.toString());
+
+            telemetry.update();
+
+            // Let the system breathe a bit
+            idle();
+        }
+    }
+
+    /**
+     * Simple rule-based color detection using normalized RGB values.
+     * Tweak thresholds to match your physical testing environment.
+     */
+    private DetectedColor getDetectedColor(float r, float g, float b) {
+        // Example thresholds (tune these while testing)
+        if (g > 0.5f && r < 0.35f && b < 0.35f) {
+            return DetectedColor.GREEN;
+        }
+        if (r > 0.6f && g < 0.35f && b < 0.35f) {
+            return DetectedColor.RED;
+        }
+        if (b > 0.55f && r < 0.35f && g < 0.35f) {
+            return DetectedColor.BLUE;
+        }
+        if (r > 0.45f && b > 0.45f && g < 0.35f) {
+            return DetectedColor.PURPLE;
+        }
+        if (r > 0.45f && g > 0.45f && b < 0.35f) {
+            return DetectedColor.YELLOW;
+        }
+        return DetectedColor.UNKNOWN;
+    }
 }

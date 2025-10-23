@@ -1,7 +1,6 @@
-/*
 package org.firstinspires.ftc.teamcode;
 
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
+// import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
@@ -55,10 +54,10 @@ public class Mechanisms {
         this.telemetry = telemetry;
     }
 
-/*    public void initIntakeSystem(HardwareMap hardwareMap) {
+    public void initIntakeSystem(HardwareMap hardwareMap) {
         intakeMotor = hardwareMap.get(DcMotorEx.class, "intakeMotor"); // 1150 rpm dc motor
 
-        intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        intakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         intakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         intakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
@@ -97,21 +96,28 @@ public class Mechanisms {
         raiserRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         raiserRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         raiserRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+    }*/
+
+    public void initMechanisms(HardwareMap hw, Telemetry telemetry) {
+        this.telemetry = telemetry;
+        initIntakeSystem(hw);
+        // initOuttakeSystem(hw);
+        // etc...
     }
 
-    public void initMechanisms(){
-//        initIntakeSystem(hardwareMap);
-        initOuttakeSystem(hardwareMap);
-//        initFarisWheel(hardwareMap);
-//        initElevation(hardwareMap);
+    public void engageIntake(double power, boolean intakeDirectionFlip) {
+        if (intakeDirectionFlip){
+            intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        }
+        intakeMotor.setVelocity(power*MAX_TICKS_PER_SEC);
     }
 
-/*    public void engageIntake(HardwareMap hardwareMap) {
+    public void engageIntakeREVERSE(double power) {
         // intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        intakeMotor.setVelocity(intakeTargetVelocity);
+        intakeMotor.setVelocity(power*MAX_TICKS_PER_SEC);
     }
 
-    public void disengageIntake(HardwareMap hardwareMap) {
+    public void disengageIntake() {
         // intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         intakeMotor.setVelocity(0.0);
     }
@@ -165,8 +171,7 @@ public class Mechanisms {
 
 
 
-
 }
-*/
+
 
 

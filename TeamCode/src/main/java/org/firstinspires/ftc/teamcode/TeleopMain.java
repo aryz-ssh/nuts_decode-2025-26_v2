@@ -12,6 +12,7 @@ public class TeleopMain extends LinearOpMode{
 
     //private static final double TICKS_PER_REVOLUTION = 1538.0;
     private ElapsedTime runtime = new ElapsedTime();
+    private boolean intakeDirectionFlip = true;
     public TeleopMain() {
 
     }
@@ -19,11 +20,11 @@ public class TeleopMain extends LinearOpMode{
    // @Override
     public void runOpMode() throws InterruptedException {
         TeleopDrivetrain drivetrain = new TeleopDrivetrain(this);
-       // Mechanisms mech = new Mechanisms();
+        Mechanisms mech = new Mechanisms();
         //mech.initTelemetry(telemetry);
 
         drivetrain.initDriveTrain((hardwareMap));
-        // mech.initMechanisms();
+        mech.initMechanisms(hardwareMap, telemetry);
 
         telemetry.addData("Status","READY TO NUT");
 
@@ -32,7 +33,7 @@ public class TeleopMain extends LinearOpMode{
         //This is loop that checks the gamepad for inputs every iteration
         while (opModeIsActive()) {
             double y = -gamepad1.left_stick_y;   // forward/back (negative because stick up is negative)
-            double x = -gamepad1.left_stick_x;    // left/right strafe
+            double x = gamepad1.left_stick_x;    // left/right strafe
             double rx = gamepad1.right_stick_x;  // rotation
 
             if (Math.abs(y) < 0.05) y = 0;
@@ -58,7 +59,23 @@ public class TeleopMain extends LinearOpMode{
             targetBL *= driveScale;
             targetBR *= driveScale;
 
+/*            // Apply back wheel compensation (slightly boost back wheels)
+            double backWheelCompensation = 1.5;
+
+            targetBL *= backWheelCompensation;
+            targetBR *= backWheelCompensation;*/
+
+            // Re-normalize if any motor exceeds ±1.0 after compensation
+            max = Math.max(1.0, Math.max(Math.abs(targetFL),
+                    Math.max(Math.abs(targetFR),
+                            Math.max(Math.abs(targetBL), Math.abs(targetBR)))));
+            targetFL /= max;
+            targetFR /= max;
+            targetBL /= max;
+            targetBR /= max;
+
             drivetrain.updateDrive(targetFL, targetFR, targetBL, targetBR);
+
 
             if (gamepad2.dpad_left){
               //  mech.simplePivotLimit1();
@@ -99,8 +116,10 @@ public class TeleopMain extends LinearOpMode{
 
             }
             if(gamepad2.left_bumper) {
-                //mech.setClawPivot("down");
+                intakeDirectionFlip = false;
 
+            } else {
+                intakeDirectionFlip = true;
             }
 
 /*            if(gamepad2.right_trigger > 0.1){
@@ -109,8 +128,9 @@ public class TeleopMain extends LinearOpMode{
                 mech.outtakeMotorStop();
             }*/
             if(gamepad2.left_trigger > 0.1) {
-                //mech.setClawPivot("down");
-
+                mech.engageIntake(gamepad2.left_trigger, intakeDirectionFlip);
+            } else {
+                mech.disengageIntake();
             }
 
 

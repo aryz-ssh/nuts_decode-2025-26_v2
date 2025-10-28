@@ -1,2 +1,19 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        google()  // if Android/FTC
+        // remove private repo that required credentials
+    }
+}
+
+rootProject.name = "nuts_decode-2025-26_v2"
 include ':FtcRobotController'
 include ':TeamCode'

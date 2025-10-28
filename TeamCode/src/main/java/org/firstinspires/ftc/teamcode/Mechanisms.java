@@ -14,6 +14,10 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.hardware.PwmControl;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.ServoControllerEx;
+import com.qualcomm.robotcore.hardware.ServoImplEx;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
@@ -23,6 +27,7 @@ public class Mechanisms {
     // INTAKE SYSTEM VARIABLES
     // ASSUMING 1150 RPM
     public DcMotorEx intakeMotor;
+    public ServoImplEx intakeServo;
     private static final double intakeTargetVelocity = 363;
     private static final double TICKS_PER_REV = 145.1;
     private static final double MAX_RPM = 1150;
@@ -61,6 +66,11 @@ public class Mechanisms {
         intakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         intakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+
+        intakeServo = (ServoImplEx) hardwareMap.get(Servo.class, "intakeServo");
+        ServoControllerEx controller = (ServoControllerEx) intakeServo.getController();
+        controller.setServoPwmEnable(intakeServo.getPortNumber());
+        intakeServo.setPwmRange(new PwmControl.PwmRange(1000, 1500, 2000)); // continuous rotation mode
     }
 
     public void initOuttakeSystem(HardwareMap hardwareMap) {
@@ -101,25 +111,24 @@ public class Mechanisms {
     public void initMechanisms(HardwareMap hw, Telemetry telemetry) {
         this.telemetry = telemetry;
         initIntakeSystem(hw);
-        // initOuttakeSystem(hw);
-        // etc...
     }
 
     public void engageIntake(double power, boolean intakeDirectionFlip) {
-        if (intakeDirectionFlip){
-            intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        }
-        intakeMotor.setVelocity(power*MAX_TICKS_PER_SEC);
+        double direction = intakeDirectionFlip ? -1.0 : 1.0;
+        double servoPosition = 0.5 + (direction * power * 0.5);
+
+        servoPosition = Math.max(0.0, Math.min(1.0, servoPosition));
+
+        intakeServo.setPosition(servoPosition);
+        intakeMotor.setVelocity(direction * power * MAX_TICKS_PER_SEC);
     }
 
-    public void engageIntakeREVERSE(double power) {
-        // intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        intakeMotor.setVelocity(power*MAX_TICKS_PER_SEC);
-    }
+
 
     public void disengageIntake() {
         // intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        intakeMotor.setVelocity(0.0);
+        intakeMotor.setPower(0.0);
+        intakeServo.setPosition(0.5);
     }
 
     public void indexArtifacts() {

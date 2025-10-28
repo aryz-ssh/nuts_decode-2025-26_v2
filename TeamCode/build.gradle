@@ -35,4 +35,5 @@ dependencies {
     implementation "com.acmerobotics.roadrunner:core:1.0.1"
     implementation "com.acmerobotics.roadrunner:actions:1.0.1"
     implementation "com.acmerobotics.dashboard:dashboard:0.4.17"
+    implementation 'com.github.Eeshwar-Krishnan:PedroPathing:v1.3.1'`
 }

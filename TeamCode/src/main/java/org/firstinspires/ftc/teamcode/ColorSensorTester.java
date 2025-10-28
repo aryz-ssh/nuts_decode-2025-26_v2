@@ -150,8 +150,8 @@ public class ColorSensorTester extends LinearOpMode {
                 alpha = 1.0f;
             }
 
-            // Normalize RGB by alpha (brightness)
-            float normRed   = colors.red   / alpha;
+                // Normalize RGB by alpha (brightness)
+             float normRed   = colors.red   / alpha;
             float normGreen = colors.green / alpha;
             float normBlue  = colors.blue  / alpha;
 

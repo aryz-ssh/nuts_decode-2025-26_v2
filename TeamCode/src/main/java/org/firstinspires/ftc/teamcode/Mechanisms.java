@@ -112,7 +112,7 @@ public class Mechanisms {
     }
 
     public void disengageIntake(HardwareMap hardwareMap) {
-        // intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        // intakeMotor  .setDirection(DcMotorSimple.Direction.FORWARD);
         intakeMotor.setVelocity(0.0);
     }
 

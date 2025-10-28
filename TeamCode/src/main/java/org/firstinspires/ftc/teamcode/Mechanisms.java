@@ -1,4 +1,3 @@
-/*
 package org.firstinspires.ftc.teamcode;
 
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
@@ -55,7 +54,7 @@ public class Mechanisms {
         this.telemetry = telemetry;
     }
 
-/*    public void initIntakeSystem(HardwareMap hardwareMap) {
+    public void initIntakeSystem(HardwareMap hardwareMap) {
         intakeMotor = hardwareMap.get(DcMotorEx.class, "intakeMotor"); // 1150 rpm dc motor
 
         intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
@@ -76,7 +75,7 @@ public class Mechanisms {
 //        outtakeMotor2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
-/*    public void initFarisWheel(HardwareMap hardwareMap) {
+    public void initFarisWheel(HardwareMap hardwareMap) {
         sortingMotor = hardwareMap.get(DcMotor.class, "sortingMotor"); // 435 rpm dc motor
 
         sortingMotor.setDirection(DcMotorSimple.Direction.FORWARD);
@@ -100,15 +99,17 @@ public class Mechanisms {
     }
 
     public void initMechanisms(){
-//        initIntakeSystem(hardwareMap);
+        //        initIntakeSystem(hardwareMap);
         initOuttakeSystem(hardwareMap);
-//        initFarisWheel(hardwareMap);
-//        initElevation(hardwareMap);
+        //        initFarisWheel(hardwareMap);
+        //        initElevation(hardwareMap);
     }
 
-/*    public void engageIntake(HardwareMap hardwareMap) {
-        // intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        intakeMotor.setVelocity(intakeTargetVelocity);
+    public void engageIntake(double power, boolean intakeDirectionFlip) {
+        if (intakeDirectionFlip){
+            intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        }
+        intakeMotor.setVelocity(power*MAX_TICKS_PER_SEC);
     }
 
     public void disengageIntake(HardwareMap hardwareMap) {
@@ -163,10 +164,4 @@ public class Mechanisms {
         telemetry.update();
     }
 
-
-
-
 }
-*/
-
-

@@ -12,6 +12,7 @@ public class TeleopMain extends LinearOpMode{
 
     //private static final double TICKS_PER_REVOLUTION = 1538.0;
     private ElapsedTime runtime = new ElapsedTime();
+    private boolean intakeDirectionFlip = true;
     public TeleopMain() {
 
     }
@@ -99,8 +100,10 @@ public class TeleopMain extends LinearOpMode{
 
             }
             if(gamepad2.left_bumper) {
-                //mech.setClawPivot("down");
+                intakeDirectionFlip = false;
 
+            } else {
+                intakeDirectionFlip = true;
             }
 
 /*            if(gamepad2.right_trigger > 0.1){
@@ -109,8 +112,9 @@ public class TeleopMain extends LinearOpMode{
                 mech.outtakeMotorStop();
             }*/
             if(gamepad2.left_trigger > 0.1) {
-                //mech.setClawPivot("down");
-
+                mech.engageIntake(gamepad2.left_trigger, intakeDirectionFlip);
+            } else {
+                mech.disengageIntake();
             }
 
 

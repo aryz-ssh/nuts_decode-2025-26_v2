@@ -24,10 +24,11 @@ android {
 }
 
 repositories {
-    maven {
-        url = 'https://maven.brott.dev/'
-    }
+    google()
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
 }
+
 
 dependencies {
     implementation project(':FtcRobotController')
@@ -35,5 +36,6 @@ dependencies {
     implementation "com.acmerobotics.roadrunner:core:1.0.1"
     implementation "com.acmerobotics.roadrunner:actions:1.0.1"
     implementation "com.acmerobotics.dashboard:dashboard:0.4.17"
-    implementation 'com.github.Eeshwar-Krishnan:PedroPathing:v1.3.1'`
+    implementation 'com.pedropathing:ftc:2.0.3'
+
 }

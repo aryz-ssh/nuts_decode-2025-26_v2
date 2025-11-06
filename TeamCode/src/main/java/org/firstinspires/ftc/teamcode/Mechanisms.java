@@ -5,38 +5,26 @@ package org.firstinspires.ftc.teamcode;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 
-import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
-
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.IMU;
-import com.qualcomm.robotcore.hardware.PwmControl;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.hardware.ServoControllerEx;
-import com.qualcomm.robotcore.hardware.ServoImplEx;
-import com.qualcomm.robotcore.util.ElapsedTime;
-
-import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
 
 
 public class Mechanisms {
     // INTAKE SYSTEM VARIABLES
     // ASSUMING 1150 RPM
     public DcMotorEx intakeMotor;
-    public ServoImplEx intakeServo;
-    private static final double intakeTargetVelocity = 363;
-    private static final double TICKS_PER_REV = 145.1;
-    private static final double MAX_RPM = 1150;
-    private static final double MAX_TICKS_PER_SEC = (TICKS_PER_REV * MAX_RPM) / 60.0; // ≈ 2786 t/s
+    public Servo intakeServo;
+    private static final double TICKS_PER_REV_1150 = 145.1;
+    private static final double MAX_TICKS_PER_SEC_1150 = (TICKS_PER_REV_1150 * 1150) / 60.0; // ≈ 2786 t/s
 
     // SORTING SYSTEM VARIABLES
-    // ASSUMING EXTERNALLY GEARED SERVO
+    // ASSUMING 435 RPM
     public DcMotor sortingMotor;
-    private static final double sortingMotor_TPR = 384.5; // Encoder ticks per revolution
+    private static final double TICKS_PER_REV_435 = 384.5; // Encoder ticks per revolution
+    private static final double MAX_TICKS_PER_SEC_435 = (TICKS_PER_REV_435 * 435) / 60.0; // ≈ 2786 t/s
     private static final int sorter_pos1 = 67; // Encoder ticks per revolution
     private static final int sorter_pos2 = 67; // Encoder ticks per revolution
     private static final int sorter_pos3 = 67; // Encoder ticks per revolution
@@ -66,11 +54,9 @@ public class Mechanisms {
         intakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         intakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-
-        intakeServo = (ServoImplEx) hardwareMap.get(Servo.class, "intakeServo");
-        ServoControllerEx controller = (ServoControllerEx) intakeServo.getController();
-        controller.setServoPwmEnable(intakeServo.getPortNumber());
-        intakeServo.setPwmRange(new PwmControl.PwmRange(1000, 1500, 2000)); // continuous rotation mode
+        // Simple standard servo
+        intakeServo = hardwareMap.get(Servo.class, "intakeServo");
+        intakeServo.setPosition(0.5);
     }
 
     public void initOuttakeSystem(HardwareMap hardwareMap) {
@@ -85,7 +71,7 @@ public class Mechanisms {
 //        outtakeMotor2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
-/*    public void initFarisWheel(HardwareMap hardwareMap) {
+    public void initSorter(HardwareMap hardwareMap) {
         sortingMotor = hardwareMap.get(DcMotor.class, "sortingMotor"); // 435 rpm dc motor
 
         sortingMotor.setDirection(DcMotorSimple.Direction.FORWARD);
@@ -94,7 +80,7 @@ public class Mechanisms {
         sortingMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 
-    public void initElevation(HardwareMap hardwareMap) {
+/*    public void initElevation(HardwareMap hardwareMap) {
         raiserLeft = hardwareMap.get(DcMotorEx.class, "raiserLeft"); // 30 rpm dc motor
         raiserRight = hardwareMap.get(DcMotorEx.class, "raiserRight"); // 30 rpm dc motor
 
@@ -120,7 +106,7 @@ public class Mechanisms {
         servoPosition = Math.max(0.0, Math.min(1.0, servoPosition));
 
         intakeServo.setPosition(servoPosition);
-        intakeMotor.setVelocity(direction * power * MAX_TICKS_PER_SEC);
+        intakeMotor.setVelocity(direction * power * MAX_TICKS_PER_SEC_1150);
     }
 
 
@@ -165,7 +151,7 @@ public class Mechanisms {
     }
 
     public void outtakeMotorStart(double power) {
-        outtakeMotor1.setVelocity(power*MAX_TICKS_PER_SEC);
+        outtakeMotor1.setVelocity(power* MAX_TICKS_PER_SEC_1150);
         // outtakeMotor2.setVelocity(power*MAX_TICKS_PER_SEC);
         telemetry.addData("Velocity", outtakeMotor1.getVelocity());
         telemetry.update();
@@ -181,6 +167,9 @@ public class Mechanisms {
 
 
 }
+
+
+
 
 
 

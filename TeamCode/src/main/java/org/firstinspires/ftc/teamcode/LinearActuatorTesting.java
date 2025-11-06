@@ -2,22 +2,15 @@
 package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.Servo.Direction.FORWARD;
-import static com.qualcomm.robotcore.hardware.Servo.Direction.REVERSE;
-
-import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 
 @TeleOp(name = "LinearActuatorTester")
-public class LinearActuatorTester extends LinearOpMode {
+public class LinearActuatorTesting extends LinearOpMode {
 
     private ElapsedTime runtime = new ElapsedTime();
 

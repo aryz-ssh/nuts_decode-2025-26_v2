@@ -16,7 +16,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 @Configurable // Panels
 public class AutoCode extends OpMode {
 
-    private static final Pose pose1 =  new Pose(56.000, 8.000);
+    private static final Pose pose1 = new Pose(56.000, 8.000);
     private static final Pose pose2 = new Pose(39.988, 35.456);
     private static final Pose pose3 = new Pose(39.988, 35.456);
     private static final Pose pose4 = new Pose(15.843, 35.674);

@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 
-@TeleOp(name = "TeleopGamePadStuff")
+@TeleOp(name = "TeleopMain")
 public class TeleopMain extends LinearOpMode{
 
     //private static final double TICKS_PER_REVOLUTION = 1538.0;

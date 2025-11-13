@@ -112,7 +112,7 @@ public class TeleopDrivetrain {
         backRight  = hardwareMap.get(DcMotorEx.class, "rightBack");
 
         odoLeft   = hardwareMap.get(DcMotorEx.class, "leftFront");   // shares encoder with backLeft motor power
-        odoRight  = hardwareMap.get(DcMotorEx.class, "rightRear");  // shares encoder with backRight motor power
+        odoRight  = hardwareMap.get(DcMotorEx.class, "rightBack");  // shares encoder with backRight motor power
         odoCenter = hardwareMap.get(DcMotorEx.class, "rightFront");  // example; adjust to your wiring
 
 

@@ -23,11 +23,11 @@ public class Mechanisms {
     // SORTING SYSTEM VARIABLES
     // ASSUMING 435 RPM
     public DcMotor sortingMotor;
-    private static final double TICKS_PER_REV_435 = 384.5; // Encoder ticks per revolution
+    private static final double TICKS_PER_REV_435 = 384; // Encoder ticks per revolution
     private static final double MAX_TICKS_PER_SEC_435 = (TICKS_PER_REV_435 * 435) / 60.0; // ≈ 2786 t/s
-    private static final int sorter_pos1 = 67; // Encoder ticks per revolution
-    private static final int sorter_pos2 = 67; // Encoder ticks per revolution
-    private static final int sorter_pos3 = 67; // Encoder ticks per revolution
+    private static final int sorter_pos1 = 0; // Encoder ticks per revolution
+    private static final int sorter_pos2 = 128; // Encoder ticks per revolution
+    private static final int sorter_pos3 = 256; // Encoder ticks per revolution
 
 
     // OUTTAKE SYSTEM VARIABLES

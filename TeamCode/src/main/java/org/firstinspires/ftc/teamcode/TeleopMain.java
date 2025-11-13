@@ -20,12 +20,12 @@ public class TeleopMain extends LinearOpMode{
     // @Override
     public void runOpMode() throws InterruptedException {
         TeleopDrivetrain drivetrain = new TeleopDrivetrain(this);
-        Mechanisms mech = new Mechanisms();
+        //Mechanisms mech = new Mechanisms();
         ColorSensorTester colorSensor = new ColorSensorTester();
         //mech.initTelemetry(telemetry);
 
         drivetrain.initDriveTrain((hardwareMap));
-        mech.initMechanisms(hardwareMap, telemetry);
+       // mech.initMechanisms(hardwareMap, telemetry);
 
         telemetry.addData("Status","READY TO NUT");
 
@@ -129,9 +129,9 @@ public class TeleopMain extends LinearOpMode{
                 mech.outtakeMotorStop();
             }*/
             if(gamepad2.left_trigger > 0.1) {
-                mech.engageIntake(gamepad2.left_trigger, intakeDirectionFlip);
+               // mech.engageIntake(gamepad2.left_trigger, intakeDirectionFlip);
             } else {
-                mech.disengageIntake();
+               // mech.disengageIntake();
             }
 
 
@@ -178,7 +178,18 @@ public class TeleopMain extends LinearOpMode{
         // check if the ball in the thingy is the second color in the motif
         // if the ball is the right color - situation a1
         // if the ball is the wrong color - situation a2
-        //branch test
+
+        //first ball collected spins 120 counter clockwise
+        //second ball collected spins 120 counter clockwise
+        // third ball collected spins 60 counter clockwise
+
+        //color sensor checks the ball on the top and records the color in a list
+        //carousel turns 120 degrees counter clockwise
+        //color sensor checks the ball on the top and records the color in a list
+        //carousel turns 120 degrees counter clockwise
+        //color sensor checks the ball on the top and records the color in a list
+        // carousel turns 120 degrees counter clockwise
+
     }
 
 

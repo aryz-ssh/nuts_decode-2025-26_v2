@@ -14,7 +14,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 public class Mechanisms {
     // INTAKE SYSTEM VARIABLES
-    // ASSUMING 1150 RPM
+    // 1150 RPM
     public DcMotorEx intakeMotor;
     public Servo intakeServo;
     private static final double TICKS_PER_REV_1150 = 145.1;
@@ -29,10 +29,13 @@ public class Mechanisms {
     private static final int sorter_pos2 = 67; // Encoder ticks per revolution
     private static final int sorter_pos3 = 67; // Encoder ticks per revolution
 
+
     // OUTTAKE SYSTEM VARIABLES
-    // ASSUMING 1150 RPM MOTORS
-    public DcMotorEx outtakeMotor1;
-    public DcMotorEx outtakeMotor2;
+    // 6000 RPM MOTORS
+    public DcMotorEx outtakeMotorLeft;
+    public DcMotorEx outtakeMotorRight;
+    private static final double TICKS_PER_REV_6000 = 28.0;
+    private static final double MAX_TICKS_PER_SEC_6000 = (TICKS_PER_REV_6000 * 6000) / 60.0; // ≈ 2800 t/s
 
     // ELEVATION SYSTEM VARIABLES
     // ASSUMING 30 RPM
@@ -60,15 +63,15 @@ public class Mechanisms {
     }
 
     public void initOuttakeSystem(HardwareMap hardwareMap) {
-        outtakeMotor1 = hardwareMap.get(DcMotorEx.class, "outtakeMotor1"); // 1150 rpm dc motor
-//        outtakeMotor2 = hardwareMap.get(DcMotorEx.class, "outtakeMotor2"); // 1150 rpm dc motor
+        outtakeMotorLeft = hardwareMap.get(DcMotorEx.class, "outtakeMotorLeft"); // 1150 rpm dc motor
+        outtakeMotorRight = hardwareMap.get(DcMotorEx.class, "outtakeMotorRight"); // 1150 rpm dc motor
 
-        outtakeMotor1.setDirection(DcMotorSimple.Direction.FORWARD);
-//        outtakeMotor2.setDirection(DcMotorSimple.Direction.REVERSE);
-        outtakeMotor1.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-//        outtakeMotor2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        outtakeMotor1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-//        outtakeMotor2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        outtakeMotorLeft.setDirection(DcMotorSimple.Direction.FORWARD);
+        outtakeMotorRight.setDirection(DcMotorSimple.Direction.REVERSE);
+        outtakeMotorLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        outtakeMotorRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        outtakeMotorLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        outtakeMotorRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
     public void initSorter(HardwareMap hardwareMap) {
@@ -97,10 +100,11 @@ public class Mechanisms {
     public void initMechanisms(HardwareMap hw, Telemetry telemetry) {
         this.telemetry = telemetry;
         initIntakeSystem(hw);
+        initOuttakeSystem(hw);
     }
 
     public void engageIntake(double power, boolean intakeDirectionFlip) {
-        double direction = intakeDirectionFlip ? -1.0 : 1.0;
+        double direction = intakeDirectionFlip ? 1.0 : -1.0;
         double servoPosition = 0.5 + (direction * power * 0.5);
 
         servoPosition = Math.max(0.0, Math.min(1.0, servoPosition));
@@ -108,8 +112,6 @@ public class Mechanisms {
         intakeServo.setPosition(servoPosition);
         intakeMotor.setVelocity(direction * power * MAX_TICKS_PER_SEC_1150);
     }
-
-
 
     public void disengageIntake() {
         // intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
@@ -150,26 +152,23 @@ public class Mechanisms {
 
     }
 
-    public void outtakeMotorStart(double power) {
-        outtakeMotor1.setVelocity(power* MAX_TICKS_PER_SEC_1150);
-        // outtakeMotor2.setVelocity(power*MAX_TICKS_PER_SEC);
-        telemetry.addData("Velocity", outtakeMotor1.getVelocity());
+    public void engageOuttake(double power) {
+        outtakeMotorLeft.setVelocity(power * MAX_TICKS_PER_SEC_6000);
+        outtakeMotorRight.setVelocity(power * MAX_TICKS_PER_SEC_6000);
+
+        telemetry.addData("Outtake Velocity", outtakeMotorLeft.getVelocity());
         telemetry.update();
     }
 
-    public void outtakeMotorStop() {
-        outtakeMotor1.setPower(0.0);
-        // outtakeMotor2.setPower(0.0);
-        telemetry.addData("Velocity", outtakeMotor1.getVelocity());
+    public void disengageOuttake() {
+        outtakeMotorLeft.setVelocity(0.0);
+        outtakeMotorRight.setVelocity(0.0);
+
+        telemetry.addData("Outtake Velocity", outtakeMotorLeft.getVelocity());
         telemetry.update();
     }
-
-
 
 }
-
-
-
 
 
 

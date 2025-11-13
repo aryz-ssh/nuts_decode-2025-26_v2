@@ -5,9 +5,13 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import com.qualcomm.robotcore.util.ElapsedTime;
+
 
 public class TeleopDrivetrain {
     public DcMotorEx frontLeft;
@@ -15,11 +19,23 @@ public class TeleopDrivetrain {
     public DcMotorEx frontRight;
     public DcMotorEx backRight;
     public IMU imu;
+    public DcMotorEx odoLeft;
+    public DcMotorEx odoRight;
+    public DcMotorEx odoCenter;
+    private static final double ODO_TICKS_PER_REV = 8192.0;     // REV Through-Bore typical
+    private static final double ODO_WHEEL_DIAM_IN = 2.0;        // inches
+    private static final double ODO_WHEEL_CIRCUMFERENCE = Math.PI * ODO_WHEEL_DIAM_IN;
+    private static final double ODO_TICKS_TO_INCHES = ODO_WHEEL_CIRCUMFERENCE / ODO_TICKS_PER_REV;
+    private static final double TRACK_WIDTH_IN = 10.5;          // distance between left/right odo wheels
+    private int lastLeftOdo = 0;
+    private int lastRightOdo = 0;
+    private int lastCenterOdo = 0;
 
     private double currentFL = 0, currentFR = 0, currentBL = 0, currentBR = 0;
-    private double rampRate = 0.025; // change per loop (tune this value)
+    private double rampRate = 0.05; // change per loop (tune this value)
 
     public double targetFL = 0, targetFR = 0, targetBL = 0, targetBR = 0;
+    public double targetHeading = 0.0;   // degrees, used for heading hold
 
 
     private ElapsedTime runtime = new ElapsedTime();
@@ -31,51 +47,99 @@ public class TeleopDrivetrain {
     private static final double TICKS_PER_REV = 383.6;
     private static final double MAX_RPM = 435.0;
     private static final double MAX_TICKS_PER_SEC = (TICKS_PER_REV * MAX_RPM) / 60.0; // ≈ 2786 t/s
-
     public TeleopDrivetrain(LinearOpMode op) {
         opMode = op;
     }
 
+    public double getHeadingDriftCorrection() {
+        // read raw odo tick positions
+        int leftNow = odoLeft.getCurrentPosition();
+        int rightNow = odoRight.getCurrentPosition();
+
+        // convert to inches
+        double dL = (leftNow - lastLeftOdo) * ODO_TICKS_TO_INCHES;
+        double dR = (rightNow - lastRightOdo) * ODO_TICKS_TO_INCHES;
+
+        // update stored tick counts for next loop
+        lastLeftOdo = leftNow;
+        lastRightOdo = rightNow;
+
+        // compute the difference in distance traveled
+        double dTheta = (dR - dL) / TRACK_WIDTH_IN;   // radians since last frame
+
+        // proportional gain — tune between 0.2–1.0
+        double kP = 0.5;
+
+        // drift correction value: positive means robot veered right
+        double correction = -kP * dTheta;
+
+        return correction;  // to be added to your rotation term (rx)
+    }
+
+    public double getLateralDriftCorrection() {
+        int centerNow = odoCenter.getCurrentPosition();
+
+        // convert ticks to inches of sideways motion
+        double dC = (centerNow - lastCenterOdo) * ODO_TICKS_TO_INCHES;
+        lastCenterOdo = centerNow;
+
+        // proportional gain for lateral correction — tune 0.05–0.2
+        double kP_strafe = 0.1;
+
+        // correction value: positive means drifting right
+        double correction = -kP_strafe * dC;
+
+        return correction;  // to be added to your strafe input (x)
+    }
+
+
     public void initDriveTrain(HardwareMap hardwareMap) {
-        // imu tomfoolery
-//        imu = hardwareMap.get(IMU.class, "imu"); // Match the name in the configuration
-//        IMU.Parameters parameters = new IMU.Parameters(
-//                new RevHubOrientationOnRobot(
-//                        RevHubOrientationOnRobot.LogoFacingDirection.LEFT,  // Logo facing backward
-//                        RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD         // USB ports facing up
-//                )
-//        );
-//        imu.initialize(parameters);
+        imu = hardwareMap.get(IMU.class, "imu");
 
-        frontLeft = hardwareMap.get(DcMotorEx.class, "leftFront");
-        backLeft= hardwareMap.get(DcMotorEx.class, "leftBack");
+        IMU.Parameters parameters = new IMU.Parameters(
+                new RevHubOrientationOnRobot(
+                        RevHubOrientationOnRobot.LogoFacingDirection.RIGHT,      // adjust if hub mounted differently
+                        RevHubOrientationOnRobot.UsbFacingDirection.UP
+                )
+        );
+
+
+        imu.initialize(parameters);
+
+        frontLeft  = hardwareMap.get(DcMotorEx.class, "leftFront");
+        backLeft   = hardwareMap.get(DcMotorEx.class, "leftBack");
         frontRight = hardwareMap.get(DcMotorEx.class, "rightFront");
-        backRight = hardwareMap.get(DcMotorEx.class, "rightBack");
+        backRight  = hardwareMap.get(DcMotorEx.class, "rightBack");
 
-        frontLeft.setDirection(DcMotorEx.Direction.REVERSE);
-        frontRight.setDirection(DcMotorEx.Direction.FORWARD);
-        backLeft.setDirection(DcMotorEx.Direction.REVERSE);
-        backRight.setDirection(DcMotorEx.Direction.FORWARD);
+        odoLeft   = hardwareMap.get(DcMotorEx.class, "leftFront");   // shares encoder with backLeft motor power
+        odoRight  = hardwareMap.get(DcMotorEx.class, "rightRear");  // shares encoder with backRight motor power
+        odoCenter = hardwareMap.get(DcMotorEx.class, "rightFront");  // example; adjust to your wiring
 
-        frontLeft.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
-        frontRight.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
-        backLeft.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
-        backRight.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
 
-        frontLeft.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
-        frontRight.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
-        backLeft.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
-        backRight.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+        frontLeft.setDirection(DcMotorSimple.Direction.FORWARD);
+        backLeft.setDirection(DcMotorSimple.Direction.FORWARD);
+        frontRight.setDirection(DcMotorSimple.Direction.REVERSE);
+        backRight.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        frontLeft.setZeroPowerBehavior((DcMotorEx.ZeroPowerBehavior.BRAKE));
-        frontRight.setZeroPowerBehavior((DcMotorEx.ZeroPowerBehavior.BRAKE));
-        backLeft.setZeroPowerBehavior((DcMotorEx.ZeroPowerBehavior.BRAKE));
-        backRight.setZeroPowerBehavior((DcMotorEx.ZeroPowerBehavior.BRAKE));
+        frontLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        frontRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        backLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        backRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        frontLeft.setPower(0.0);
-        frontRight.setPower(0.0);
-        backLeft.setPower(0.0);
-        backRight.setPower(0.0);
+        frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        frontRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        odoLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        odoRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        odoCenter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        odoLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        odoRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        odoCenter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+        stopMotors();
     }
 
     private double rampToTarget(double current, double target) {
@@ -241,7 +305,7 @@ public class TeleopDrivetrain {
         frontRight.setPower(power);
         backRight.setPower(power);
 
-       // opMode.sleep(targetInMilis);
+        // opMode.sleep(targetInMilis);
     }
 
     public void rotateRight(double power) {

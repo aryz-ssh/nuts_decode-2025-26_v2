@@ -1,10 +1,11 @@
 package org.firstinspires.ftc.teamcode;
 
-import static android.icu.lang.UProperty.MATH;
-
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+
 
 
 @TeleOp(name = "TeleopMain")
@@ -13,6 +14,12 @@ public class TeleopMain extends LinearOpMode{
     //private static final double TICKS_PER_REVOLUTION = 1538.0;
     private ElapsedTime runtime = new ElapsedTime();
     private boolean intakeDirectionFlip = true;
+    private double targetHeading = 0.0;
+
+    private double applyDeadband(double value) {
+        return (Math.abs(value) > 0.05) ? value : 0;
+    }
+
     public TeleopMain() {
 
     }
@@ -28,54 +35,60 @@ public class TeleopMain extends LinearOpMode{
 
         telemetry.addData("Status","READY TO NUT");
 
-        this.waitForStart();
+        waitForStart();
+        drivetrain.targetHeading = drivetrain.imu
+                .getRobotYawPitchRollAngles()
+                .getYaw(AngleUnit.DEGREES);
 
         //This is loop that checks the gamepad for inputs every iteration
         while (opModeIsActive()) {
-            double y = -gamepad1.left_stick_y;   // forward/back (negative because stick up is negative)
-            double x = gamepad1.left_stick_x;    // left/right strafe
-            double rx = gamepad1.right_stick_x;  // rotation
+            if (drivetrain.imu == null) {
+                telemetry.addData("Warning", "IMU not initialized");
+                telemetry.update();
+                continue;  // skip the loop until IMU is ready
+            }
 
-            if (Math.abs(y) < 0.05) y = 0;
-            if (Math.abs(x) < 0.05) x = 0;
-            if (Math.abs(rx) < 0.05) rx = 0;
-            System.out.println("s");
-            double targetFL = y + x + rx;
-            double targetFR = y - x - rx;
-            double targetBL = y - x + rx;
-            double targetBR = y + x - rx;
+// --- joystick inputs ---
+            double y  = applyDeadband(gamepad1.left_stick_y);        // forward/back
+            double x  = -applyDeadband(gamepad1.left_stick_x) * 1.1; // strafe
+            double rx = -applyDeadband(gamepad1.right_stick_x);      // rotation
 
-            double max = Math.max(1.0, Math.max(Math.abs(targetFL),
-                    Math.max(Math.abs(targetFR),
-                            Math.max(Math.abs(targetBL), Math.abs(targetBR)))));
-            targetFL /= max;
-            targetFR /= max;
-            targetBL /= max;
-            targetBR /= max;
+// --- get odometry drift corrections ---
+            double headingDriftCorrection = drivetrain.getHeadingDriftCorrection();  // cancel veering
+            double lateralDriftCorrection = drivetrain.getLateralDriftCorrection();  // cancel sideways slip
+
+// --- get IMU heading hold correction ---
+            YawPitchRollAngles orientation = drivetrain.imu.getRobotYawPitchRollAngles();
+            double currentHeading = orientation.getYaw(AngleUnit.DEGREES);
+            double headingError = (drivetrain.targetHeading - currentHeading + 540) % 360 - 180;
+
+// smaller = smoother hold, larger = stronger lock
+            double kP_headingHold = 0.02;
+            double imuCorrection = kP_headingHold * headingError;
+
+// --- apply corrections ---
+            rx += headingDriftCorrection;  // short-term correction from odo L/R
+            rx -= imuCorrection;           // long-term heading hold from IMU
+            x  += lateralDriftCorrection;  // keep strafing straight
+
+// --- mecanum math ---
+            double fl = y + x + rx;
+            double fr = y - x - rx;
+            double bl = y - x + rx;
+            double br = y + x - rx;
+
+// normalize + scale
+            double max = Math.max(1.0, Math.max(Math.abs(fl),
+                    Math.max(Math.abs(fr), Math.max(Math.abs(bl), Math.abs(br)))));
+            fl /= max; fr /= max; bl /= max; br /= max;
 
             double driveScale = 0.7;
-            targetFL *= driveScale;
-            targetFR *= driveScale;
-            targetBL *= driveScale;
-            targetBR *= driveScale;
+            drivetrain.updateDrive(fl * driveScale, fr * driveScale, bl * driveScale, br * driveScale);
 
-/*            // Apply back wheel compensation (slightly boost back wheels)
-            double backWheelCompensation = 1.5;
-
-            targetBL *= backWheelCompensation;
-            targetBR *= backWheelCompensation;*/
-
-            // Re-normalize if any motor exceeds ±1.0 after compensation
-            max = Math.max(1.0, Math.max(Math.abs(targetFL),
-                    Math.max(Math.abs(targetFR),
-                            Math.max(Math.abs(targetBL), Math.abs(targetBR)))));
-            targetFL /= max;
-            targetFR /= max;
-            targetBL /= max;
-            targetBR /= max;
-
-            drivetrain.updateDrive(targetFL, targetFR, targetBL, targetBR);
-
+// --- allow heading reset ---
+            if (gamepad1.b) {
+                drivetrain.targetHeading = drivetrain.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+            }
 
             if (gamepad2.dpad_left){
               //  mech.simplePivotLimit1();
@@ -111,11 +124,7 @@ public class TeleopMain extends LinearOpMode{
                 //mech.SpecimenViperPosition();
             }
 
-            if(gamepad2.right_bumper){
-                //mech.setClawPivot("up");
-
-            }
-            if(gamepad2.left_bumper) {
+            if(gamepad1.left_bumper) {
                 intakeDirectionFlip = false;
 
             } else {
@@ -127,10 +136,16 @@ public class TeleopMain extends LinearOpMode{
             } else {
                 mech.outtakeMotorStop();
             }*/
-            if(gamepad2.left_trigger > 0.1) {
+            if(gamepad1.left_trigger > 0.1) {
                 mech.engageIntake(gamepad2.left_trigger, intakeDirectionFlip);
             } else {
                 mech.disengageIntake();
+            }
+
+            if(gamepad2.right_bumper) { // IN PROGRESS
+                mech.engageOuttake(gamepad2.right_trigger);
+            } else {
+                mech.disengageOuttake();
             }
 
 

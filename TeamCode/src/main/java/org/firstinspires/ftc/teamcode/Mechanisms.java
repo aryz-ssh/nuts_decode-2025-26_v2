@@ -18,7 +18,7 @@ public class Mechanisms {
     public DcMotorEx intakeMotor;
     public Servo intakeServo;
     private static final double TICKS_PER_REV_1150 = 145.1;
-    private static final double MAX_TICKS_PER_SEC_1150 = (TICKS_PER_REV_1150 * 1150) / 60.0; // ≈ 2786 t/s
+    private static final double MAX_TICKS_PER_SEC_1150 = (TICKS_PER_REV_1150 * 1150) / 60.0;
 
     // ---------- SORTER SYSTEM ----------
     public DcMotor sortingMotor;
@@ -26,14 +26,18 @@ public class Mechanisms {
     private static final int TICKS_120 = TICKS_PER_REV / 3;
     private static final int TICKS_240 = TICKS_120 * 2;
 
-    // Bottom color sensor
     public NormalizedColorSensor bottomColorSensor;
 
     // ---------- OUTTAKE SYSTEM ----------
     public DcMotorEx outtakeMotorLeft;
     public DcMotorEx outtakeMotorRight;
     private static final double TICKS_PER_REV_6000 = 28.0;
-    private static final double MAX_TICKS_PER_SEC_6000 = (TICKS_PER_REV_6000 * 6000) / 60.0; // ≈ 2800 t/s
+    private static final double MAX_TICKS_PER_SEC_6000 = (TICKS_PER_REV_6000 * 6000) / 60.0;
+
+    // ===== SHOOTER ADD =====
+    public Servo rackServo;
+    public static final double RACK_RETRACT = 0.0;
+    public static final double RACK_PUSH = 1.0;
 
     // ---------- TELEMETRY ----------
     private Telemetry telemetry;
@@ -44,6 +48,7 @@ public class Mechanisms {
         initIntake(hw);
         initOuttake(hw);
         initSorter(hw);
+        initRackServo(hw);   // ===== SHOOTER ADD =====
     }
 
     private void initIntake(HardwareMap hw) {
@@ -66,8 +71,10 @@ public class Mechanisms {
 
         outtakeMotorLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         outtakeMotorRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
         outtakeMotorLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         outtakeMotorRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
         outtakeMotorLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         outtakeMotorRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
@@ -80,6 +87,12 @@ public class Mechanisms {
         sortingMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         bottomColorSensor = hw.get(NormalizedColorSensor.class, "colorSensor");
+    }
+
+    // ===== SHOOTER ADD =====
+    private void initRackServo(HardwareMap hw) {
+        rackServo = hw.get(Servo.class, "rackServo");
+        rackServo.setPosition(RACK_RETRACT);
     }
 
     // ---------- INTAKE METHODS ----------
@@ -114,6 +127,26 @@ public class Mechanisms {
         telemetry.update();
     }
 
+    // ===== SHOOTER ADD =====
+    public void fireLauncher(double outtakeSpeed) {
+        // spin wheels
+        outtakeMotorLeft.setVelocity(outtakeSpeed * MAX_TICKS_PER_SEC_6000);
+        outtakeMotorRight.setVelocity(outtakeSpeed * MAX_TICKS_PER_SEC_6000);
+
+        // push ball
+        rackServo.setPosition(RACK_PUSH);
+    }
+
+    // ===== SHOOTER ADD =====
+    public void stopLauncher() {
+        // stop wheels
+        outtakeMotorLeft.setVelocity(0.0);
+        outtakeMotorRight.setVelocity(0.0);
+
+        // retract pusher
+        rackServo.setPosition(RACK_RETRACT);
+    }
+
     // ---------- SORTER METHODS ----------
     public void rotateCarousel(int steps, double power) {
         int targetTicks = 0;
@@ -128,7 +161,7 @@ public class Mechanisms {
         sortingMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         sortingMotor.setPower(power);
 
-        while (sortingMotor.isBusy()) { /* optional telemetry */ }
+        while (sortingMotor.isBusy()) {}
 
         sortingMotor.setPower(0);
         sortingMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -144,7 +177,6 @@ public class Mechanisms {
         if (!intakeOrder.isEmpty()) intakeOrder.remove(0);
     }
 
-    // ---------- COLOR SENSOR METHOD ----------
     public String getBottomBallColor() {
         NormalizedRGBA colors = bottomColorSensor.getNormalizedColors();
         float r = colors.red / colors.alpha;

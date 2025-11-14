@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.pedroPathing;
 
+import com.pedropathing.control.FilteredPIDFCoefficients;
+import com.pedropathing.control.PIDFCoefficients;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.follower.FollowerConstants;
 import com.pedropathing.ftc.FollowerBuilder;
@@ -16,7 +18,12 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
-    .mass(8.5);
+            .forwardZeroPowerAcceleration(88.98486366223112)
+            .lateralZeroPowerAcceleration(98.89905232208027)
+            .translationalPIDFCoefficients(new PIDFCoefficients(-0.013, 0, -0.02, -0.005))
+            .headingPIDFCoefficients(new PIDFCoefficients(0.6, 0, 0.01, 0.003))
+            .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.06, 0, 0.001, 0.025, 0.6))
+            .mass(14.1);
 
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(0.7)
@@ -27,20 +34,23 @@ public class Constants {
             .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD);
+            .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
+            .xVelocity(64.27935541)
+            .yVelocity(13.46680521494111);
+
 
     public static ThreeWheelIMUConstants localizerConstants = new ThreeWheelIMUConstants()
-            .forwardTicksToInches(.001989436789)
-            .strafeTicksToInches(.001989436789)
-            .turnTicksToInches(.001989436789)
+            .forwardTicksToInches(.004441972265)
+            .strafeTicksToInches(.004444560296)
+            .turnTicksToInches(.004437)
             .leftPodY(27/(2.54))
             .rightPodY(-27/2.54)
             .strafePodX(-8/2.54)
-            .leftEncoder_HardwareMapName("leftFront")
-            .rightEncoder_HardwareMapName("rightRear")
-            .strafeEncoder_HardwareMapName("rightFront")
+            .leftEncoder_HardwareMapName("rightFront")
+            .rightEncoder_HardwareMapName("leftFront")
+            .strafeEncoder_HardwareMapName("leftBack")
             .leftEncoderDirection(Encoder.FORWARD)
-            .rightEncoderDirection(Encoder.FORWARD)
+            .rightEncoderDirection(Encoder.REVERSE)
             .strafeEncoderDirection(Encoder.FORWARD)
             .IMU_HardwareMapName("imu")
             .IMU_Orientation(new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.RIGHT, RevHubOrientationOnRobot.UsbFacingDirection.UP));
@@ -50,7 +60,7 @@ public class Constants {
     //7 cm right deadwheel to center
 //7 cm left deadwheel to centert
 
-    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1, 1);
+    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 0.5, 0.8);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         return new FollowerBuilder(followerConstants, hardwareMap)

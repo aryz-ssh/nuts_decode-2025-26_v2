@@ -68,6 +68,8 @@ public class Mechanisms {
         outtakeMotorRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         outtakeMotorLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         outtakeMotorRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        outtakeMotorLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        outtakeMotorRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 
     private void initSorter(HardwareMap hw) {
@@ -77,7 +79,7 @@ public class Mechanisms {
         sortingMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         sortingMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        bottomColorSensor = hw.get(NormalizedColorSensor.class, "sensor_color_distance");
+        bottomColorSensor = hw.get(NormalizedColorSensor.class, "colorSensor");
     }
 
     // ---------- INTAKE METHODS ----------
@@ -96,9 +98,9 @@ public class Mechanisms {
     }
 
     // ---------- OUTTAKE METHODS ----------
-    public void engageOuttake(double power) {
-        outtakeMotorLeft.setVelocity(power * MAX_TICKS_PER_SEC_6000);
-        outtakeMotorRight.setVelocity(power * MAX_TICKS_PER_SEC_6000);
+    public void engageOuttake(double outtakeSpeed) {
+        outtakeMotorLeft.setVelocity(outtakeSpeed * MAX_TICKS_PER_SEC_6000);
+        outtakeMotorRight.setVelocity(outtakeSpeed * MAX_TICKS_PER_SEC_6000);
 
         telemetry.addData("Outtake Velocity", outtakeMotorLeft.getVelocity());
         telemetry.update();

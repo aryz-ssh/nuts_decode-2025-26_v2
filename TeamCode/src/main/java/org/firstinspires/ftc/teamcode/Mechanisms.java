@@ -35,9 +35,9 @@ public class Mechanisms {
     private static final double MAX_TICKS_PER_SEC_6000 = (TICKS_PER_REV_6000 * 6000) / 60.0;
 
     // ===== SHOOTER ADD =====
-    public Servo rackServo;
-    public static final double RACK_RETRACT = 0.0;
-    public static final double RACK_PUSH = 1.0;
+   // public Servo rackServo;
+   // public static final double RACK_RETRACT = 0.0;
+   // public static final double RACK_PUSH = 1.0;
 
     // ---------- TELEMETRY ----------
     private Telemetry telemetry;
@@ -48,7 +48,7 @@ public class Mechanisms {
         initIntake(hw);
         initOuttake(hw);
         initSorter(hw);
-        initRackServo(hw);   // ===== SHOOTER ADD =====
+      //  initRackServo(hw);   // ===== SHOOTER ADD =====
     }
 
     private void initIntake(HardwareMap hw) {
@@ -91,8 +91,8 @@ public class Mechanisms {
 
     // ===== SHOOTER ADD =====
     private void initRackServo(HardwareMap hw) {
-        rackServo = hw.get(Servo.class, "rackServo");
-        rackServo.setPosition(RACK_RETRACT);
+       // rackServo = hw.get(Servo.class, "rackServo");
+       // rackServo.setPosition(RACK_RETRACT);
     }
 
     // ---------- INTAKE METHODS ----------
@@ -134,7 +134,7 @@ public class Mechanisms {
         outtakeMotorRight.setVelocity(outtakeSpeed * MAX_TICKS_PER_SEC_6000);
 
         // push ball
-        rackServo.setPosition(RACK_PUSH);
+      //  rackServo.setPosition(RACK_PUSH);
     }
 
     // ===== SHOOTER ADD =====
@@ -144,7 +144,7 @@ public class Mechanisms {
         outtakeMotorRight.setVelocity(0.0);
 
         // retract pusher
-        rackServo.setPosition(RACK_RETRACT);
+      //  rackServo.setPosition(RACK_RETRACT);
     }
 
     // ---------- SORTER METHODS ----------

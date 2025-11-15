@@ -98,7 +98,7 @@ public class Mechanisms {
 
     private void initRackAndPinion(HardwareMap hw) {
         rackServo = hw.get(Servo.class, "rackServo");
-        rackServo.setDirection(Servo.Direction.FORWARD);
+        // rackServo.setDirection(Servo.Direction.FORWARD);
         rackServo.setPosition(RACK_RETRACTED_POS); // initial retracted
     }
 
@@ -139,6 +139,7 @@ public class Mechanisms {
     }
 
     public void disengageOuttake() {
+        retractRack();
         outtakeMotorLeft.setVelocity(0.0);
         outtakeMotorRight.setVelocity(0.0);
 
@@ -205,9 +206,11 @@ public class Mechanisms {
     // ---------- MANUAL OUTTAKE CONTROL ----------
     public void manualOuttake(boolean turnOn) {
         if (turnOn) {
+            pushBall();
             outtakeMotorLeft.setVelocity(manualOuttakeSpeed * MAX_TICKS_PER_SEC_6000);
             outtakeMotorRight.setVelocity(manualOuttakeSpeed * MAX_TICKS_PER_SEC_6000);
         } else {
+            retractRack();
             outtakeMotorLeft.setVelocity(0);
             outtakeMotorRight.setVelocity(0);
         }

@@ -43,7 +43,7 @@ public class Mechanisms {
     // ---------- RACK-AND-PINION ----------
     public Servo rackServo;
     private static final double RACK_RETRACTED_POS = 0.0;
-    private static final double RACK_PUSHED_POS = 1.0;
+    private static final double RACK_PUSHED_POS = 0.6;
 
     // ---------- INIT ----------
     public void initMechanisms(HardwareMap hw, Telemetry telemetry) {
@@ -173,9 +173,22 @@ public class Mechanisms {
         float r = colors.red / colors.alpha;
         float g = colors.green / colors.alpha;
         float b = colors.blue / colors.alpha;
+//  float normRed = colors.red / colors.alpha;
+//        float normGreen = colors.green / colors.alpha;
+//        float normBlue = colors.blue / colors.alpha;
+
+        // else if (normBlue > 0.1 && normBlue > normRed && normBlue > normGreen) {
+        //            telemetry.addData("Color detected", "PURPLE");
+        //            return DetectedColor.PURPLE;
+
+        //normRed ≈ 0.15 – 0.30
+        //
+        //normGreen ≈ 0.05 – 0.15
+        //
+        //normBlue ≈ 0.25 – 0.45
 
         if (g > 0.05 && g > r && g > b) return "green";
-        if (b > 0.1 && b > r && b > g) return "purple";
+        if (r > 0.15 && g > 0.05 && b > 0.25) return "purple";
         return "unknown";
     }
 

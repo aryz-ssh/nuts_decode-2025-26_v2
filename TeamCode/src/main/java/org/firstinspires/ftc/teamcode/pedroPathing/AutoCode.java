@@ -270,7 +270,7 @@ public class AutoCode extends LinearOpMode {
         while (!intakeOrder.isEmpty()) {
 
             // Remove top ball using Mechanisms
-            mechanisms.removeTopBall(0.5);
+
 
             // Start outtake
             mechanisms.engageOuttake(1.0);

@@ -4,13 +4,10 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
-import com.qualcomm.robotcore.hardware.NormalizedRGBA;
+
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-
-import java.util.ArrayList;
 
 public class Mechanisms {
 
@@ -23,10 +20,12 @@ public class Mechanisms {
 
     // ---------- SORTER SYSTEM ----------
     public DcMotor sortingMotor;
-    private static final int TICKS_PER_REV = 384;   // 435 RPM motor
-    private static final int TICKS_120 = TICKS_PER_REV / 3;
 
-    public NormalizedColorSensor bottomColorSensor;
+
+    // Using your old constant for ticks/rev — adjust if you know the exact motor
+    private static final int TICKS_PER_REV = 384;   // e.g., 435 RPM motor
+    // You can calculate ticks per degree:
+    private static final double TICKS_PER_DEGREE = ((double) TICKS_PER_REV) / 360.0;
 
     // ---------- OUTTAKE SYSTEM ----------
     public DcMotorEx outtakeMotorLeft;
@@ -43,7 +42,7 @@ public class Mechanisms {
     // ---------- RACK-AND-PINION ----------
     public Servo rackServo;
     private static final double RACK_RETRACTED_POS = 0.0;
-    private static final double RACK_PUSHED_POS = 0.6;
+    private static final double RACK_PUSHED_POS = 0.7;
 
     // ---------- INIT ----------
     public void initMechanisms(HardwareMap hw, Telemetry telemetry) {
@@ -93,13 +92,12 @@ public class Mechanisms {
         sortingMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         sortingMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        bottomColorSensor = hw.get(NormalizedColorSensor.class, "colorSensor");
+
     }
 
     private void initRackAndPinion(HardwareMap hw) {
         rackServo = hw.get(Servo.class, "rackServo");
-        // rackServo.setDirection(Servo.Direction.FORWARD);
-        rackServo.setPosition(RACK_RETRACTED_POS); // initial retracted
+        rackServo.setPosition(RACK_RETRACTED_POS);
     }
 
     // ---------- INTAKE ----------
@@ -158,61 +156,90 @@ public class Mechanisms {
         outtakeMotorRight.setVelocity(0);
     }
 
-    // ---------- SORTER ----------
-    public void rotateCarouselStep(double power) {
-        String bottomColor = getBottomBallColor();
-        if (!bottomColor.equals("unknown")) {
-            int newTarget = sortingMotor.getCurrentPosition() + TICKS_120;
-            sortingMotor.setTargetPosition(newTarget);
-            sortingMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            sortingMotor.setPower(power);
+    // ---------- SORTER (CAROUSEL) ----------
+
+    /**
+     * Rotate the carousel by a specified number of degrees (using encoders).
+     * @param degrees how many degrees to rotate (e.g. 120)
+     * @param power how fast to spin (0 to 1)
+     */
+    public void rotateCarouselDegrees(int degrees, double power) {
+        if (sortingMotor == null) return;
+
+        // Calculate how many encoder ticks corresponds to the desired degrees
+        int targetTicks = sortingMotor.getCurrentPosition()
+                + (int) Math.round(degrees * TICKS_PER_DEGREE);
+
+        sortingMotor.setTargetPosition(targetTicks);
+        sortingMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        sortingMotor.setPower(power);
+    }
+
+    /**
+     * Call this periodically (each loop) in TeleOp to stop the carousel after reaching the target.
+     */
+    public void updateCarousel() {
+        if (sortingMotor.getMode() == DcMotor.RunMode.RUN_TO_POSITION) {
+            if (!sortingMotor.isBusy()) {
+                // We've reached (or nearly reached) the target
+                sortingMotor.setPower(0);
+                sortingMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            }
         }
     }
 
-    public String getBottomBallColor() {
-        NormalizedRGBA colors = bottomColorSensor.getNormalizedColors();
-        float r = colors.red / colors.alpha;
-        float g = colors.green / colors.alpha;
-        float b = colors.blue / colors.alpha;
-//  float normRed = colors.red / colors.alpha;
-//        float normGreen = colors.green / colors.alpha;
-//        float normBlue = colors.blue / colors.alpha;
+    // ---------- COLOR DETECTION (optional telemetry) ----------
+//    public String getBottomBallColor() {
+//        NormalizedRGBA colors = bottomColorSensor.getNormalizedColors();
+//        float r = colors.red / colors.alpha;
+//        float g = colors.green / colors.alpha;
+//        float b = colors.blue / colors.alpha;
+//
+//        // Example simple logic: more blue than red or green = purple
+//        // More green = green = "green"
+//        if (g > r && g > b) {
+//            return "green";
+//        }
+//        if (b > r && b > g) {
+//            return "purple";
+//        }
+//        return "unknown";
+//    }
 
-        // else if (normBlue > 0.1 && normBlue > normRed && normBlue > normGreen) {
-        //            telemetry.addData("Color detected", "PURPLE");
-        //            return DetectedColor.PURPLE;
+    // Old step method, but you can keep if you want:
+    public void rotateCarouselStep(double power) {
+        // 1. Degrees to rotate
+        int degreesToRotate = 120;
 
-        //normRed ≈ 0.15 – 0.30
-        //
-        //normGreen ≈ 0.05 – 0.15
-        //
-        //normBlue ≈ 0.25 – 0.45
+        // 2. Motor encoder ticks per revolution
+        // Adjust this value to match your motor specs!
+        int ticksPerRevolution = 537;  // NeveRest 20 example
 
-        if (g > 0.05 && g > r && g > b) return "green";
-        if (r > 0.15 && g > 0.05 && b > 0.25) return "purple";
-        return "unknown";
-    }
+        // 3. Calculate target ticks
+        int ticksToMove = (int)(degreesToRotate / 360.0 * ticksPerRevolution);
 
-    public void removeTopBall(double power) {
-        int newTarget = sortingMotor.getCurrentPosition() + TICKS_120; // one step
-        sortingMotor.setTargetPosition(newTarget);
+        // 4. Set target position relative to current position
+        int target = sortingMotor.getCurrentPosition() + ticksToMove;
+
+        // 5. Set motor to run to position
+        sortingMotor.setTargetPosition(target);
         sortingMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        sortingMotor.setPower(power);
 
-        telemetry.addData("Removing Top Ball", "Target Position: " + newTarget);
-        telemetry.update();
+        // 6. Set power
+        sortingMotor.setPower(power);
     }
+
 
     // ---------- MANUAL OUTTAKE CONTROL ----------
     public void manualOuttake(boolean turnOn) {
         if (turnOn) {
             pushBall();
-            outtakeMotorLeft.setVelocity(manualOuttakeSpeed * MAX_TICKS_PER_SEC_6000);
-            outtakeMotorRight.setVelocity(manualOuttakeSpeed * MAX_TICKS_PER_SEC_6000);
+            outtakeMotorLeft.setPower(manualOuttakeSpeed);
+            outtakeMotorRight.setPower(manualOuttakeSpeed);
         } else {
             retractRack();
-            outtakeMotorLeft.setVelocity(0);
-            outtakeMotorRight.setVelocity(0);
+            outtakeMotorLeft.setPower(0);
+            outtakeMotorRight.setPower(0);
         }
     }
 

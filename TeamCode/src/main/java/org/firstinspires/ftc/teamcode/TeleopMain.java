@@ -23,21 +23,25 @@ public class TeleopMain extends LinearOpMode {
     private boolean lastLeftBumper = false;
 
     // ---------- Shooter Speed ----------
-    private double shooterSpeed = 0.6; // toggle speed
-    private boolean lastRB = false;    // debounce
+    private double shooterSpeed = 0.6;
+    private boolean lastRB = false;
+
+    // ---------- SORTER DEBOUNCE ----------
+    private boolean sorterTriggerPressed = false;
+
+    // ---------- Drive Ramping ----------
+    private double lastFL = 0, lastFR = 0, lastBL = 0, lastBR = 0;
+    private static final double RAMP_RATE = 0.15;  // 0–1 change per loop
 
     @Override
     public void runOpMode() throws InterruptedException {
 
-        // Initialize mechanisms
         mechanisms = new Mechanisms();
         mechanisms.initMechanisms(hardwareMap, telemetry);
 
-        // Initialize drivetrain
         drivetrain = new TeleopDrivetrain(this);
         drivetrain.initDriveTrain(hardwareMap);
 
-        // Initialize intakeOrder (example)
         intakeOrder.add("red");
         intakeOrder.add("blue");
         intakeOrder.add("green");
@@ -50,11 +54,11 @@ public class TeleopMain extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            // ================================================================
-            //                       GAMEPAD 1: DRIVE ONLY
-            // ================================================================
+            // =============================================================
+            //                     GAMEPAD 1 — FAST DRIVE
+            // =============================================================
             double y  = applyDeadband(gamepad1.left_stick_y);
-            double x  = -applyDeadband(gamepad1.left_stick_x) * 1.1;
+            double x  = -applyDeadband(gamepad1.left_stick_x);
             double rx = -applyDeadband(gamepad1.right_stick_x);
 
             double fl = y + x + rx;
@@ -62,20 +66,49 @@ public class TeleopMain extends LinearOpMode {
             double bl = y - x + rx;
             double br = y + x - rx;
 
+            // normalize only if needed
             double max = Math.max(1.0, Math.max(Math.abs(fl),
                     Math.max(Math.abs(fr), Math.max(Math.abs(bl), Math.abs(br)))));
-
             fl /= max; fr /= max; bl /= max; br /= max;
 
-            drivetrain.updateDrive(fl * 0.8, fr * 0.8, bl * 0.8, br * 0.8);
+            // =============================================================
+            //                  TURBO / SLOW MODE BOOSTS
+            // =============================================================
 
-            // ================================================================
-            //                       GAMEPAD 2: MECHANISMS
-            // ================================================================
+            double speedMultiplier = 1.0;
+
+            // Right Trigger → Turbo
+            if (gamepad1.right_trigger > 0.3) {
+                speedMultiplier = 1.35;   // you can increase this to 1.5 safely
+            }
+
+            // Left Trigger → Precision Slow Mode
+            else if (gamepad1.left_trigger > 0.3) {
+                speedMultiplier = 0.40;
+            }
+
+            fl *= speedMultiplier;
+            fr *= speedMultiplier;
+            bl *= speedMultiplier;
+            br *= speedMultiplier;
+
+            // =============================================================
+            //                    SMOOTH ACCELERATION (RAMP)
+            // =============================================================
+            fl = ramp(fl, lastFL); lastFL = fl;
+            fr = ramp(fr, lastFR); lastFR = fr;
+            bl = ramp(bl, lastBL); lastBL = bl;
+            br = ramp(br, lastBR); lastBR = br;
+
+            drivetrain.updateDrive(fl, fr, bl, br);
+
+            // =============================================================
+            //                       GAMEPAD 2 — MECHANISMS
+            // =============================================================
 
             // ---------- INTAKE ----------
             if (gamepad2.left_bumper && !lastLeftBumper) {
-                intakeDirectionFlip = !intakeDirectionFlip; // toggle on press
+                intakeDirectionFlip = !intakeDirectionFlip;
             }
             lastLeftBumper = gamepad2.left_bumper;
 
@@ -85,50 +118,38 @@ public class TeleopMain extends LinearOpMode {
                 mechanisms.disengageIntake();
             }
 
-            // ---------- SORTER (carousel) ----------
-            if (gamepad2.right_trigger > 0.1) {
-                mechanisms.rotateCarouselStep(0.5); // continuous while holding
-            } else if (mechanisms.sortingMotor.getMode() == DcMotor.RunMode.RUN_TO_POSITION) {
+            // ---------- SORTER — single press rotates 120° with X button ----------
+            if (gamepad2.x && !sorterTriggerPressed) {
+                mechanisms.rotateCarouselStep(0.5);  // rotate 120°
+                sorterTriggerPressed = true;
+            }
+
+            if (!gamepad2.x) {
+                sorterTriggerPressed = false;
+            }
+
+            // Stop motor automatically once it reaches target
+            if (mechanisms.sortingMotor.getMode() == DcMotor.RunMode.RUN_TO_POSITION &&
+                    !mechanisms.sortingMotor.isBusy()) {
                 mechanisms.sortingMotor.setPower(0);
                 mechanisms.sortingMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
             }
 
-
-            // ---------- SHOOTER SPEED TOGGLE ---------
-
-            // ---------- MANUAL OUTTAKE CONTROL ----------
+            // ---------- MANUAL OUTTAKE ----------
             if (gamepad2.y) {
                 mechanisms.manualOuttake(true);
             } else {
                 mechanisms.manualOuttake(false);
             }
 
-            if (gamepad2.b) {
-                mechanisms.manualOuttake(true);
-            } else {
-                mechanisms.manualOuttake(false);
-            }
+            if (gamepad2.dpad_right) mechanisms.increaseOuttakeSpeed(0.1);
+            if (gamepad2.dpad_left) mechanisms.decreaseOuttakeSpeed(0.1);
 
-            // Increase speed with D-pad right
-            if (gamepad2.dpad_right) {
-                mechanisms.increaseOuttakeSpeed(0.1);
-            }
-            // Decrease speed with D-pad left
-            if (gamepad2.dpad_left) {
-                mechanisms.decreaseOuttakeSpeed(0.1);
-            }
-
-            // ================================================================
-            //                       TELEMETRY
-            // ================================================================
+            // ---------- TELEMETRY ----------
             telemetry.addData("Runtime", runtime.seconds());
-            telemetry.addData("Intake Order", intakeOrder.toString());
-            telemetry.addData("Bottom Ball Color", mechanisms.getBottomBallColor());
-            telemetry.addData("Intake Motor Velocity", mechanisms.intakeMotor.getVelocity());
+            telemetry.addData("Drive Multiplier", speedMultiplier);
             telemetry.addData("Sorting Motor Position", mechanisms.sortingMotor.getCurrentPosition());
-            telemetry.addData("Outtake Velocity", mechanisms.outtakeMotorLeft.getVelocity());
-            telemetry.addData("Manual Outtake Speed", mechanisms.getManualOuttakeSpeed());
-            telemetry.addData("Shooter Speed", shooterSpeed);
+            telemetry.addData("Outtake Speed", mechanisms.getManualOuttakeSpeed());
             telemetry.update();
         }
     }
@@ -137,4 +158,14 @@ public class TeleopMain extends LinearOpMode {
     private double applyDeadband(double value) {
         return (Math.abs(value) > 0.05) ? value : 0;
     }
+
+    private double ramp(double target, double current) {
+        double delta = target - current;
+        if (Math.abs(delta) > RAMP_RATE) {
+            return current + Math.signum(delta) * RAMP_RATE;
+        }
+        return target;
+    }
 }
+
+//shlokk

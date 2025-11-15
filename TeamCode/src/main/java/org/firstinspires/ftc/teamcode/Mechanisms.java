@@ -233,13 +233,20 @@ public class Mechanisms {
     // ---------- MANUAL OUTTAKE CONTROL ----------
     public void manualOuttake(boolean turnOn) {
         if (turnOn) {
-            pushBall();
             outtakeMotorLeft.setPower(manualOuttakeSpeed);
             outtakeMotorRight.setPower(manualOuttakeSpeed);
         } else {
-            retractRack();
             outtakeMotorLeft.setPower(0);
             outtakeMotorRight.setPower(0);
+        }
+    }
+
+    public void rackMove(boolean turnOn){
+        if(turnOn) {
+            pushBall();
+        }
+        else {
+            retractRack();
         }
     }
 

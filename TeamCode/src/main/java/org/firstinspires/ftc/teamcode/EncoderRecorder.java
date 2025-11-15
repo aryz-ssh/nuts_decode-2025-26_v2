@@ -20,7 +20,7 @@ public class EncoderRecorder extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
 
-        motor = hardwareMap.get(DcMotorEx.class, "testMotor");
+        motor = hardwareMap.get(DcMotorEx.class, "sortingMotor");
 
         motor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         motor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);

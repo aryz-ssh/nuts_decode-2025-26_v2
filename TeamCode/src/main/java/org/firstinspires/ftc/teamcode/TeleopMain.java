@@ -58,7 +58,7 @@ public class TeleopMain extends LinearOpMode {
             //                     GAMEPAD 1 — FAST DRIVE
             // =============================================================
             double y  = applyDeadband(gamepad1.left_stick_y);
-            double x  = -applyDeadband(gamepad1.left_stick_x);
+            double x  = applyDeadband(gamepad1.left_stick_x);
             double rx = -applyDeadband(gamepad1.right_stick_x);
 
             double fl = y + x + rx;
@@ -73,19 +73,9 @@ public class TeleopMain extends LinearOpMode {
 
             // =============================================================
             //                  TURBO / SLOW MODE BOOSTS
-            // =============================================================
+            // ======.........................................................................................................................................................................................................=======================================================
 
-            double speedMultiplier = 1.0;
-
-            // Right Trigger → Turbo
-            if (gamepad1.right_trigger > 0.3) {
-                speedMultiplier = 1.35;   // you can increase this to 1.5 safely
-            }
-
-            // Left Trigger → Precision Slow Mode
-            else if (gamepad1.left_trigger > 0.3) {
-                speedMultiplier = 0.40;
-            }
+            double speedMultiplier = 1.0 ;
 
             fl *= speedMultiplier;
             fr *= speedMultiplier;
@@ -135,11 +125,18 @@ public class TeleopMain extends LinearOpMode {
                 mechanisms.sortingMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
             }
 
-            // ---------- MANUAL OUTTAKE ----------
-            if (gamepad2.y) {
+         //------- MANUAL OUTTAKE ----------
+            if (gamepad2.b) {
                 mechanisms.manualOuttake(true);
             } else {
                 mechanisms.manualOuttake(false);
+            }
+
+            if (gamepad2.y) {
+                mechanisms.rackMove(true);
+            }
+            else {
+                mechanisms.rackMove(false);
             }
 
             if (gamepad2.dpad_right) mechanisms.increaseOuttakeSpeed(0.1);

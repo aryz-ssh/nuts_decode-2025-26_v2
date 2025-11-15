@@ -130,6 +130,7 @@ public class Mechanisms {
 
     // ---------- OUTTAKE ----------
     public void engageOuttake(double speed) {
+        pushBall();
         outtakeMotorLeft.setVelocity(speed * MAX_TICKS_PER_SEC_6000);
         outtakeMotorRight.setVelocity(speed * MAX_TICKS_PER_SEC_6000);
 

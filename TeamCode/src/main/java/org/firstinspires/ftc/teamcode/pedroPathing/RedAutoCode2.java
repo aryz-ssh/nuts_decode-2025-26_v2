@@ -1,36 +1,5 @@
 package org.firstinspires.ftc.teamcode.pedroPathing;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
@@ -115,7 +84,7 @@ public class RedAutoCode2 extends LinearOpMode {
             P1 = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(84.399, 8.918), new Pose(84.834, 33.063))
+                            new BezierLine(new Pose(84.4, 8.918), new Pose(84.834, 33.063))
                     )
                     .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(180))
                     .build();
@@ -126,6 +95,7 @@ public class RedAutoCode2 extends LinearOpMode {
                             new BezierLine(new Pose(84.834, 33.063), new Pose(84.181, 8.701))
                     )
                     .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(90))
+                    .setReversed()
                     .build();
         }
     }

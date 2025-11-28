@@ -19,17 +19,12 @@ public class Mechanisms {
     private static final double MAX_TICKS_PER_SEC_1150 = (TICKS_PER_REV_1150 * 1150) / 60.0;
 
     // ---------- SORTER SYSTEM ----------
-    public DcMotor sortingMotor;
-
-
-    // Using your old constant for ticks/rev — adjust if you know the exact motor
-    private static final int TICKS_PER_REV = 384;   // e.g., 435 RPM motor
-    // You can calculate ticks per degree:
+    public Servo sortingMotor;
+    private static final int TICKS_PER_REV = 384;   // 435 RPM motor
     private static final double TICKS_PER_DEGREE = ((double) TICKS_PER_REV) / 360.0;
 
     // ---------- OUTTAKE SYSTEM ----------
-    public DcMotorEx outtakeMotorLeft;
-    public DcMotorEx outtakeMotorRight;
+    public DcMotorEx outtakeMotor;
     private static final double TICKS_PER_REV_6000 = 28.0;
     private static final double MAX_TICKS_PER_SEC_6000 = (TICKS_PER_REV_6000 * 6000) / 60.0;
 
@@ -39,8 +34,8 @@ public class Mechanisms {
     // ---------- MANUAL OUTTAKE ----------
     private double manualOuttakeSpeed = 0.7; // default speed
 
-    // ---------- RACK-AND-PINION ----------
-    public Servo rackServo;
+    // ---------- KICKER ----------
+    public Servo kickerServo;
     private static final double RACK_RETRACTED_POS = 0.0;
     private static final double RACK_PUSHED_POS = 0.7;
 
@@ -50,7 +45,7 @@ public class Mechanisms {
         initIntake(hw);
         initOuttake(hw);
         initSorter(hw);
-        initRackAndPinion(hw);
+        initKicker(hw);
     }
 
     private void initIntake(HardwareMap hw) {
@@ -69,35 +64,22 @@ public class Mechanisms {
     }
 
     private void initOuttake(HardwareMap hw) {
-        outtakeMotorLeft = hw.get(DcMotorEx.class, "outtakeMotorLeft");
-        outtakeMotorRight = hw.get(DcMotorEx.class, "outtakeMotorRight");
-
-        outtakeMotorLeft.setDirection(DcMotorSimple.Direction.FORWARD);
-        outtakeMotorRight.setDirection(DcMotorSimple.Direction.REVERSE);
-
-        outtakeMotorLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        outtakeMotorRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
-        outtakeMotorLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        outtakeMotorRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        outtakeMotorLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        outtakeMotorRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        outtakeMotor = hw.get(DcMotorEx.class, "outtakeMotor");
+        outtakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        outtakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        outtakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        outtakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
     }
 
     private void initSorter(HardwareMap hw) {
-        sortingMotor = hw.get(DcMotor.class, "sortingMotor");
-        sortingMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        sortingMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        sortingMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        sortingMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-
+        sortingMotor = hw.get(Servo.class, "intakeServoSecond");
+        sortingMotor.setDirection(Servo.Direction.FORWARD);
+        sortingMotor.setPosition(0.5);
     }
 
-    private void initRackAndPinion(HardwareMap hw) {
-        rackServo = hw.get(Servo.class, "rackServo");
-        rackServo.setPosition(RACK_RETRACTED_POS);
+    private void initKicker(HardwareMap hw) {
+        kickerServo = hw.get(Servo.class, "rackServo");
+        kickerServo.setPosition(RACK_RETRACTED_POS);
     }
 
     // ---------- INTAKE ----------
@@ -129,116 +111,32 @@ public class Mechanisms {
     // ---------- OUTTAKE ----------
     public void engageOuttake(double speed) {
         pushBall();
-        outtakeMotorLeft.setVelocity(speed * MAX_TICKS_PER_SEC_6000);
-        outtakeMotorRight.setVelocity(speed * MAX_TICKS_PER_SEC_6000);
+        outtakeMotor.setVelocity(speed * MAX_TICKS_PER_SEC_6000);
 
-        telemetry.addData("Outtake Velocity", outtakeMotorLeft.getVelocity());
+        telemetry.addData("Outtake Velocity", outtakeMotor.getVelocity());
         telemetry.update();
     }
 
     public void disengageOuttake() {
         retractRack();
-        outtakeMotorLeft.setVelocity(0.0);
-        outtakeMotorRight.setVelocity(0.0);
+        outtakeMotor.setVelocity(0.0);
 
-        telemetry.addData("Outtake Velocity", outtakeMotorLeft.getVelocity());
+        telemetry.addData("Outtake Velocity", outtakeMotor.getVelocity());
         telemetry.update();
     }
 
     // ---------- SHOOTER ----------
     public void fireLauncher(double speed) {
-        outtakeMotorLeft.setVelocity(speed * MAX_TICKS_PER_SEC_6000);
-        outtakeMotorRight.setVelocity(speed * MAX_TICKS_PER_SEC_6000);
+        outtakeMotor.setVelocity(speed * MAX_TICKS_PER_SEC_6000);
     }
 
     public void stopLauncher() {
-        outtakeMotorLeft.setVelocity(0);
-        outtakeMotorRight.setVelocity(0);
+        outtakeMotor.setVelocity(0);
     }
-
-    // ---------- SORTER (CAROUSEL) ----------
-
-    /**
-     * Rotate the carousel by a specified number of degrees (using encoders).
-     * @param degrees how many degrees to rotate (e.g. 120)
-     * @param power how fast to spin (0 to 1)
-     */
-    public void rotateCarouselDegrees(int degrees, double power) {
-        if (sortingMotor == null) return;
-
-        // Calculate how many encoder ticks corresponds to the desired degrees
-        int targetTicks = sortingMotor.getCurrentPosition()
-                + (int) Math.round(degrees * TICKS_PER_DEGREE);
-
-        sortingMotor.setTargetPosition(targetTicks);
-        sortingMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        sortingMotor.setPower(power);
-    }
-
-    /**
-     * Call this periodically (each loop) in TeleOp to stop the carousel after reaching the target.
-     */
-    public void updateCarousel() {
-        if (sortingMotor.getMode() == DcMotor.RunMode.RUN_TO_POSITION) {
-            if (!sortingMotor.isBusy()) {
-                // We've reached (or nearly reached) the target
-                sortingMotor.setPower(0);
-                sortingMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-            }
-        }
-    }
-
-    // ---------- COLOR DETECTION (optional telemetry) ----------
-//    public String getBottomBallColor() {
-//        NormalizedRGBA colors = bottomColorSensor.getNormalizedColors();
-//        float r = colors.red / colors.alpha;
-//        float g = colors.green / colors.alpha;
-//        float b = colors.blue / colors.alpha;
-//
-//        // Example simple logic: more blue than red or green = purple
-//        // More green = green = "green"
-//        if (g > r && g > b) {
-//            return "green";
-//        }
-//        if (b > r && b > g) {
-//            return "purple";
-//        }
-//        return "unknown";
-//    }
-
-    // Old step method, but you can keep if you want:
-    public void rotateCarouselStep(double power) {
-        // 1. Degrees to rotate
-        int degreesToRotate = 120;
-
-        // 2. Motor encoder ticks per revolution
-        // Adjust this value to match your motor specs!
-        int ticksPerRevolution = 537;  // NeveRest 20 example
-
-        // 3. Calculate target ticks
-        int ticksToMove = (int)(degreesToRotate / 360.0 * ticksPerRevolution);
-
-        // 4. Set target position relative to current position
-        int target = sortingMotor.getCurrentPosition() + ticksToMove;
-
-        // 5. Set motor to run to position
-        sortingMotor.setTargetPosition(target);
-        sortingMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
-        // 6. Set power
-        sortingMotor.setPower(power);
-    }
-
 
     // ---------- MANUAL OUTTAKE CONTROL ----------
-    public void manualOuttake(boolean turnOn) {
-        if (turnOn) {
-            outtakeMotorLeft.setPower(manualOuttakeSpeed);
-            outtakeMotorRight.setPower(manualOuttakeSpeed);
-        } else {
-            outtakeMotorLeft.setPower(0);
-            outtakeMotorRight.setPower(0);
-        }
+    public void manualOuttake(float power) {
+            outtakeMotor.setPower(power);
     }
 
     public void rackMove(boolean turnOn){
@@ -264,10 +162,10 @@ public class Mechanisms {
 
     // ---------- RACK-AND-PINION ----------
     public void pushBall() {
-        rackServo.setPosition(RACK_PUSHED_POS);
+        kickerServo.setPosition(RACK_PUSHED_POS);
     }
 
     public void retractRack() {
-        rackServo.setPosition(RACK_RETRACTED_POS);
+        kickerServo.setPosition(RACK_RETRACTED_POS);
     }
 }

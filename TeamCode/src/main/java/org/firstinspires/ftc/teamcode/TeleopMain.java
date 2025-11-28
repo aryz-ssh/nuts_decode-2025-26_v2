@@ -15,7 +15,6 @@ public class TeleopMain extends LinearOpMode {
     // ---------- Mechanisms ----------
     private Mechanisms mechanisms;
     private TeleopDrivetrain drivetrain;
-
     private ArrayList<String> intakeOrder = new ArrayList<>();
 
     // ---------- Intake Direction ----------
@@ -55,7 +54,7 @@ public class TeleopMain extends LinearOpMode {
         while (opModeIsActive()) {
 
             // =============================================================
-            //                     GAMEPAD 1 — FAST DRIVE
+            //                     GAMEPAD 1 — DRIVE
             // =============================================================
             double y  = applyDeadband(gamepad1.left_stick_y);
             double x  = applyDeadband(gamepad1.left_stick_x);
@@ -70,10 +69,6 @@ public class TeleopMain extends LinearOpMode {
             double max = Math.max(1.0, Math.max(Math.abs(fl),
                     Math.max(Math.abs(fr), Math.max(Math.abs(bl), Math.abs(br)))));
             fl /= max; fr /= max; bl /= max; br /= max;
-
-            // =============================================================
-            //                  TURBO / SLOW MODE BOOSTS
-            // ======.........................................................................................................................................................................................................=======================================================
 
             double speedMultiplier = 1.0 ;
 
@@ -109,7 +104,7 @@ public class TeleopMain extends LinearOpMode {
             }
 
             // ---------- SORTER — single press rotates 120° with X button ----------
-            if (gamepad2.x && !sorterTriggerPressed) {
+/*            if (gamepad2.x && !sorterTriggerPressed) {
                 mechanisms.rotateCarouselStep(0.5);  // rotate 120°
                 sorterTriggerPressed = true;
             }
@@ -123,13 +118,13 @@ public class TeleopMain extends LinearOpMode {
                     !mechanisms.sortingMotor.isBusy()) {
                 mechanisms.sortingMotor.setPower(0);
                 mechanisms.sortingMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-            }
+            }*/
 
          //------- MANUAL OUTTAKE ----------
-            if (gamepad2.b) {
-                mechanisms.manualOuttake(true);
+            if (gamepad2.right_trigger > 0.1) {
+                mechanisms.manualOuttake(gamepad2.right_trigger);
             } else {
-                mechanisms.manualOuttake(false);
+                mechanisms.manualOuttake(0);
             }
 
             if (gamepad2.y) {
@@ -145,7 +140,7 @@ public class TeleopMain extends LinearOpMode {
             // ---------- TELEMETRY ----------
             telemetry.addData("Runtime", runtime.seconds());
             telemetry.addData("Drive Multiplier", speedMultiplier);
-            telemetry.addData("Sorting Motor Position", mechanisms.sortingMotor.getCurrentPosition());
+            // telemetry.addData("Sorting Motor Position", mechanisms.sortingMotor.getCurrentPosition());
             telemetry.addData("Outtake Speed", mechanisms.getManualOuttakeSpeed());
             telemetry.update();
         }

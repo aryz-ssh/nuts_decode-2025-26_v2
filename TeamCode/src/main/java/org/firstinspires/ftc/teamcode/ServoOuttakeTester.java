@@ -4,8 +4,8 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.Servo;
 
-@TeleOp(name = "Servo Universal Tester", group = "Utility")
-public class ServoTester extends LinearOpMode {
+@TeleOp(name = "Servo Outtake Tester", group = "Utility")
+public class ServoOuttakeTester extends LinearOpMode {
 
     @Override
     public void runOpMode() throws InterruptedException {

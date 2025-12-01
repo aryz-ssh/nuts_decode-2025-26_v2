@@ -16,7 +16,7 @@ public class KickerTest extends LinearOpMode {
     @Override
     public void runOpMode() {
 
-        kicker = hardwareMap.get(Servo.class, "testServo");
+        kicker = hardwareMap.get(Servo.class, "kickerServo");
 
         // Always start in the safe position
         kicker.setPosition(REST_POS);

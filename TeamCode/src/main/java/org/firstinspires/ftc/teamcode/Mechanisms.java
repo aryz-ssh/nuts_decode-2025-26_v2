@@ -267,4 +267,8 @@ public class Mechanisms {
             }
         }
     }
+    // ---------- NEW SORTER CODE ----------
+    //First, we need to initialize the servo
+    //Create a colorsensor object
+    //After that
 }

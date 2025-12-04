@@ -9,7 +9,7 @@ import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
-
+@TeleOp (name = "Limelight3aAprilTag")
 public class AprilTagLimelightTest extends OpMode{
 
     private Limelight3A limelight;
@@ -22,11 +22,6 @@ public class AprilTagLimelightTest extends OpMode{
         RevHubOrientationOnRobot revHubOrientationOnRobot = new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.UP,
                 RevHubOrientationOnRobot.UsbFacingDirection.FORWARD);
         imu.initialize(new IMU.Parameters(revHubOrientationOnRobot));
-
-    }
-
-    @Override
-    public void start() {
         limelight.start();
     }
 
@@ -42,6 +37,7 @@ public class AprilTagLimelightTest extends OpMode{
             telemetry.addData( "Ta", llResult.getTa());
 
         }
+        telemetry.update();
     }
 
 }

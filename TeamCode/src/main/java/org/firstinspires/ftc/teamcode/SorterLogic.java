@@ -1,12 +1,17 @@
+/*
 package org.firstinspires.ftc.teamcode;
+
 
 import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
+import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.testers.ColorSensorTester;
 
 @Config
 public class SorterLogic {
@@ -14,7 +19,10 @@ public class SorterLogic {
     Telemetry telemetry;
     DcMotorEx sorterMotor;
     ColorSensor opticalSorterHoming;
-    ColorSensor sorterColorSensor;
+    NormalizedColorSensor sorterColorSensor;
+    public enum DetectedColor {
+        PURPLE, GREEN, UNKNOWN
+    }
 
     // ---------- DASHBOARD-TUNABLE CONSTANTS ----------
 
@@ -131,7 +139,7 @@ public class SorterLogic {
 
         sorterMotor = hwMap.get(DcMotorEx.class, "sorterMotor");
         opticalSorterHoming = hwMap.get(ColorSensor.class, "opticalSorterHoming");
-        sorterColorSensor = hwMap.get(ColorSensor.class, "sorterColorSensor");
+        sorterColorSensor = hwMap.get(NormalizedColorSensor.class, "sorterColorSensor");
 
         sorterMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
 
@@ -144,11 +152,11 @@ public class SorterLogic {
     // ================= SENSOR CACHE =================
     public void updateSensors() {
         if (System.currentTimeMillis() - lastSensorRead > 20) {
-            cachedAlpha = sorterColorSensor.alpha();
-            cachedR = sorterColorSensor.red();
-            cachedG = sorterColorSensor.green();
-            cachedB = sorterColorSensor.blue();
-            lastSensorRead = System.currentTimeMillis();
+            // cachedAlpha = sorterColorSensor.alpha();
+            //cachedR = sorterColorSensor.red();
+            //cachedG = sorterColorSensor.green();
+            //cachedB = sorterColorSensor.blue();
+            //lastSensorRead = System.currentTimeMillis();
         }
     }
 
@@ -287,7 +295,7 @@ public class SorterLogic {
     }
 
     // ================= BALL PRESENCE / COLOR =================
-    public boolean isBallPresent() {
+   /* public boolean isBallPresent() {
         int a = cachedAlpha;
 
         if (a > BALL_PRESENT_THRESHOLD) {
@@ -326,8 +334,10 @@ public class SorterLogic {
 
         return BallColor.UNKNOWN;
     }
-
+*/
+    /*
     public BallColor detectBallColor() {
+
         BallColor raw = detectBallColorRaw();
 
         if (raw != BallColor.UNKNOWN && raw == lastRawColor) {
@@ -345,11 +355,24 @@ public class SorterLogic {
         return stableColor;
     }
 
+
+
+    public ColorSensorTester.DetectedColor getDetectedColor() {
+        NormalizedRGBA colors = sorterColorSensor.getNormalizedColors();
+
+        float normRed = colors.red / colors.alpha;
+        float normGreen = colors.green / colors.alpha;
+        float normBlue = colors.blue / colors.alpha;
+
+        telemetry.addData("Red", normRed);
+        telemetry.addData("Green", normGreen);
+        telemetry.addData("Blue", normBlue);
+    }
     // ================= PUBLIC ACCESSORS (USED BY OTHER CLASSES) =================
-    public int getAlpha() { return cachedAlpha; }
-    public int getRed()   { return cachedR; }
-    public int getGreen() { return cachedG; }
-    public int getBlue()  { return cachedB; }
+    // public int getAlpha() { return cachedAlpha; }
+    //public int getRed()   { return cachedR; }
+    //public int getGreen() { return cachedG; }
+    //public int getBlue()  { return cachedB; }
 
     public int getCurrentPos() {  // 👈 THIS ONE WAS MISSING IN YOUR ERROR
         return sorterMotor.getCurrentPosition();
@@ -467,10 +490,10 @@ public class SorterLogic {
                 vel = VEL_ZONE5 * Integer.signum(error);
             }
 
-        // Smooth PD that cannot reverse direction
+            // Smooth PD that cannot reverse direction
             int pdBoost = (int)(Kp * 0.1 * error + Kd * 0.1 * (error - lastError));
 
-        // Only allow PD to reduce speed, never reverse it
+            // Only allow PD to reduce speed, never reverse it
             if (Math.signum(pdBoost) == Math.signum(vel)) {
                 vel += pdBoost;  // same direction → ok
             } else {
@@ -562,3 +585,4 @@ public class SorterLogic {
         });
     }
 }
+*/

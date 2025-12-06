@@ -39,8 +39,8 @@ public class SorterLogicV2 {
 
     // Positioning / PID
     public static int POSITION_TOLERANCE = 5;     // acceptable final error in ticks
-    public static double Kp = 4.0;               // base proportional gain
-    public static double Kd = 0.15;              // base derivative gain
+    public static double Kp = 0;               // base proportional gain
+    public static double Kd = 0.;              // base derivative gain
     public static int MAX_VEL = 600;             // hard max velocity (ticks/s)
 
     // Zone thresholds (distance to target in ticks)
@@ -53,8 +53,9 @@ public class SorterLogicV2 {
     public static int VEL_ZONE1 = 600;           // far / fast
     public static int VEL_ZONE2 = 400;
     public static int VEL_ZONE3 = 250;
-    public static int VEL_ZONE4 = 150;
-    public static int VEL_ZONE5 = 80;            // final creep
+    public static int VEL_ZONE4 = 120;   // was 150
+    public static int VEL_ZONE5 = 60;    // was 80
+
 
     // Overshoot correction (REWIND/SNAP)
     public static int REWIND_VEL = 600;
@@ -238,31 +239,31 @@ public class SorterLogicV2 {
     }
 
     // ================= AUTO TUNE =================
-    public void autoTuneGains() {
-        if (tuned || !sorterHomed || homingFault) return;
-
-        sorterMotor.setVelocity(300);
-
-        long startTime = System.currentTimeMillis();
-        int startPos = sorterMotor.getCurrentPosition();
-
-        while (System.currentTimeMillis() - startTime < 150) {
-            // spin for 150ms
-        }
-
-        sorterMotor.setVelocity(0);
-
-        int delta = Math.abs(sorterMotor.getCurrentPosition() - startPos);
-        if (delta < 10) delta = 10;
-
-        Kp = Math.max(2.0, Math.min(5.0, 350.0 / delta));
-        Kd = Math.max(0.06, Math.min(0.25, delta / 400.0));
-
-        tuned = true;
-        sorterHomed = false;
-        tapeSeen = false;
-        homingAttempts = 0;
-    }
+//    public void autoTuneGains() {
+//        if (tuned || !sorterHomed || homingFault) return;
+//
+//        sorterMotor.setVelocity(300);
+//
+//        long startTime = System.currentTimeMillis();
+//        int startPos = sorterMotor.getCurrentPosition();
+//
+//        while (System.currentTimeMillis() - startTime < 150) {
+//            // spin for 150ms
+//        }
+//
+//        sorterMotor.setVelocity(0);
+//
+//        int delta = Math.abs(sorterMotor.getCurrentPosition() - startPos);
+//        if (delta < 10) delta = 10;
+//
+//        Kp = Math.max(2.0, Math.min(5.0, 350.0 / delta));
+//        Kd = Math.max(0.06, Math.min(0.25, delta / 400.0));
+//
+//        tuned = true;
+//        sorterHomed = false;
+//        tapeSeen = false;
+//        homingAttempts = 0;
+//    }
 
     // ================= COMMANDS =================
     public void goToPosition(int pos) {
@@ -466,9 +467,21 @@ public class SorterLogicV2 {
                 vel = VEL_ZONE5 * Integer.signum(error);
             }
 
-            // PD micro-correction (small adjustment)
-            int pdBoost = (int)(Kp * 0.15 * error + Kd * 0.2 * (error - lastError));
-            vel += pdBoost;
+        // Smooth PD that cannot reverse direction
+            int pdBoost = (int)(Kp * 0.1 * error + Kd * 0.1 * (error - lastError));
+
+        // Only allow PD to reduce speed, never reverse it
+            if (Math.signum(pdBoost) == Math.signum(vel)) {
+                vel += pdBoost;  // same direction → ok
+            } else {
+                vel += pdBoost / 3; // opposite direction → weaken heavily
+            }
+
+
+            // Extra dampening only when super close
+            if (absError < 25) {
+                vel *= 0.85;   // slow by 15% ONLY near target
+            }
 
             // Clamp final velocity
             if (vel > MAX_VEL) vel = MAX_VEL;
@@ -524,17 +537,17 @@ public class SorterLogicV2 {
             return;
         }
 
-        if (!tuned) {
-            autoTuneGains();
-
-            safeTelemetry(() -> {
-                telemetry.addData("Homing", "DONE");
-                telemetry.addData("Tuning", "AUTO KD/KP...");
-                telemetry.addData("Alpha", cachedAlpha);
-                telemetry.update();
-            });
-            return;
-        }
+//        if (!tuned) {
+//            autoTuneGains();
+//
+//            safeTelemetry(() -> {
+//                telemetry.addData("Homing", "DONE");
+//                telemetry.addData("Tuning", "AUTO KD/KP...");
+//                telemetry.addData("Alpha", cachedAlpha);
+//                telemetry.update();
+//            });
+//            return;
+//        }
 
         update();
 

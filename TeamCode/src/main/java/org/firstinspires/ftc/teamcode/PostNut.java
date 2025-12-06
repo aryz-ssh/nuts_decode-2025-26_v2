@@ -70,8 +70,6 @@ public class PostNut extends LinearOpMode {
             double rx = applyDeadband(gamepad1.right_stick_x);
 
             // NEW METHOD — uses built-in ramping and scaling
-            drivetrain.driveRobotCentric(x, y, rx);
-
             drivetrain.brakeAssist = gamepad1.left_trigger > 0.3;
             drivetrain.driveRobotCentric(x, y, rx);
 

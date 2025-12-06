@@ -72,13 +72,13 @@ public class Mechanisms {
 
     private void initIntake(HardwareMap hw) {
         intakeMotor = hw.get(DcMotorEx.class, "intakeMotor");
-        intakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         intakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         intakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         intakeServoFirst = hw.get(Servo.class, "intakeServoFirst");
-        intakeServoFirst.setDirection(Servo.Direction.FORWARD);
+        intakeServoFirst.setDirection(Servo.Direction.REVERSE);
         intakeServoFirst.setPosition(0.5);
 
         intakeServoSecond = hw.get(Servo.class, "intakeServoSecond");

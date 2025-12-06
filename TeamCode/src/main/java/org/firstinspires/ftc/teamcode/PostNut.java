@@ -4,19 +4,15 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@TeleOp(name = "TeleopMain")
-public class TeleopMain extends LinearOpMode {
+@TeleOp(name = "PostNut")
+public class PostNut extends LinearOpMode {
 
     private ElapsedTime runtime = new ElapsedTime();
     long lastTelem = 0;
 
     // ---------- Mechanisms ----------
     private Mechanisms mechanisms;
-    private TeleopDrivetrain drivetrain;
-
-    // ---------- Intake Direction ----------
-    private boolean intakeDirectionFlip = true;
-    private boolean lastLeftBumper = false;
+    private MasterDrivetrain drivetrain;
 
     // ---------- Sorter Variables ----------
     private int selectedPocket = 1;
@@ -24,6 +20,10 @@ public class TeleopMain extends LinearOpMode {
     private boolean lastDpadRight = false;
     private boolean lastA = false;
     private boolean lastX = false;
+
+    // ---------- Sorter Auto-Mode ----------
+    private enum SorterMode { NONE, INTAKE, OUTTAKE }
+    private SorterMode sorterMode = SorterMode.NONE;
 
     // ---------- Outtake ----------
     private boolean outtakeOn = false;
@@ -44,9 +44,8 @@ public class TeleopMain extends LinearOpMode {
         mechanisms = new Mechanisms();
         mechanisms.initMechanisms(hardwareMap, telemetry);
 
-        drivetrain = new TeleopDrivetrain(this);
-
-        drivetrain.initDriveTrain(hardwareMap);
+        drivetrain = new MasterDrivetrain();
+        drivetrain.init(hardwareMap);
 
         telemetry.addData("Status", "HOMING SORTER…");
         telemetry.update();
@@ -70,26 +69,23 @@ public class TeleopMain extends LinearOpMode {
             double x  = applyDeadband(gamepad1.left_stick_x);
             double rx = applyDeadband(gamepad1.right_stick_x);
 
-            // ✔ ORIGINAL ROBOT-CENTRIC MIXING
-            double fl = y + x + rx;
-            double fr = y - x - rx;
-            double bl = y - x + rx;
-            double br = y + x - rx;
+            // NEW METHOD — uses built-in ramping and scaling
+            drivetrain.driveRobotCentric(x, y, rx);
 
-            drivetrain.updateDrive(fl, fr, bl, br);
+            drivetrain.brakeAssist = gamepad1.left_trigger > 0.3;
+            drivetrain.driveRobotCentric(x, y, rx);
 
-            // ---------- INTAKE ----------
-            if (gamepad1.left_bumper && !lastLeftBumper) {
-                intakeDirectionFlip = !intakeDirectionFlip;
-            }
-            lastLeftBumper = gamepad1.left_bumper;
+            // --- INTAKE FULL SPEED ON ANY TRIGGER PRESS WITH SAFE REVERSAL ---
+            boolean intakePressed  = gamepad1.right_trigger > 0.05;
+            boolean reversePressed = gamepad1.left_bumper;  // reverse only when held WITH intake
 
-            // --- INTAKE FULL SPEED ON ANY TRIGGER PRESS ---
-            if (gamepad1.right_trigger > 0.05) {
-                mechanisms.engageIntake(1.0, intakeDirectionFlip); // ← full speed
+            if (intakePressed) {
+                // forward unless reversePressed == true
+                mechanisms.engageIntake(1.0, reversePressed);
             } else {
                 mechanisms.disengageIntake();
             }
+
 
             // pusher
             mechanisms.pushBallToSorter(gamepad1.right_bumper);
@@ -99,24 +95,33 @@ public class TeleopMain extends LinearOpMode {
             //                       GAMEPAD 2 — MECHANISMS
             // =============================================================
 
+            // Pocket select + auto-move to last mode
             if (gamepad2.dpad_right && !lastDpadRight) {
                 selectedPocket++;
                 if (selectedPocket > 3) selectedPocket = 1;
+                applySorterModeToPocket();
             }
             if (gamepad2.dpad_left && !lastDpadLeft) {
                 selectedPocket--;
                 if (selectedPocket < 1) selectedPocket = 3;
+                applySorterModeToPocket();
             }
 
             lastDpadRight = gamepad2.dpad_right;
             lastDpadLeft  = gamepad2.dpad_left;
 
-            if (gamepad2.a && !lastA)
+            // A = go to intake for current pocket, and remember that mode
+            if (gamepad2.a && !lastA) {
                 mechanisms.sorterGoToIntake(selectedPocket);
+                sorterMode = SorterMode.INTAKE;
+            }
             lastA = gamepad2.a;
 
-            if (gamepad2.x && !lastX)
+            // X = go to outtake for current pocket, and remember that mode
+            if (gamepad2.x && !lastX) {
                 mechanisms.sorterGoToOuttake(selectedPocket);
+                sorterMode = SorterMode.OUTTAKE;
+            }
             lastX = gamepad2.x;
 
             if (gamepad2.b && !lastB) {
@@ -139,7 +144,6 @@ public class TeleopMain extends LinearOpMode {
 
             lastDpadUp = gamepad2.dpad_up;
             lastDpadDown = gamepad2.dpad_down;
-
 
             if (gamepad2.y)
                 mechanisms.ejectBall();
@@ -167,7 +171,9 @@ public class TeleopMain extends LinearOpMode {
             //                          TELEMETRY
             // =============================================================
             if (System.currentTimeMillis() - lastTelem > 100) {
-                telemetry.addData("Runtime", runtime.seconds());
+                telemetry.addData("Pocket Selected", selectedPocket);
+                telemetry.addData("Sorter Mode", sorterMode);
+
                 telemetry.addData("Outtake Speed", mechanisms.getManualOuttakeSpeed());
                 telemetry.addData("Ramp Angle", "%.2f / %.2f",
                         mechanisms.getRampAngleCurrent(),
@@ -177,15 +183,34 @@ public class TeleopMain extends LinearOpMode {
                         mechanisms.getSorterCurrentPosition(),
                         mechanisms.getSorterTargetPosition());
 
-                telemetry.addData("Sorter Error", mechanisms.getSorterTargetPosition()
-                        - mechanisms.getSorterCurrentPosition());
+                telemetry.addData("Sorter Error",
+                        mechanisms.getSorterTargetPosition() - mechanisms.getSorterCurrentPosition());
 
                 telemetry.addData("Ball Present", mechanisms.sorterBallPresent());
                 telemetry.addData("Ball Color", mechanisms.sorterDetectColor());
 
+                telemetry.addData("Runtime", runtime.seconds());
+
                 telemetry.update();
                 lastTelem = System.currentTimeMillis();
             }
+        }
+    }
+
+    private void applySorterModeToPocket() {
+        switch (sorterMode) {
+            case INTAKE:
+                mechanisms.sorterGoToIntake(selectedPocket);
+                break;
+
+            case OUTTAKE:
+                mechanisms.sorterGoToOuttake(selectedPocket);
+                break;
+
+            case NONE:
+            default:
+                // do nothing until A or X is pressed at least once
+                break;
         }
     }
 

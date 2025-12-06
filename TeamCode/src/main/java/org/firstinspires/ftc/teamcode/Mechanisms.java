@@ -69,6 +69,7 @@ public class Mechanisms {
         sorterLogic.init(hw, telemetry);
     }
 
+
     private void initIntake(HardwareMap hw) {
         intakeMotor = hw.get(DcMotorEx.class, "intakeMotor");
         intakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -181,7 +182,7 @@ public class Mechanisms {
     }
 
     public void increaseOuttakeSpeed(double delta) {
-        manualOuttakeSpeed = Math.min(4.0, manualOuttakeSpeed + delta);
+        manualOuttakeSpeed = Math.min(1.0, manualOuttakeSpeed + delta);
     }
 
     public void decreaseOuttakeSpeed(double delta) {

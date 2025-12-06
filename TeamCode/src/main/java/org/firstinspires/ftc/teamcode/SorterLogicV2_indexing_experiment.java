@@ -26,9 +26,9 @@ public class SorterLogicV2_indexing_experiment {
     private long lastSensorRead = 0;
 
     // States
-    boolean sorterHomed = false;
+    public boolean sorterHomed = false;
     boolean homingFault = false;
-    boolean tuned = false;
+    public boolean tuned = false;
     boolean tapeSeen = false;
 
     int homingAttempts = 0;

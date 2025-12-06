@@ -15,13 +15,13 @@ public class MasterDrivetrain {
     public static double BR_SCALE = 0.64;
 
     public static double BRAKE_HOLD_TORQUE = 0.18;     // resisting torque
-    public static double BRAKE_INPUT_DAMPING = 0.4;    // slow inputs in brake mode
+    public static double BRAKE_INPUT_DAMPING = 0.6;    // slow inputs in brake mode
 
     // ---------------- Motors ----------------
     public DcMotorEx frontLeft, backLeft, frontRight, backRight;
 
     // ---------------- Ramp Smoothing ----------------
-    private double rampRate = 0.25;
+    private double rampRate = 0.35;
     private double currentFL = 0, currentFR = 0, currentBL = 0, currentBR = 0;
 
     // ---------------- Brake Assist Toggle ----------------

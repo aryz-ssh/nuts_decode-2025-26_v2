@@ -39,8 +39,8 @@ public class SorterLogicV2 {
 
     // Positioning / PID
     public static int POSITION_TOLERANCE = 5;     // acceptable final error in ticks
-    public static double Kp = 0;               // base proportional gain
-    public static double Kd = 0.;              // base derivative gain
+    public static double Kp = 0.08;               // base proportional gain
+    public static double Kd = 0.01;              // base derivative gain
     public static int MAX_VEL = 600;             // hard max velocity (ticks/s)
 
     // Zone thresholds (distance to target in ticks)
@@ -50,8 +50,8 @@ public class SorterLogicV2 {
     public static int ZONE4_THRESH = 15;         // 15–40
 
     // Zone velocities (ticks/s)
-    public static int VEL_ZONE1 = 600;           // far / fast
-    public static int VEL_ZONE2 = 400;
+    public static int VEL_ZONE1 = 500;           // far / fast
+    public static int VEL_ZONE2 = 300;
     public static int VEL_ZONE3 = 250;
     public static int VEL_ZONE4 = 120;   // was 150
     public static int VEL_ZONE5 = 60;    // was 80

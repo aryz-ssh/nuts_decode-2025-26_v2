@@ -44,8 +44,6 @@ public class ColorSensorTester extends LinearOpMode {
         telemetry.addData("Green", normGreen);
         telemetry.addData("Blue", normBlue);
 
-/*1
-  213
         if (normGreen > 0.05 && normGreen > normRed && normGreen > normBlue) {
             telemetry.addData("Color detected", "GREEN");
             return DetectedColor.GREEN;
@@ -53,7 +51,7 @@ public class ColorSensorTester extends LinearOpMode {
             telemetry.addData("Color detected", "PURPLE");
             return DetectedColor.PURPLE;
         }
-*/
+
         return DetectedColor.UNKNOWN;
     }
 }

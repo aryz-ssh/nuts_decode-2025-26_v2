@@ -13,7 +13,7 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 public class Mechanisms {
 
     // --------- SORTER ----------
-    public SorterLogicV2 sorterLogic;
+    public SorterLogic sorterLogic;
     private ElapsedTime sorterRate = new ElapsedTime();
     private static final double SORTER_PERIOD_MS = 60;
 
@@ -65,7 +65,7 @@ public class Mechanisms {
         initIntake(hw);
         initOuttake(hw);
 
-        sorterLogic = new SorterLogicV2();
+        sorterLogic = new SorterLogic();
         sorterLogic.init(hw, telemetry);
     }
 
@@ -127,7 +127,7 @@ public class Mechanisms {
     public void sorterGoToIntake(int n) { sorterLogic.goToIntake(n); }
     public void sorterGoToOuttake(int n) { sorterLogic.goToOuttake(n); }
     public boolean sorterBallPresent() { return sorterLogic.isBallPresent(); }
-    public SorterLogicV2.BallColor sorterDetectColor() { return sorterLogic.detectBallColor(); }
+    public SorterLogic.BallColor sorterDetectColor() { return sorterLogic.detectBallColor(); }
 
     public int getSorterCurrentPosition() { return sorterLogic.getCurrentPos();}
     public int getSorterTargetPosition() { return sorterLogic.getTargetPos(); }

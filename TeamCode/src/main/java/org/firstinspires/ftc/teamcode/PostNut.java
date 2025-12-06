@@ -73,6 +73,7 @@ public class PostNut extends LinearOpMode {
             drivetrain.brakeAssist = gamepad1.left_trigger > 0.3;
             drivetrain.driveRobotCentric(x, y, rx);
 
+
             // --- INTAKE FULL SPEED ON ANY TRIGGER PRESS WITH SAFE REVERSAL ---
             boolean intakePressed  = gamepad1.right_trigger > 0.05;
             boolean reversePressed = gamepad1.left_bumper;  // reverse only when held WITH intake

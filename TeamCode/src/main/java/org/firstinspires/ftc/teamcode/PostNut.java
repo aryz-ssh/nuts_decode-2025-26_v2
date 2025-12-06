@@ -85,16 +85,25 @@ public class PostNut extends LinearOpMode {
                 mechanisms.disengageIntake();
             }
 
-
             // pusher
             mechanisms.pushBallToSorter(gamepad1.right_bumper);
-
 
             // =============================================================
             //                       GAMEPAD 2 — MECHANISMS
             // =============================================================
 
-            // Pocket select + auto-move to last mode
+            // --- D-pad for ball positioning ---
+            if (gamepad2.dpad_right && !lastDpadRight) {
+                mechanisms.sorterMovePurpleToTop();   // moves purple ball to top
+            }
+            if (gamepad2.dpad_left && !lastDpadLeft) {
+                mechanisms.sorterMoveGreenToTop();    // moves green ball to top
+            }
+            lastDpadRight = gamepad2.dpad_right;
+            lastDpadLeft  = gamepad2.dpad_left;
+
+            // --- Pocket select (optional, kept in case you want it later) ---
+            /*
             if (gamepad2.dpad_right && !lastDpadRight) {
                 selectedPocket++;
                 if (selectedPocket > 3) selectedPocket = 1;
@@ -105,9 +114,7 @@ public class PostNut extends LinearOpMode {
                 if (selectedPocket < 1) selectedPocket = 3;
                 applySorterModeToPocket();
             }
-
-            lastDpadRight = gamepad2.dpad_right;
-            lastDpadLeft  = gamepad2.dpad_left;
+            */
 
             // A = go to intake for current pocket, and remember that mode
             if (gamepad2.a && !lastA) {
@@ -123,9 +130,9 @@ public class PostNut extends LinearOpMode {
             }
             lastX = gamepad2.x;
 
+            // B = toggle outtake on/off
             if (gamepad2.b && !lastB) {
                 outtakeOn = !outtakeOn;
-
                 if (outtakeOn)
                     mechanisms.engageOuttake(mechanisms.getManualOuttakeSpeed());
                 else
@@ -140,31 +147,26 @@ public class PostNut extends LinearOpMode {
             if (gamepad2.dpad_down && !lastDpadDown) {
                 mechanisms.decreaseOuttakeSpeed(0.1);
             }
-
             lastDpadUp = gamepad2.dpad_up;
             lastDpadDown = gamepad2.dpad_down;
 
-            if (gamepad2.y)
-                mechanisms.ejectBall();
+            // Y = eject ball
+            if (gamepad2.y) mechanisms.ejectBall();
 
+            // RB2/LB2 = adjust ramp angle
             boolean rb2 = gamepad2.right_bumper;
             boolean lb2 = gamepad2.left_bumper;
 
-            if (rb2 && !lastRB2)
-                mechanisms.adjustOuttakeAngle(true, false);
-
-            if (lb2 && !lastLB2)
-                mechanisms.adjustOuttakeAngle(false, true);
+            if (rb2 && !lastRB2) mechanisms.adjustOuttakeAngle(true, false);
+            if (lb2 && !lastLB2) mechanisms.adjustOuttakeAngle(false, true);
 
             lastRB2 = rb2;
             lastLB2 = lb2;
-
 
             // =============================================================
             //                        UPDATE MECHANISMS
             // =============================================================
             mechanisms.updateMechanisms();
-
 
             // =============================================================
             //                          TELEMETRY
@@ -172,24 +174,18 @@ public class PostNut extends LinearOpMode {
             if (System.currentTimeMillis() - lastTelem > 100) {
                 telemetry.addData("Pocket Selected", selectedPocket);
                 telemetry.addData("Sorter Mode", sorterMode);
-
                 telemetry.addData("Outtake Speed", mechanisms.getManualOuttakeSpeed());
                 telemetry.addData("Ramp Angle", "%.2f / %.2f",
                         mechanisms.getRampAngleCurrent(),
                         mechanisms.getRampAngleTarget());
-
                 telemetry.addData("Sorter Pos", "%d → %d",
                         mechanisms.getSorterCurrentPosition(),
                         mechanisms.getSorterTargetPosition());
-
                 telemetry.addData("Sorter Error",
                         mechanisms.getSorterTargetPosition() - mechanisms.getSorterCurrentPosition());
-
                 telemetry.addData("Ball Present", mechanisms.sorterBallPresent());
                 telemetry.addData("Ball Color", mechanisms.sorterDetectColor());
-
                 telemetry.addData("Runtime", runtime.seconds());
-
                 telemetry.update();
                 lastTelem = System.currentTimeMillis();
             }
@@ -201,14 +197,11 @@ public class PostNut extends LinearOpMode {
             case INTAKE:
                 mechanisms.sorterGoToIntake(selectedPocket);
                 break;
-
             case OUTTAKE:
                 mechanisms.sorterGoToOuttake(selectedPocket);
                 break;
-
             case NONE:
             default:
-                // do nothing until A or X is pressed at least once
                 break;
         }
     }

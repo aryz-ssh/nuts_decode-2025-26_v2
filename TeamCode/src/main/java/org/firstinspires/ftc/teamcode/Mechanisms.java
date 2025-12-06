@@ -139,26 +139,15 @@ public class Mechanisms {
     }
 
     public boolean sorterIsMoving() {
-        return sorterLogic.moving;
+        return sorterLogic.isMoving();
     }
 
-    public String getSorterStateText(int pocket) {
-        int targetIntake, targetOuttake;
+    public void sorterMovePurpleToTop() {
+        sorterLogic.movePurpleToTop();
+    }
 
-        if (pocket == 1) {
-            targetIntake = sorterLogic.B1_INTAKE;
-            targetOuttake = sorterLogic.B1_OUTTAKE;
-        } else if (pocket == 2) {
-            targetIntake = sorterLogic.B2_INTAKE;
-            targetOuttake = sorterLogic.B2_OUTTAKE;
-        } else {
-            targetIntake = sorterLogic.B3_INTAKE;
-            targetOuttake = sorterLogic.B3_OUTTAKE;
-        }
-
-        if (sorterLogic.targetPos == targetIntake) return "INTAKE";
-        if (sorterLogic.targetPos == targetOuttake) return "OUTTAKE";
-        return "UNKNOWN";
+    public void sorterMoveGreenToTop() {
+        sorterLogic.moveGreenToTop();
     }
 
     // ---------- OUTTAKE ----------
@@ -223,6 +212,9 @@ public class Mechanisms {
             double direction = intakeDirectionFlipRequested ? 1.0 : -1.0;
             intakeMotor.setPower(direction * intakePowerRequested);
             intakeServoFirst.setPosition(Math.max(0.0, Math.min(1.0, 0.5 + direction * intakePowerRequested * 0.5)));
+
+            // --- AUTOMATIC BALL INTAKE ---
+            sorterLogic.intakeBall();
         } else {
             intakeMotor.setPower(0);
             intakeServoFirst.setPosition(0.5);
@@ -248,14 +240,5 @@ public class Mechanisms {
                 kickerActive = false;
             }
         }
-    }
-
-    // ---------- METHODS CALLED FROM TELEOP ----------
-    public void sorterMovePurpleToTop() {
-        sorterLogic.movePurpleToTop();
-    }
-
-    public void sorterMoveGreenToTop() {
-        sorterLogic.moveGreenToTop();
     }
 }

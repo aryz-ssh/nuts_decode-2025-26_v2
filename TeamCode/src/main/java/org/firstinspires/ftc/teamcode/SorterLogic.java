@@ -4,8 +4,10 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.ColorSensor;
+import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.testers.ColorSensorTester;
 
 public class SorterLogic {
 
@@ -43,9 +45,12 @@ public class SorterLogic {
         sorterMotor = hwMap.get(DcMotorEx.class, "sorterMotor");
         homingSensor = hwMap.get(ColorSensor.class, "opticalSorterHoming");
         colorSensor = hwMap.get(NormalizedColorSensor.class, "sorterColorSensor");
+
         sorterMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
         sorterMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         sorterMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+
+        ColorSensorTester.DetectedColor detectedColor = new ColorSensorTester();
     }
 
     // ---------- LOOP INIT ----------
@@ -55,10 +60,8 @@ public class SorterLogic {
 
     // ---------- HOMING ----------
     public void homeSorter() {
-        // Spin slowly until homing sensor detects home
-        // TODO: implement actual homing logic using homingSensor
         sorterMotor.setVelocity(200);
-        // wait for sensor trigger
+        // TODO: implement homing sensor logic here
         sorterMotor.setVelocity(0);
         sorterHomed = true;
     }
@@ -93,7 +96,7 @@ public class SorterLogic {
         int current = sorterMotor.getCurrentPosition();
         int error = targetPos - current;
 
-        if (Math.abs(error) < 5) { // tolerance
+        if (Math.abs(error) < 5) {
             sorterMotor.setVelocity(0);
             moving = false;
             return;
@@ -103,33 +106,35 @@ public class SorterLogic {
         sorterMotor.setVelocity(vel);
     }
 
-    // ---------- SENSOR INTEGRATION ----------
-    public DetectedColor readColorSensor() {
-        if (colorSensor == null) return DetectedColor.UNKNOWN;
+    // ---------- COLOR SENSOR ----------
+    public ColorSensorTester.DetectedColor getDetectedColor() {
+        NormalizedRGBA colors = colorSensor.getNormalizedColors();
 
-        float r = colorSensor.getNormalizedColors().red;
-        float g = colorSensor.getNormalizedColors().green;
-        float b = colorSensor.getNormalizedColors().blue;
-        float alpha = colorSensor.getNormalizedColors().alpha;
+        float normRed = colors.red / colors.alpha;
+        float normGreen = colors.green / colors.alpha;
+        float normBlue = colors.blue / colors.alpha;
 
-        float normR = r / alpha;
-        float normG = g / alpha;
-        float normB = b / alpha;
+        telemetry.addData("Red", normRed);
+        telemetry.addData("Green", normGreen);
+        telemetry.addData("Blue", normBlue);
 
-        if (normG > 0.05 && normG > normR && normG > normB) {
-            return DetectedColor.GREEN;
-        } else if (normB > 0.1 && normB > normR && normB > normG) {
-            return DetectedColor.PURPLE;
-        } else {
-            return DetectedColor.UNKNOWN;
+        if (normGreen >= 0.0030 && normGreen <= 0.0055 && normGreen >= 0.01 && normGreen <= 0.0130 && normBlue >= 0.0080 && normBlue <= 0.015) {
+            telemetry.addData("Color detected", "GREEN");
+            return ColorSensorTester.DetectedColor.GREEN;
+            //do 2nd thresh
+        } else if (normGreen >= 0.0050 && normGreen <= 0.0055 && normGreen >= 0.01 && normGreen <= 0.0130 && normBlue >= 0.0080 && normBlue <= 0.015) {
+            telemetry.addData("Color detected", "PURPLE");
+            return ColorSensorTester.DetectedColor.PURPLE;
         }
+
+        return ColorSensorTester.DetectedColor.UNKNOWN;
     }
 
     // ---------- BALL CONTROL ----------
-    public void intakeBall(DetectedColor color) {
-        if (color == DetectedColor.UNKNOWN) return;
+    public void intakeBall() {
 
-        // Find next empty slot
+        if (detectedColor == DetectedColor.UNKNOWN) return;
+
         int slot = -1;
         for (int i = 0; i < sorterSlots.length; i++) {
             if (sorterSlots[i] == DetectedColor.UNKNOWN) {
@@ -137,11 +142,10 @@ public class SorterLogic {
                 break;
             }
         }
-        if (slot == -1) return; // carousel full
+        if (slot == -1) return;
 
         sorterSlots[slot] = color;
     }
-
 
     public void movePurpleToTop() {
         moveBallToTop(DetectedColor.PURPLE);
@@ -161,7 +165,7 @@ public class SorterLogic {
                 break;
             }
         }
-        if (targetSlot == -1) return; // ball not present
+        if (targetSlot == -1) return;
 
         int positionTicks = 0;
         switch (targetSlot) {
@@ -172,9 +176,8 @@ public class SorterLogic {
 
         goToPosition(positionTicks);
 
-        // Update carousel state
         sorterSlots[targetSlot] = DetectedColor.UNKNOWN; // old slot empty
-        sorterSlots[1] = targetColor; // place at top-left by default
+        sorterSlots[1] = targetColor; // top-left by default
     }
 
     // ---------- UTILITY ----------
@@ -190,7 +193,7 @@ public class SorterLogic {
     }
 
     public DetectedColor detectBallColor() {
-        return readColorSensor(); // real-time detection from sensor
+        return getDetectedColor();
     }
 
     public int getCurrentPos() {
@@ -199,5 +202,9 @@ public class SorterLogic {
 
     public int getTargetPos() {
         return targetPos;
+    }
+
+    public boolean isMoving() {
+        return moving;
     }
 }

@@ -56,65 +56,56 @@ public class MasterDrivetrain {
     // TELEOP DRIVE (robot-centric mecanum)
     // ----------------------------------------------------------
     public void driveRobotCentric(double x, double y, double turn) {
-
-        // Brake mode input damping
-        if (brakeAssist) {
-            x *= BRAKE_INPUT_DAMPING;
-            y *= BRAKE_INPUT_DAMPING;
-            turn *= BRAKE_INPUT_DAMPING;
-        }
-
-        // Basic mecanum wheel mix
         double fl = y + x + turn;
         double fr = y - x - turn;
         double bl = y - x + turn;
         double br = y + x - turn;
 
-        // Brake Assist — add resistive torque & enable ZPB=BRAKE
+        // ---------------- Brake Assist ----------------
         if (brakeAssist) {
-            fl += Math.signum(fl) * BRAKE_HOLD_TORQUE;
-            fr += Math.signum(fr) * BRAKE_HOLD_TORQUE;
-            bl += Math.signum(bl) * BRAKE_HOLD_TORQUE;
-            br += Math.signum(br) * BRAKE_HOLD_TORQUE;
 
-            frontLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
-            frontRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
-            backLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
-            backRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
-        } else {
-            frontLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
-            frontRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
-            backLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
-            backRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
+            // If the driver is not moving the sticks, activate brake hold
+            if (Math.abs(x) < 0.05 && Math.abs(y) < 0.05 && Math.abs(turn) < 0.05) {
+
+                // inject small opposing torque to resist movement
+                frontLeft.setPower( BRAKE_HOLD_TORQUE);
+                frontRight.setPower(-BRAKE_HOLD_TORQUE);
+                backLeft.setPower( BRAKE_HOLD_TORQUE);
+                backRight.setPower(-BRAKE_HOLD_TORQUE);
+                return;   // skip normal drive
+            }
+
+            // When exiting brake, damp driver inputs for a smoother transition
+            x *= BRAKE_INPUT_DAMPING;
+            y *= BRAKE_INPUT_DAMPING;
+            turn *= BRAKE_INPUT_DAMPING;
         }
 
-        // Wheel scaling
-        fl *= FL_SCALE;
-        fr *= FR_SCALE;
-        bl *= BL_SCALE;
-        br *= BR_SCALE;
+        // TeleOp: REMOVE strafe correction
+        double teleopBL = bl;
+        double teleopBR = br;
 
         // Normalize
         double max = Math.max(1.0, Math.max(Math.abs(fl),
-                Math.max(Math.abs(fr), Math.max(Math.abs(bl), Math.abs(br)))));
+                Math.max(Math.abs(fr), Math.max(Math.abs(teleopBL), Math.abs(teleopBR)))));
 
         fl /= max;
         fr /= max;
-        bl /= max;
-        br /= max;
+        teleopBL /= max;
+        teleopBR /= max;
 
-        // Ramp smoothing
+        // Ramp + assign
         currentFL = ramp(currentFL, fl);
         currentFR = ramp(currentFR, fr);
-        currentBL = ramp(currentBL, bl);
-        currentBR = ramp(currentBR, br);
+        currentBL = ramp(currentBL, teleopBL);
+        currentBR = ramp(currentBR, teleopBR);
 
-        // Apply final power
         frontLeft.setPower(currentFL);
         frontRight.setPower(currentFR);
         backLeft.setPower(currentBL);
         backRight.setPower(currentBR);
     }
+
 
     private double ramp(double cur, double target) {
         double delta = target - cur;

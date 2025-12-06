@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-@Autonomous(name = "AutoCode", group = "Autonomous")
+@Autonomous(name = "BlueLazyPreNut", group = "Autonomous")
 @Configurable
 public class BlueLazyPreNut extends LinearOpMode {
 

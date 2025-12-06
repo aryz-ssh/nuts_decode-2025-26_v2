@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-@Autonomous(name = "RedSideOffBigTriangle", group = "Autonomous")
+@Autonomous(name = "BlueSideOffBigTriangle", group = "Autonomous")
 @Configurable
 public class BlueSideOffBigTriangle extends LinearOpMode {
 

@@ -21,7 +21,7 @@ public class MasterDrivetrain {
     public DcMotorEx frontLeft, backLeft, frontRight, backRight;
 
     // ---------------- Ramp Smoothing ----------------
-    private double rampRate = 0.35;
+    private double rampRate = 0.25;
     private double currentFL = 0, currentFR = 0, currentBL = 0, currentBR = 0;
 
     // ---------------- Brake Assist Toggle ----------------

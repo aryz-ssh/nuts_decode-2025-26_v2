@@ -43,7 +43,6 @@ public class SorterLogic {
         sorterMotor = hwMap.get(DcMotorEx.class, "sorterMotor");
         homingSensor = hwMap.get(ColorSensor.class, "opticalSorterHoming");
         colorSensor = hwMap.get(NormalizedColorSensor.class, "sorterColorSensor");
-
         sorterMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
         sorterMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         sorterMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
@@ -51,20 +50,20 @@ public class SorterLogic {
 
     // ---------- LOOP INIT ----------
     public void init_loop() {
-        // Can implement homing check or pre-run logic
         if (!sorterHomed) homeSorter();
     }
 
     // ---------- HOMING ----------
     public void homeSorter() {
-        // Simplified homing logic
-        sorterMotor.setVelocity(200); // spin slowly
-        // TODO: detect homing sensor here
+        // Spin slowly until homing sensor detects home
+        // TODO: implement actual homing logic using homingSensor
+        sorterMotor.setVelocity(200);
+        // wait for sensor trigger
         sorterMotor.setVelocity(0);
         sorterHomed = true;
     }
 
-    // ---------- GO TO POSITION ----------
+    // ---------- POSITION CONTROL ----------
     private void goToPosition(int pos) {
         targetPos = pos;
         moving = true;
@@ -104,8 +103,32 @@ public class SorterLogic {
         sorterMotor.setVelocity(vel);
     }
 
+    // ---------- SENSOR INTEGRATION ----------
+    public DetectedColor readColorSensor() {
+        if (colorSensor == null) return DetectedColor.UNKNOWN;
+
+        float r = colorSensor.getNormalizedColors().red;
+        float g = colorSensor.getNormalizedColors().green;
+        float b = colorSensor.getNormalizedColors().blue;
+        float alpha = colorSensor.getNormalizedColors().alpha;
+
+        float normR = r / alpha;
+        float normG = g / alpha;
+        float normB = b / alpha;
+
+        if (normG > 0.05 && normG > normR && normG > normB) {
+            return DetectedColor.GREEN;
+        } else if (normB > 0.1 && normB > normR && normB > normG) {
+            return DetectedColor.PURPLE;
+        } else {
+            return DetectedColor.UNKNOWN;
+        }
+    }
+
     // ---------- BALL CONTROL ----------
     public void intakeBall(DetectedColor color) {
+        if (color == DetectedColor.UNKNOWN) return;
+
         // Find next empty slot
         int slot = -1;
         for (int i = 0; i < sorterSlots.length; i++) {
@@ -115,8 +138,10 @@ public class SorterLogic {
             }
         }
         if (slot == -1) return; // carousel full
+
         sorterSlots[slot] = color;
     }
+
 
     public void movePurpleToTop() {
         moveBallToTop(DetectedColor.PURPLE);
@@ -165,11 +190,7 @@ public class SorterLogic {
     }
 
     public DetectedColor detectBallColor() {
-        // Simplified detection: returns first detected ball
-        for (DetectedColor c : sorterSlots) {
-            if (c != DetectedColor.UNKNOWN) return c;
-        }
-        return DetectedColor.UNKNOWN;
+        return readColorSensor(); // real-time detection from sensor
     }
 
     public int getCurrentPos() {

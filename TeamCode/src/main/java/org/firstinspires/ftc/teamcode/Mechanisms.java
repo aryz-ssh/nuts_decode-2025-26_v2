@@ -6,6 +6,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.testers.ColorSensorTester;
 
 public class Mechanisms {
 
@@ -51,6 +52,10 @@ public class Mechanisms {
     private static final double KICK_DURATION = 0.30;
 
     private boolean pusherActive = false;
+
+    //Colorsensor
+
+    SorterLogic.DetectedColor detectedColor = sorterLogic.getDetectedColor();
 
     // ---------- INIT ----------
     public void initMechanisms(HardwareMap hw, Telemetry telemetry) {
@@ -124,6 +129,22 @@ public class Mechanisms {
 
     public boolean sorterBallPresent() {
         return sorterLogic.isBallPresent();
+    }
+
+    public void intakeBall() {
+
+        if (detectedColor == SorterLogic.DetectedColor.UNKNOWN) return;
+
+        int slot = -1;
+        for (int i = 0; i < sorterLogic.sorterSlots.length; i++) {
+            if (sorterLogic.sorterSlots[i] == SorterLogic.DetectedColor.UNKNOWN) {
+                slot = i;
+                break;
+            }
+        }
+        if (slot == -1) return;
+
+        sorterLogic.sorterSlots[slot] = detectedColor;
     }
 
     public SorterLogic.DetectedColor sorterDetectColor() {
@@ -214,7 +235,7 @@ public class Mechanisms {
             intakeServoFirst.setPosition(Math.max(0.0, Math.min(1.0, 0.5 + direction * intakePowerRequested * 0.5)));
 
             // --- AUTOMATIC BALL INTAKE ---
-            sorterLogic.intakeBall();
+            intakeBall();
         } else {
             intakeMotor.setPower(0);
             intakeServoFirst.setPosition(0.5);
@@ -242,3 +263,4 @@ public class Mechanisms {
         }
     }
 }
+

@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.testers.ColorSensorTester;
+//import org.firstinspires.ftc.teamcode.testers.ColorSensorTester;
 
 public class SorterLogic {
 
@@ -19,7 +19,7 @@ public class SorterLogic {
 
     // ---------- Sorter State ----------
     public enum DetectedColor { PURPLE, GREEN, UNKNOWN }
-    private DetectedColor[] sorterSlots = {DetectedColor.UNKNOWN, DetectedColor.UNKNOWN, DetectedColor.UNKNOWN};
+    public DetectedColor[] sorterSlots = {DetectedColor.UNKNOWN, DetectedColor.UNKNOWN, DetectedColor.UNKNOWN};
     // Index 0 = bottom, 1 = top-left, 2 = top-right
 
     private boolean sorterHomed = false;
@@ -50,7 +50,7 @@ public class SorterLogic {
         sorterMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         sorterMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
 
-        ColorSensorTester.DetectedColor detectedColor = new ColorSensorTester();
+
     }
 
     // ---------- LOOP INIT ----------
@@ -107,7 +107,7 @@ public class SorterLogic {
     }
 
     // ---------- COLOR SENSOR ----------
-    public ColorSensorTester.DetectedColor getDetectedColor() {
+    public DetectedColor getDetectedColor() {
         NormalizedRGBA colors = colorSensor.getNormalizedColors();
 
         float normRed = colors.red / colors.alpha;
@@ -120,32 +120,18 @@ public class SorterLogic {
 
         if (normGreen >= 0.0030 && normGreen <= 0.0055 && normGreen >= 0.01 && normGreen <= 0.0130 && normBlue >= 0.0080 && normBlue <= 0.015) {
             telemetry.addData("Color detected", "GREEN");
-            return ColorSensorTester.DetectedColor.GREEN;
+            return DetectedColor.GREEN;
             //do 2nd thresh
         } else if (normGreen >= 0.0050 && normGreen <= 0.0055 && normGreen >= 0.01 && normGreen <= 0.0130 && normBlue >= 0.0080 && normBlue <= 0.015) {
             telemetry.addData("Color detected", "PURPLE");
-            return ColorSensorTester.DetectedColor.PURPLE;
+            return DetectedColor.PURPLE;
         }
 
-        return ColorSensorTester.DetectedColor.UNKNOWN;
+        return DetectedColor.UNKNOWN;
     }
 
     // ---------- BALL CONTROL ----------
-    public void intakeBall() {
 
-        if (detectedColor == DetectedColor.UNKNOWN) return;
-
-        int slot = -1;
-        for (int i = 0; i < sorterSlots.length; i++) {
-            if (sorterSlots[i] == DetectedColor.UNKNOWN) {
-                slot = i;
-                break;
-            }
-        }
-        if (slot == -1) return;
-
-        sorterSlots[slot] = color;
-    }
 
     public void movePurpleToTop() {
         moveBallToTop(DetectedColor.PURPLE);

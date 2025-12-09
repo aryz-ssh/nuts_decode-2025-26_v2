@@ -49,6 +49,9 @@ public class PostNut extends LinearOpMode {
     boolean driveModeChosen = false;
     boolean startAngleChosen = false;
     private boolean lastBack = false;
+    private boolean lastGreenRequest = false;
+    private boolean lastPurpleRequest = false;
+
 
 
     int startAngleIndex = 0;
@@ -225,9 +228,55 @@ public class PostNut extends LinearOpMode {
             lastDpadRight = gamepad2.dpad_right;
             lastDpadLeft  = gamepad2.dpad_left;
 
+            // === GREEN REQUEST — Left Trigger ===
+            boolean greenReq = gamepad2.left_trigger > 0.3;
+
+            if (greenReq && !lastGreenRequest) {
+
+                Integer pocket = mechanisms.sorterLogic.getPocketWithColor(
+                        SorterLogicColor.BallColor.GREEN
+                );
+
+                if (pocket != null) {
+                    selectedPocket = pocket;
+                    sorterMode = SorterMode.OUTTAKE;
+                    mechanisms.sorterGoToOuttake(selectedPocket);
+
+                    telemetry.addData("Color Request", "GREEN → Pocket " + pocket);
+                } else {
+                    telemetry.addData("Color Request", "GREEN NOT FOUND");
+                }
+            }
+            lastGreenRequest = greenReq;
+
+
+// === PURPLE REQUEST — Right Trigger ===
+            boolean purpleReq = gamepad2.right_trigger > 0.3;
+
+            if (purpleReq && !lastPurpleRequest) {
+
+                Integer pocket = mechanisms.sorterLogic.getPocketWithColor(
+                        SorterLogicColor.BallColor.PURPLE
+                );
+
+                if (pocket != null) {
+                    selectedPocket = pocket;
+                    sorterMode = SorterMode.OUTTAKE;
+                    mechanisms.sorterGoToOuttake(selectedPocket);
+
+                    telemetry.addData("Color Request", "PURPLE → Pocket " + pocket);
+                } else {
+                    telemetry.addData("Color Request", "PURPLE NOT FOUND");
+                }
+            }
+            lastPurpleRequest = purpleReq;
+
             // A = go to intake for current pocket, and remember that mode
+// A = go to intake for current pocket, and reset cycle
             if (gamepad2.a && !lastA) {
+                // Now go to the newly selected pocket intake
                 mechanisms.sorterGoToIntake(selectedPocket);
+
                 sorterMode = SorterMode.INTAKE;
             }
             lastA = gamepad2.a;
@@ -260,17 +309,21 @@ public class PostNut extends LinearOpMode {
             lastDpadUp = gamepad2.dpad_up;
             lastDpadDown = gamepad2.dpad_down;
 
-            if (gamepad2.y)
+            if (gamepad2.y) {
                 mechanisms.ejectBall();
+                mechanisms.beginShotDetection();   // <-- REQUIRED
+            }
 
             boolean rb2 = gamepad2.right_bumper;
             boolean lb2 = gamepad2.left_bumper;
 
-            if (rb2 && !lastRB2)
+            if (rb2 && !lastRB2) {
                 mechanisms.adjustOuttakeAngle(true, false);
+            }
 
-            if (lb2 && !lastLB2)
+            if (lb2 && !lastLB2) {
                 mechanisms.adjustOuttakeAngle(false, true);
+            }
 
             lastRB2 = rb2;
             lastLB2 = lb2;
@@ -300,9 +353,6 @@ public class PostNut extends LinearOpMode {
 
                 telemetry.addData("Sorter Error",
                         mechanisms.getSorterTargetPosition() - mechanisms.getSorterCurrentPosition());
-
-                telemetry.addData("Ball Present", mechanisms.sorterBallPresent());
-                telemetry.addData("Ball Color", mechanisms.sorterDetectColor());
 
                 telemetry.addData("Runtime", runtime.seconds());
 

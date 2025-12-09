@@ -9,12 +9,11 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 @Config
-public class SorterLogicV2 {
+public class SorterLogicManual {
 
     Telemetry telemetry;
     DcMotorEx sorterMotor;
     ColorSensor opticalSorterHoming;
-    ColorSensor sorterColorSensor;
 
     // ---------- DASHBOARD-TUNABLE CONSTANTS ----------
 
@@ -39,34 +38,28 @@ public class SorterLogicV2 {
 
     // Positioning / PID
     public static int POSITION_TOLERANCE = 5;     // acceptable final error in ticks
-    public static double Kp = 4.0;               // base proportional gain
-    public static double Kd = 0.15;              // base derivative gain
-    public static int MAX_VEL = 600;             // hard max velocity (ticks/s)
+    public static double Kp = 4.0;                // base proportional gain
+    public static double Kd = 0.15;               // base derivative gain
+    public static int MAX_VEL = 600;              // hard max velocity (ticks/s)
 
     // Zone thresholds (distance to target in ticks)
-    public static int ZONE1_THRESH = 150;        // > this → full speed
-    public static int ZONE2_THRESH = 80;         // 80–150
-    public static int ZONE3_THRESH = 40;         // 40–80
-    public static int ZONE4_THRESH = 15;         // 15–40
+    public static int ZONE1_THRESH = 150;         // > this → full speed
+    public static int ZONE2_THRESH = 80;          // 80–150
+    public static int ZONE3_THRESH = 40;          // 40–80
+    public static int ZONE4_THRESH = 15;          // 15–40
 
     // Zone velocities (ticks/s)
-    public static int VEL_ZONE1 = 600;           // far / fast
+    public static int VEL_ZONE1 = 600;            // far / fast
     public static int VEL_ZONE2 = 400;
     public static int VEL_ZONE3 = 250;
     public static int VEL_ZONE4 = 150;
-    public static int VEL_ZONE5 = 80;            // final creep
+    public static int VEL_ZONE5 = 80;             // final creep
 
     // Overshoot correction (REWIND/SNAP)
     public static int REWIND_VEL = 600;
     public static int REWIND_TIME_MS = 80;
     public static int SNAP_VEL = 250;
     public static int SNAP_TIMEOUT_MS = 250;
-
-    // Ball detection / color thresholds
-    public static int BALL_PRESENT_THRESHOLD = 120;
-    public static int PRESENCE_FRAMES = 3;
-    public static int COLOR_ALPHA_MIN = 260;
-    public static int COLOR_FRAMES = 3;
 
     // Telemetry throttling
     public static long TELEMETRY_INTERVAL_MS = 120;
@@ -76,13 +69,6 @@ public class SorterLogicV2 {
 
     // Throttled telemetry
     private long lastTelem = 0;
-
-    // Cached sensor values
-    private int cachedAlpha = 0;
-    private int cachedR = 0;
-    private int cachedG = 0;
-    private int cachedB = 0;
-    private long lastSensorRead = 0;
 
     // States
     boolean sorterHomed = false;
@@ -109,12 +95,6 @@ public class SorterLogicV2 {
 
     private ElapsedTime updateRate = new ElapsedTime();
 
-    public enum BallColor { PURPLE, GREEN, UNKNOWN }
-    private int presenceCount = 0;
-    private BallColor lastRawColor = BallColor.UNKNOWN;
-    private BallColor stableColor = BallColor.UNKNOWN;
-    private int colorStableCount = 0;
-
     // ================= TELEMETRY WRAPPER =================
     private void safeTelemetry(Runnable r) {
         long now = System.currentTimeMillis();
@@ -130,25 +110,17 @@ public class SorterLogicV2 {
 
         sorterMotor = hwMap.get(DcMotorEx.class, "sorterMotor");
         opticalSorterHoming = hwMap.get(ColorSensor.class, "opticalSorterHoming");
-        sorterColorSensor = hwMap.get(ColorSensor.class, "sorterColorSensor");
 
         sorterMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
 
         sorterMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         sorterMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
 
-        updateRate.reset();
-    }
+        // Start at pocket 1 intake
+        targetPos = B1_INTAKE;
+        moving = false;
 
-    // ================= SENSOR CACHE =================
-    public void updateSensors() {
-        if (System.currentTimeMillis() - lastSensorRead > 20) {
-            cachedAlpha = sorterColorSensor.alpha();
-            cachedR = sorterColorSensor.red();
-            cachedG = sorterColorSensor.green();
-            cachedB = sorterColorSensor.blue();
-            lastSensorRead = System.currentTimeMillis();
-        }
+        updateRate.reset();
     }
 
     // ================= HOMING (blocking, safe in init) =================
@@ -169,6 +141,7 @@ public class SorterLogicV2 {
 
         long attemptStart = System.currentTimeMillis();
 
+        // Spin forward until we see tape or timeout
         while (!tapeSeen) {
 
             int alpha = opticalSorterHoming.alpha();
@@ -191,6 +164,7 @@ public class SorterLogicV2 {
 
         int alpha = opticalSorterHoming.alpha();
 
+        // If we lost tape, back up slowly until we see it again
         if (alpha < HOME_THRESHOLD) {
 
             long reverseStart = System.currentTimeMillis();
@@ -211,6 +185,7 @@ public class SorterLogicV2 {
         try { Thread.sleep(30); } catch (Exception ignored) {}
         int a2 = opticalSorterHoming.alpha();
 
+        // If still noisy, creep until firmly on tape
         if (a1 < HOME_THRESHOLD || a2 < HOME_THRESHOLD) {
 
             sorterMotor.setVelocity(HOMING_CREEP_VEL);
@@ -235,6 +210,8 @@ public class SorterLogicV2 {
         sorterMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
 
         sorterHomed = true;
+        targetPos = B1_INTAKE;
+        moving = false;
     }
 
     // ================= AUTO TUNE =================
@@ -275,93 +252,39 @@ public class SorterLogicV2 {
 
     public void goToIntake(int n) {
         if (n == 1) goToPosition(B1_INTAKE);
-        if (n == 2) goToPosition(B2_INTAKE);
-        if (n == 3) goToPosition(B3_INTAKE);
+        else if (n == 2) goToPosition(B2_INTAKE);
+        else if (n == 3) goToPosition(B3_INTAKE);
     }
 
     public void goToOuttake(int n) {
         if (n == 1) goToPosition(B1_OUTTAKE);
-        if (n == 2) goToPosition(B2_OUTTAKE);
-        if (n == 3) goToPosition(B3_OUTTAKE);
+        else if (n == 2) goToPosition(B2_OUTTAKE);
+        else if (n == 3) goToPosition(B3_OUTTAKE);
     }
 
-    // ================= BALL PRESENCE / COLOR =================
-    public boolean isBallPresent() {
-        int a = cachedAlpha;
-
-        if (a > BALL_PRESENT_THRESHOLD) {
-            if (presenceCount < PRESENCE_FRAMES) presenceCount++;
-        } else {
-            if (presenceCount > 0) presenceCount--;
-        }
-
-        return presenceCount >= PRESENCE_FRAMES;
-    }
-
-    private BallColor detectBallColorRaw() {
-        int r = cachedR;
-        int g = cachedG;
-        int b = cachedB;
-        int a = cachedAlpha;
-
-        // must be looking at solid plastic
-        if (a < COLOR_ALPHA_MIN) {
-            return BallColor.UNKNOWN;
-        }
-
-        // GREEN — your readings: G = 521, R = 140, B = 381
-        if (g >= 250 &&
-                g > r + 80 &&
-                g > b + 60) {
-            return BallColor.GREEN;
-        }
-
-        // PURPLE — your readings: B = 559, G = 370, R = 276
-        if (b >= 350 &&
-                b > g + 80 &&
-                b > r + 80) {
-            return BallColor.PURPLE;
-        }
-
-        return BallColor.UNKNOWN;
-    }
-
-    public BallColor detectBallColor() {
-        BallColor raw = detectBallColorRaw();
-
-        if (raw != BallColor.UNKNOWN && raw == lastRawColor) {
-            if (colorStableCount < COLOR_FRAMES) colorStableCount++;
-        } else {
-            colorStableCount = 0;
-        }
-
-        lastRawColor = raw;
-
-        if (colorStableCount >= COLOR_FRAMES) {
-            stableColor = raw;
-        }
-
-        return stableColor;
-    }
-
-    // ================= PUBLIC ACCESSORS (USED BY OTHER CLASSES) =================
-    public int getAlpha() { return cachedAlpha; }
-    public int getRed()   { return cachedR; }
-    public int getGreen() { return cachedG; }
-    public int getBlue()  { return cachedB; }
-
-    public int getCurrentPos() {  // 👈 THIS ONE WAS MISSING IN YOUR ERROR
+    // ================= PUBLIC ACCESSORS =================
+    public int getCurrentPos() {
         return sorterMotor.getCurrentPosition();
     }
 
-    public int getTargetPos() {  // 👈 AND THIS ONE
+    public int getTargetPos() {
         return targetPos;
+    }
+
+    public boolean isHomed() {
+        return sorterHomed;
+    }
+
+    public boolean hasFault() {
+        return homingFault;
+    }
+
+    public boolean isMoving() {
+        return moving;
     }
 
     // ================= NON-BLOCKING UPDATE =================
     public void update() {
-
-        updateSensors();
 
         if (updateRate.milliseconds() < UPDATE_PERIOD_MS) return;
         updateRate.reset();
@@ -500,13 +423,10 @@ public class SorterLogicV2 {
     // ================= INIT LOOP =================
     public void init_loop() {
 
-        updateSensors();
-
         if (homingFault) {
             safeTelemetry(() -> {
                 telemetry.addLine("SORTER HOMING FAILED!");
                 telemetry.addData("Attempts", homingAttempts);
-                telemetry.addData("Alpha", cachedAlpha);
                 telemetry.update();
             });
             return;
@@ -518,7 +438,7 @@ public class SorterLogicV2 {
             safeTelemetry(() -> {
                 telemetry.addData("Homing", "IN PROGRESS");
                 telemetry.addData("Attempts", homingAttempts);
-                telemetry.addData("Alpha", cachedAlpha);
+                telemetry.addData("Alpha", opticalSorterHoming.alpha());
                 telemetry.update();
             });
             return;
@@ -530,7 +450,7 @@ public class SorterLogicV2 {
             safeTelemetry(() -> {
                 telemetry.addData("Homing", "DONE");
                 telemetry.addData("Tuning", "AUTO KD/KP...");
-                telemetry.addData("Alpha", cachedAlpha);
+                telemetry.addData("Alpha", opticalSorterHoming.alpha());
                 telemetry.update();
             });
             return;
@@ -541,7 +461,6 @@ public class SorterLogicV2 {
         safeTelemetry(() -> {
             telemetry.addData("Homing", "DONE");
             telemetry.addData("Tuned", tuned);
-            telemetry.addData("Alpha", cachedAlpha);
             telemetry.addData("Encoder", sorterMotor.getCurrentPosition());
             telemetry.addData("Kp", Kp);
             telemetry.addData("Kd", Kd);

@@ -5,10 +5,9 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 
-@TeleOp(name = "ColorSensorTester")
+@TeleOp(name = "ColorSensorTester Ball Detect NN")
 public class ColorSensorTester extends LinearOpMode {
 
-    // Enum for detected colors
     public enum DetectedColor {
         PURPLE, GREEN, UNKNOWN
     }
@@ -26,33 +25,46 @@ public class ColorSensorTester extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
+
             DetectedColor detectedColor = getDetectedColor();
+
             telemetry.addData("Detected Color", detectedColor);
             telemetry.update();
+
             sleep(100);
         }
     }
 
     public DetectedColor getDetectedColor() {
-        NormalizedRGBA colors = colorSensor.getNormalizedColors();
 
-        float normRed = colors.red / colors.alpha;
-        float normGreen = colors.green / colors.alpha;
-        float normBlue = colors.blue / colors.alpha;
+        NormalizedRGBA c = colorSensor.getNormalizedColors();
 
-        telemetry.addData("Red", normRed);
-        telemetry.addData("Green", normGreen);
-        telemetry.addData("Blue", normBlue);
+        float alpha = c.alpha;
+        float red   = c.red;
+        float green = c.green;
+        float blue  = c.blue;
 
-        if (normGreen >= 0.0030 && normGreen <= 0.0055 && normGreen >= 0.01 && normGreen <= 0.0130 && normBlue >= 0.0080 && normBlue <= 0.015) {
-            telemetry.addData("Color detected", "GREEN");
-            return DetectedColor.GREEN;
-            //do 2nd thresh
-        } else if (normGreen >= 0.0050 && normGreen <= 0.0055 && normGreen >= 0.01 && normGreen <= 0.0130 && normBlue >= 0.0080 && normBlue <= 0.015) {
-            telemetry.addData("Color detected", "PURPLE");
+        telemetry.addData("Alpha", alpha);
+        telemetry.addData("Red", red);
+        telemetry.addData("Green", green);
+        telemetry.addData("Blue", blue);
+
+        // 1. BALL PRESENCE
+        if (alpha < 0.20f) {
+            return DetectedColor.UNKNOWN;
+        }
+
+        // 2. PURPLE: BLUE CLEARLY DOMINATES
+        if (blue > green + 0.001f && blue > red + 0.001f) {
             return DetectedColor.PURPLE;
+        }
+
+        // 3. GREEN: GREEN DOMINATES
+        if (green > blue + 0.001f && green > red + 0.001f) {
+            return DetectedColor.GREEN;
         }
 
         return DetectedColor.UNKNOWN;
     }
+
 }

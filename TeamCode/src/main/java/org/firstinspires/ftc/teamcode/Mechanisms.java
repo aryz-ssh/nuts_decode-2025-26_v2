@@ -17,7 +17,7 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 public class Mechanisms {
 
     // --------- SORTER ----------
-    public SorterLogicV2 sorterLogic;
+    public SorterLogicColor sorterLogic;
     private ElapsedTime sorterRate = new ElapsedTime();
     private static final double SORTER_PERIOD_MS = 60;
 
@@ -61,6 +61,24 @@ public class Mechanisms {
     private ElapsedTime kickerTimer = new ElapsedTime();
     private static final double KICK_DURATION = 0.30;
 
+    // ---- BALL EJECTION DETECTION ----
+    private boolean monitoringShot = false;
+    private boolean dipDetected = false;
+    private double lastOuttakeVelocity = 0;
+
+    // OLD absolute thresholds (you can keep for debugging if you want)
+    private static final double VELOCITY_DIP_THRESHOLD = 250;        // Δ ticks/s (legacy)
+    private static final double VELOCITY_RECOVERY_THRESHOLD = 150;   // legacy
+
+    // NEW percent-based detection
+    private static final double DIP_PERCENT_THRESHOLD = 0.18;        // 18% drop = contact
+    private static final double RECOVERY_PERCENT_MARGIN = 0.12;      // within 12% of target = recovered
+
+    // Safety timeout so we don't monitor forever on a misfire
+    private ElapsedTime shotTimer = new ElapsedTime();
+    private static final double SHOT_TIMEOUT = 1.0;                  // 1s max shot window
+
+
     private boolean pusherActive = false;
     public IMU imu;
 
@@ -71,7 +89,7 @@ public class Mechanisms {
         initOuttake(hw);
         initIMU(hw);
 
-        sorterLogic = new SorterLogicV2();
+        sorterLogic = new SorterLogicColor();
         sorterLogic.init(hw, telemetry);
     }
 
@@ -147,8 +165,6 @@ public class Mechanisms {
 //    public boolean sorterIsHomed() { return sorterLogic.isHomed(); }
     public void sorterGoToIntake(int n) { sorterLogic.goToIntake(n); }
     public void sorterGoToOuttake(int n) { sorterLogic.goToOuttake(n); }
-    public boolean sorterBallPresent() { return sorterLogic.isBallPresent(); }
-    public SorterLogicV2.BallColor sorterDetectColor() { return sorterLogic.detectBallColor(); }
 
     public int getSorterCurrentPosition() { return sorterLogic.getCurrentPos();}
     public int getSorterTargetPosition() { return sorterLogic.getTargetPos(); }
@@ -239,6 +255,12 @@ public class Mechanisms {
         imu.resetYaw();
     }
 
+    public void beginShotDetection() {
+        monitoringShot = true;
+        dipDetected = false;
+        shotTimer.reset();   // start timeout window
+    }
+
     // ---------- MAIN UPDATE LOOP ----------
     public void updateMechanisms() {
 
@@ -272,6 +294,10 @@ public class Mechanisms {
         // ========================
         sorterLogic.update();
 
+        // ---- STORE COLOR WHEN AT INTAKE POSITION ----
+        SorterLogicColor.BallColor detected = sorterLogic.detectBallColor();
+        sorterLogic.storeColorForCurrentPocket(detected);
+
         // ========================
         // OUTTAKE
         // ========================
@@ -279,6 +305,52 @@ public class Mechanisms {
             outtakeMotor.setVelocity(manualOuttakeSpeed * MAX_TICKS_PER_SEC_6000);
         else
             outtakeMotor.setVelocity(0);
+
+        // ========================
+        // BALL EJECTION DETECTION
+        // ========================
+        double currentVel = outtakeMotor.getVelocity();
+
+        if (monitoringShot) {
+
+            double targetVel = manualOuttakeSpeed * MAX_TICKS_PER_SEC_6000;
+
+            // Protect against divide-by-zero if shooter is off
+            if (targetVel < 100) {
+                // Shooter basically not spinning → don't try to detect
+                monitoringShot = false;
+                dipDetected = false;
+            } else {
+
+                // Percent drop from expected shooter speed
+                double dropPercent = (targetVel - currentVel) / targetVel;
+
+                // Step 1: detect clear contact dip
+                if (!dipDetected && dropPercent > DIP_PERCENT_THRESHOLD) {
+                    dipDetected = true;
+                    telemetry.addLine("BALL CONTACT DETECTED");
+                }
+
+                // Step 2: detect recovery (ball has fully exited)
+                double recoveryError = Math.abs(currentVel - targetVel) / targetVel;
+
+                if (dipDetected && recoveryError < RECOVERY_PERCENT_MARGIN) {
+                    telemetry.addLine("BALL EXITED!");
+
+                    monitoringShot = false;
+                    dipDetected = false;
+                }
+
+                // Step 3: timeout safety (kicker jam or misfire)
+                if (shotTimer.seconds() > SHOT_TIMEOUT) {
+                    telemetry.addLine("SHOT TIMEOUT - NO EJECTION");
+                    monitoringShot = false;
+                    dipDetected = false;
+                }
+            }
+        }
+
+        lastOuttakeVelocity = currentVel;
 
         // ========================
         // RAMP ANGLE SERVO (smooth)

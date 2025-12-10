@@ -29,7 +29,7 @@ public class PostNut extends LinearOpMode {
 
     // ---------- Sorter Auto-Mode ----------
     private enum SorterMode { NONE, INTAKE, OUTTAKE }
-    private SorterMode sorterMode = SorterMode.NONE;
+    private SorterMode sorterMode = SorterMode.INTAKE;
 
     // ---------- Outtake ----------
     private boolean outtakeOn = false;
@@ -206,11 +206,9 @@ public class PostNut extends LinearOpMode {
                 if (intakeToggle) {
                     // Enable intake
                     mechanisms.engageIntake(1.0, reversePressed);
-                    telemetry.addData("INTAKE", "ON");
                 } else {
                     // Disable intake
                     mechanisms.disengageIntake();
-                    telemetry.addData("INTAKE", "OFF");
                 }
             }
             lastIntakeTrigger = intakeTriggerNow;
@@ -255,17 +253,19 @@ public class PostNut extends LinearOpMode {
                 if (pocket != null) {
                     selectedPocket = pocket;
                     sorterMode = SorterMode.OUTTAKE;
+
+                    mechanisms.sorterLogic.setCurrentIntakePocket(pocket);
                     mechanisms.sorterGoToOuttake(selectedPocket);
 
-                    telemetry.addData("Color Request", "GREEN → Pocket " + pocket);
+                    // telemetry.addData("Color Request", "GREEN → Pocket " + pocket);
                 } else {
-                    telemetry.addData("Color Request", "GREEN NOT FOUND");
+                    // telemetry.addData("Color Request", "GREEN NOT FOUND");
                 }
             }
             lastGreenRequest = greenReq;
 
 
-// === PURPLE REQUEST — Right Trigger ===
+            // === PURPLE REQUEST — Right Trigger ===
             boolean purpleReq = gamepad2.right_trigger > 0.3;
 
             if (purpleReq && !lastPurpleRequest) {
@@ -277,21 +277,21 @@ public class PostNut extends LinearOpMode {
                 if (pocket != null) {
                     selectedPocket = pocket;
                     sorterMode = SorterMode.OUTTAKE;
+
+                    mechanisms.sorterLogic.setCurrentIntakePocket(pocket);
                     mechanisms.sorterGoToOuttake(selectedPocket);
 
-                    telemetry.addData("Color Request", "PURPLE → Pocket " + pocket);
+                    // telemetry.addData("Color Request", "PURPLE → Pocket " + pocket);
                 } else {
-                    telemetry.addData("Color Request", "PURPLE NOT FOUND");
+                    // telemetry.addData("Color Request", "PURPLE NOT FOUND");
                 }
             }
             lastPurpleRequest = purpleReq;
 
             // A = go to intake for current pocket, and remember that mode
-// A = go to intake for current pocket, and reset cycle
             if (gamepad2.a && !lastA) {
-                // Now go to the newly selected pocket intake
+                mechanisms.sorterLogic.markPocketReady(selectedPocket);
                 mechanisms.sorterGoToIntake(selectedPocket);
-
                 sorterMode = SorterMode.INTAKE;
             }
             lastA = gamepad2.a;
@@ -326,7 +326,6 @@ public class PostNut extends LinearOpMode {
 
             if (gamepad2.y) {
                 mechanisms.ejectBall();
-                mechanisms.beginShotDetection();   // <-- REQUIRED
             }
 
             boolean rb2 = gamepad2.right_bumper;

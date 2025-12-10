@@ -255,12 +255,6 @@ public class Mechanisms {
         imu.resetYaw();
     }
 
-    public void beginShotDetection() {
-        monitoringShot = true;
-        dipDetected = false;
-        shotTimer.reset();   // start timeout window
-    }
-
     // ---------- MAIN UPDATE LOOP ----------
     public void updateMechanisms() {
 

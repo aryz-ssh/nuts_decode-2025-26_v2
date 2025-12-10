@@ -99,6 +99,9 @@ public class SorterLogicColor {
             BallColor.UNKNOWN  // Pocket 3
     };
 
+    public boolean[] pocketReady = {true, true, true};
+
+
     private int currentIntakePocket = 1; // starts at pocket 1
 
     private ElapsedTime updateRate = new ElapsedTime();
@@ -220,33 +223,9 @@ public class SorterLogicColor {
         sorterHomed = true;
         targetPos = B1_INTAKE;
         moving = false;
-    }
 
-    // ================= AUTO TUNE (kept but unused) =================
-    public void autoTuneGains() {
-        if (tuned || !sorterHomed || homingFault) return;
-
-        sorterMotor.setVelocity(300);
-
-        long startTime = System.currentTimeMillis();
-        int startPos = sorterMotor.getCurrentPosition();
-
-        while (System.currentTimeMillis() - startTime < 150) {
-            // spin for 150ms
-        }
-
-        sorterMotor.setVelocity(0);
-
-        int delta = Math.abs(sorterMotor.getCurrentPosition() - startPos);
-        if (delta < 10) delta = 10;
-
-        Kp = Math.max(2.0, Math.min(5.0, 350.0 / delta));
-        Kd = Math.max(0.06, Math.min(0.25, delta / 400.0));
-
-        tuned = true;
-        sorterHomed = false;
-        tapeSeen = false;
-        homingAttempts = 0;
+        currentIntakePocket = 1;
+        pocketReady[0] = true;
     }
 
     // ================= COMMANDS =================
@@ -268,6 +247,10 @@ public class SorterLogicColor {
         if (n == 1) goToPosition(B1_OUTTAKE);
         else if (n == 2) goToPosition(B2_OUTTAKE);
         else if (n == 3) goToPosition(B3_OUTTAKE);
+    }
+
+    public void markPocketReady(int pocket) {
+        pocketReady[pocket - 1] = true;
     }
 
     // ================= PUBLIC ACCESSORS =================
@@ -302,6 +285,10 @@ public class SorterLogicColor {
 
     public SorterLogicColor.BallColor[] getPocketColors() {
         return pocketColors;
+    }
+
+    public void setCurrentIntakePocket(int n) {
+        currentIntakePocket = n;
     }
 
     // ================= COLOR HELPERS =================
@@ -355,8 +342,18 @@ public class SorterLogicColor {
     }
 
     public void storeColorForCurrentPocket(BallColor color) {
-        if (color == BallColor.UNKNOWN) return;  // don't store junk
-        pocketColors[currentIntakePocket - 1] = color;
+
+        if (color == BallColor.UNKNOWN) return;
+
+        int idx = currentIntakePocket - 1;
+
+        // Only overwrite when the pocket is ready for a new ball
+        if (!pocketReady[idx]) return;
+
+        pocketColors[idx] = color;
+
+        // After storing a new ball, mark pocket as "occupied"
+        pocketReady[idx] = false;
     }
 
     public Integer getPocketWithColor(BallColor color) {

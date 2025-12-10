@@ -21,7 +21,9 @@ public class MasterDrivetrain {
     public static double BL_SCALE = 0.64;
     public static double BR_SCALE = 0.64;
 
-    public static double BRAKE_HOLD_TORQUE = 0.18;  // Adjustable
+    public static double BRAKE_HOLD_TORQUE = 0.18;
+    public static double BRAKE_SPEED_MULTIPLIER = 0.5;
+
 
     // ---------------- Motors ----------------
     public DcMotorEx frontLeft, backLeft, frontRight, backRight;
@@ -75,15 +77,22 @@ public class MasterDrivetrain {
                         Math.abs(turn) < DEADZONE;
 
         // ------------------------------------------------------
-        // BRAKE ASSIST (HOLD POSITION)
+        // BRAKE ASSIST (HOLD + SLOW MODE)
         // ------------------------------------------------------
-        if (brakeAssist && noInput) {
-            frontLeft.setPower( BRAKE_HOLD_TORQUE);
-            backLeft.setPower(  BRAKE_HOLD_TORQUE);
-            frontRight.setPower(-BRAKE_HOLD_TORQUE);
-            backRight.setPower( -BRAKE_HOLD_TORQUE);
-            return;
+        if (brakeAssist) {
+            if (noInput) {
+                frontLeft.setPower( BRAKE_HOLD_TORQUE);
+                backLeft.setPower(-BRAKE_HOLD_TORQUE);
+                frontRight.setPower(BRAKE_HOLD_TORQUE);
+                backRight.setPower(-BRAKE_HOLD_TORQUE);
+                return;
+            }
+
+            x *= BRAKE_SPEED_MULTIPLIER;
+            y *= BRAKE_SPEED_MULTIPLIER;
+            turn *= BRAKE_SPEED_MULTIPLIER;
         }
+
 
         // ------------------------------------------------------
         // STRAFE IMU DRIFT CORRECTION

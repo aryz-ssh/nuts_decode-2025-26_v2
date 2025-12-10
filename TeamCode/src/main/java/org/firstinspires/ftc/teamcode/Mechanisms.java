@@ -294,9 +294,12 @@ public class Mechanisms {
         // ========================
         sorterLogic.update();
 
-        // ---- STORE COLOR WHEN AT INTAKE POSITION ----
-        SorterLogicColor.BallColor detected = sorterLogic.detectBallColor();
-        sorterLogic.storeColorForCurrentPocket(detected);
+        if (!sorterLogic.isMoving() && sorterLogic.isAtIntakePosition()) {
+            SorterLogicColor.BallColor detected = sorterLogic.detectBallColor();
+
+            if (detected != SorterLogicColor.BallColor.UNKNOWN)
+                sorterLogic.storeColorForCurrentPocket(detected);
+        }
 
         // ========================
         // OUTTAKE

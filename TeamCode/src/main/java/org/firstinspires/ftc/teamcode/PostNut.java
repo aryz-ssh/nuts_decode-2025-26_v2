@@ -51,8 +51,8 @@ public class PostNut extends LinearOpMode {
     private boolean lastBack = false;
     private boolean lastGreenRequest = false;
     private boolean lastPurpleRequest = false;
-
-
+    private boolean intakeToggle = false;
+    private boolean lastIntakeTrigger = false;
 
     int startAngleIndex = 0;
     // 0 = forward, 1 = back-right, 2 = back-left
@@ -165,7 +165,7 @@ public class PostNut extends LinearOpMode {
             //                GAMEPAD 1 — DRIVE AND INTAKE
             // =============================================================
 
-// Reset full localization heading (Pedro IMU + Odo fused)
+            // Reset full localization heading (Pedro IMU + Odo fused)
             if (gamepad1.back && !lastBack) {
 
                 // 1 — Read Pedro IMU heading AFTER reset
@@ -196,15 +196,30 @@ public class PostNut extends LinearOpMode {
                 drivetrain.driveRobotCentric(x, y, rx, heading);
             }
 
-            // --- INTAKE FULL SPEED ON ANY TRIGGER PRESS WITH SAFE REVERSAL ---
-            boolean intakePressed  = gamepad1.right_trigger > 0.05;
-            boolean reversePressed = gamepad1.left_bumper;  // reverse only when held WITH intake
+            // ================= INTAKE TOGGLE (GAMEPAD1 RIGHT TRIGGER) =================
+            boolean intakeTriggerNow = gamepad1.right_trigger > 0.3;
+            boolean reversePressed = gamepad1.left_bumper;
 
-            if (intakePressed) {
-                mechanisms.engageIntake(1.0, reversePressed);
-            } else {
-                mechanisms.disengageIntake();
+            if (intakeTriggerNow && !lastIntakeTrigger) {
+                intakeToggle = !intakeToggle;
+
+                if (intakeToggle) {
+                    // Enable intake
+                    mechanisms.engageIntake(1.0, reversePressed);
+                    telemetry.addData("INTAKE", "ON");
+                } else {
+                    // Disable intake
+                    mechanisms.disengageIntake();
+                    telemetry.addData("INTAKE", "OFF");
+                }
             }
+            lastIntakeTrigger = intakeTriggerNow;
+
+            // If intake is ON, continuously update reverse direction (safe)
+            if (intakeToggle) {
+                mechanisms.engageIntake(1.0, reversePressed);
+            }
+
 
             // pusher
             mechanisms.pushBallToSorter(gamepad1.right_bumper);
@@ -328,35 +343,41 @@ public class PostNut extends LinearOpMode {
             lastRB2 = rb2;
             lastLB2 = lb2;
 
-
-            // =============================================================
-            //                        UPDATE MECHANISMS
-            // =============================================================
             mechanisms.updateMechanisms();
-
 
             // =============================================================
             //                          TELEMETRY
             // =============================================================
             if (System.currentTimeMillis() - lastTelem > 100) {
-                telemetry.addData("Pocket Selected", selectedPocket);
-                telemetry.addData("Sorter Mode", sorterMode);
 
+                // --- Basic sorter mode ---
+                telemetry.addData("Mode", sorterMode);
+
+                // --- Current sorter position ---
+                int curPos = mechanisms.getSorterCurrentPosition();
+                int tgtPos = mechanisms.getSorterTargetPosition();
+                telemetry.addData("Sorter Pos", curPos);
+                telemetry.addData("Target Pos", tgtPos);
+                telemetry.addData("Error", tgtPos - curPos);
+
+                // --- Pocket Selection ---
+                telemetry.addData("Selected Pocket", selectedPocket);
+
+                // --- Pocket Colors (very simple) ---
+                SorterLogicColor.BallColor[] pc = mechanisms.sorterLogic.getPocketColors();
+                telemetry.addData("P1", pc[0]);
+                telemetry.addData("P2", pc[1]);
+                telemetry.addData("P3", pc[2]);
+
+                // --- Outtake ---
                 telemetry.addData("Outtake Speed", mechanisms.getManualOuttakeSpeed());
                 telemetry.addData("Ramp Angle", "%.2f / %.2f",
                         mechanisms.getRampAngleCurrent(),
                         mechanisms.getRampAngleTarget());
 
-                telemetry.addData("Sorter Pos", "%d → %d",
-                        mechanisms.getSorterCurrentPosition(),
-                        mechanisms.getSorterTargetPosition());
-
-                telemetry.addData("Sorter Error",
-                        mechanisms.getSorterTargetPosition() - mechanisms.getSorterCurrentPosition());
-
-                telemetry.addData("Runtime", runtime.seconds());
-
+                telemetry.addData("Time", runtime.seconds());
                 telemetry.update();
+
                 lastTelem = System.currentTimeMillis();
             }
         }

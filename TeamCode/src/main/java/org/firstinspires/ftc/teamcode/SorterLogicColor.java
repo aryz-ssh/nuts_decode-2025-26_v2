@@ -33,33 +33,33 @@ public class SorterLogicColor {
     public static int B2_INTAKE = 176;
     public static int B2_OUTTAKE = -80;
 
-    public static int B3_INTAKE = 361;
-    public static int B3_OUTTAKE = 110;
+    // Match the tuned Manual class values
+    public static int B3_INTAKE = 373;
+    public static int B3_OUTTAKE = 114;
 
-    // Positioning / PID
-    public static int POSITION_TOLERANCE = 5;     // acceptable final error in ticks
-    public static double Kp = 4.0;                // base proportional gain
-    public static double Kd = 0.15;               // base derivative gain
-    public static int MAX_VEL = 600;              // hard max velocity (ticks/s)
+    // Positioning
+    public static int POSITION_TOLERANCE = 4;     // acceptable final error in ticks
+    public static double Kp = 0.8;                // kept for dashboard visibility (not really used now)
+    public static double Kd = 0.35;
+    public static int MAX_VEL = 1000;              // hard max velocity (ticks/s)
 
     // Zone thresholds (distance to target in ticks)
-    public static int ZONE1_THRESH = 150;         // > this → full speed
-    public static int ZONE2_THRESH = 80;          // 80–150
-    public static int ZONE3_THRESH = 40;          // 40–80
-    public static int ZONE4_THRESH = 15;          // 15–40
+    public static int ZONE1_THRESH = 120;  // was 150
+    public static int ZONE2_THRESH = 70;   // was 80
+    public static int ZONE3_THRESH = 30;   // was 40
+    public static int ZONE4_THRESH = 10;   // was 15
 
     // Zone velocities (ticks/s)
-    public static int VEL_ZONE1 = 600;            // far / fast
-    public static int VEL_ZONE2 = 400;
-    public static int VEL_ZONE3 = 250;
-    public static int VEL_ZONE4 = 150;
-    public static int VEL_ZONE5 = 80;             // final creep
+    public static int VEL_ZONE1 = 800;   // was 600
+    public static int VEL_ZONE2 = 600;   // was 400
+    public static int VEL_ZONE3 = 350;   // was 250
+    public static int VEL_ZONE4 = 200;    // was 150
+    public static int VEL_ZONE5 = 100;    // was 80
 
-    // Overshoot correction (REWIND/SNAP)
-    public static int REWIND_VEL = 600;
-    public static int REWIND_TIME_MS = 80;
-    public static int SNAP_VEL = 250;
-    public static int SNAP_TIMEOUT_MS = 250;
+    // Smooth final approach controller
+    public static double FINAL_K = 8.0;       // strength of final approach
+    public static int FINAL_CLAMP = 200;      // max speed near target
+    public static int REWIND_VEL = 350;
 
     // Telemetry throttling
     public static long TELEMETRY_INTERVAL_MS = 120;
@@ -78,14 +78,6 @@ public class SorterLogicColor {
 
     int homingAttempts = 0;
     final int MAX_ATTEMPTS = 10;
-
-    private enum CorrectionState { NONE, REWIND, SNAP }
-    private CorrectionState correction = CorrectionState.NONE;
-
-    private int rewindDirection = 0;
-    private int snapDirection = 0;
-    private long rewindStartTime = 0;
-    private long snapStartTime = 0;
 
     // Motion state
     int targetPos = 0;
@@ -230,7 +222,7 @@ public class SorterLogicColor {
         moving = false;
     }
 
-    // ================= AUTO TUNE =================
+    // ================= AUTO TUNE (kept but unused) =================
     public void autoTuneGains() {
         if (tuned || !sorterHomed || homingFault) return;
 
@@ -263,7 +255,6 @@ public class SorterLogicColor {
         targetPos = pos;
         moving = true;
         stableCount = 0;
-        correction = CorrectionState.NONE;
     }
 
     public void goToIntake(int n) {
@@ -280,6 +271,15 @@ public class SorterLogicColor {
     }
 
     // ================= PUBLIC ACCESSORS =================
+    public boolean isAtIntakePosition() {
+        int target;
+        if (currentIntakePocket == 1) target = B1_INTAKE;
+        else if (currentIntakePocket == 2) target = B2_INTAKE;
+        else target = B3_INTAKE;
+
+        return Math.abs(sorterMotor.getCurrentPosition() - target) <= POSITION_TOLERANCE;
+    }
+
     public int getCurrentPos() {
         return sorterMotor.getCurrentPosition();
     }
@@ -300,6 +300,11 @@ public class SorterLogicColor {
         return moving;
     }
 
+    public SorterLogicColor.BallColor[] getPocketColors() {
+        return pocketColors;
+    }
+
+    // ================= COLOR HELPERS =================
     private void updateColorCache() {
         if (opticalSorterHoming == null) return;
 
@@ -322,16 +327,12 @@ public class SorterLogicColor {
         float g = cachedG / 1000f;
         float b = cachedB / 1000f;
 
-        // ------------------------------
         // 1. MUST be reading solid plastic, not a hole
-        // ------------------------------
         if (a < 0.20f) {
             return BallColor.UNKNOWN;
         }
 
-        // ------------------------------
         // 2. Reject ambiguous readings caused by holes
-        // ------------------------------
         float diffRG = Math.abs(r - g);
         float diffGB = Math.abs(g - b);
         float diffBR = Math.abs(b - r);
@@ -340,16 +341,12 @@ public class SorterLogicColor {
             return BallColor.UNKNOWN;
         }
 
-        // ------------------------------
         // 3. PURPLE detection — BLUE dominates
-        // ------------------------------
         if (b > g + 0.001f && b > r + 0.001f) {
             return BallColor.PURPLE;
         }
 
-        // ------------------------------
         // 4. GREEN detection — GREEN dominates
-        // ------------------------------
         if (g > b + 0.001f && g > r + 0.001f) {
             return BallColor.GREEN;
         }
@@ -373,6 +370,7 @@ public class SorterLogicColor {
 
     // ================= NON-BLOCKING UPDATE =================
     public void update() {
+        // Keep color cache fresh every cycle
         updateColorCache();
 
         if (updateRate.milliseconds() < UPDATE_PERIOD_MS) return;
@@ -389,123 +387,73 @@ public class SorterLogicColor {
         int current = sorterMotor.getCurrentPosition();
         int error = targetPos - current;
         int absError = Math.abs(error);
-        long now = System.currentTimeMillis();
 
         safeTelemetry(() -> {
             telemetry.addData("Err", error);
             telemetry.addData("AbsErr", absError);
         });
 
-        // ---------- Overshoot detection ----------
-        boolean overshoot =
-                (absError > POSITION_TOLERANCE) &&
-                        (Math.abs(error) > Math.abs(lastError));
-
-        if (correction == CorrectionState.NONE && overshoot) {
-            correction = CorrectionState.REWIND;
-            rewindDirection = (lastError > 0) ? -1 : 1;
-            rewindStartTime = now;
-
-            safeTelemetry(() -> telemetry.addData("CorrState", "START_REWIND"));
-            lastError = error;
-            return;
-        }
-
-        // ---------- REWIND ----------
-        if (correction == CorrectionState.REWIND) {
-
-            sorterMotor.setVelocity(REWIND_VEL * rewindDirection);
-
-            if (now - rewindStartTime >= REWIND_TIME_MS) {
-                sorterMotor.setVelocity(0);
-                correction = CorrectionState.SNAP;
-                snapStartTime = now;
-                snapDirection = (targetPos - sorterMotor.getCurrentPosition() > 0) ? 1 : -1;
-            }
-
-            safeTelemetry(() -> telemetry.addData("CorrState", "REWIND"));
-            lastError = error;
-            return;
-        }
-
-        // ---------- SNAP BACK ----------
-        if (correction == CorrectionState.SNAP) {
-
-            sorterMotor.setVelocity(SNAP_VEL * snapDirection);
-
-            boolean timeout = (now - snapStartTime >= SNAP_TIMEOUT_MS);
-
-            if (absError <= POSITION_TOLERANCE) {
-                sorterMotor.setVelocity(0);
-                correction = CorrectionState.NONE;
-                moving = false;
-            } else if (timeout) {
-                sorterMotor.setVelocity(0);
-                correction = CorrectionState.NONE;
-            }
-
-            safeTelemetry(() -> telemetry.addData("CorrState", "SNAP"));
-            lastError = error;
-
-            if (correction != CorrectionState.NONE || !moving) return;
-        }
-
-        // ---------- MAIN MOTION CONTROL ----------
-        if (absError > POSITION_TOLERANCE) {
-
-            stableCount = 0;
-
-            // If extremely close (<2 ticks), just stop to avoid chatter.
-            if (absError <= 2) {
+        // ===================== REACHED TARGET =====================
+        if (absError <= POSITION_TOLERANCE) {
+            stableCount++;
+            if (stableCount >= 3) {
                 sorterMotor.setVelocity(0);
                 moving = false;
-                lastError = error;
-                return;
-            }
-
-            int vel;
-
-            // 5-zone deceleration profile
-            if (absError > ZONE1_THRESH) {
-                vel = VEL_ZONE1 * Integer.signum(error);
-            } else if (absError > ZONE2_THRESH) {
-                vel = VEL_ZONE2 * Integer.signum(error);
-            } else if (absError > ZONE3_THRESH) {
-                vel = VEL_ZONE3 * Integer.signum(error);
-            } else if (absError > ZONE4_THRESH) {
-                vel = VEL_ZONE4 * Integer.signum(error);
+                safeTelemetry(() -> telemetry.addData("CorrState", "HOLD_DONE"));
             } else {
-                vel = VEL_ZONE5 * Integer.signum(error);
+                safeTelemetry(() -> telemetry.addData("CorrState", "HOLD_NUDGE"));
             }
-
-            // PD micro-correction (small adjustment)
-            int pdBoost = (int)(Kp * 0.15 * error + Kd * 0.2 * (error - lastError));
-            vel += pdBoost;
-
-            // Clamp final velocity
-            if (vel > MAX_VEL) vel = MAX_VEL;
-            if (vel < -MAX_VEL) vel = -MAX_VEL;
-
-            sorterMotor.setVelocity(vel);
-
-            safeTelemetry(() -> telemetry.addData("CorrState", "CORRECTING"));
-
             lastError = error;
             return;
         }
 
-        // ---------- Inside tolerance: wait to declare done ----------
-        stableCount++;
-        if (stableCount >= 3) {
+        stableCount = 0;
+
+        // ===================== EXTREMELY CLOSE (<2) =====================
+        if (absError <= 2) {
             sorterMotor.setVelocity(0);
             moving = false;
-
-            safeTelemetry(() -> telemetry.addData("CorrState", "HOLD_DONE"));
+            safeTelemetry(() -> telemetry.addData("CorrState", "STOP_CLOSE"));
             lastError = error;
             return;
         }
 
-        safeTelemetry(() -> telemetry.addData("CorrState", "HOLD_NUDGE"));
+        int vel;
+
+        // ===================== FAR ZONES =====================
+        if (absError > ZONE1_THRESH) {
+            vel = VEL_ZONE1 * Integer.signum(error);
+            safeTelemetry(() -> telemetry.addData("CorrState", "ZONE1"));
+        }
+        else if (absError > ZONE2_THRESH) {
+            vel = VEL_ZONE2 * Integer.signum(error);
+            safeTelemetry(() -> telemetry.addData("CorrState", "ZONE2"));
+        }
+        else if (absError > ZONE3_THRESH) {
+            vel = VEL_ZONE3 * Integer.signum(error);
+            safeTelemetry(() -> telemetry.addData("CorrState", "ZONE3"));
+        }
+        else if (absError > ZONE4_THRESH) {
+            vel = VEL_ZONE4 * Integer.signum(error);
+            safeTelemetry(() -> telemetry.addData("CorrState", "ZONE4"));
+        }
+        // ===================== FINAL APPROACH (SMOOTH MODE) =====================
+        else {
+            // velocity = k_final * error
+            vel = (int)(FINAL_K * error);
+
+            // clamp for smoothness
+            if (vel > FINAL_CLAMP)  vel = FINAL_CLAMP;
+            if (vel < -FINAL_CLAMP) vel = -FINAL_CLAMP;
+
+            safeTelemetry(() -> telemetry.addData("CorrState", "FINAL_SMOOTH"));
+        }
+
+        // ===================== APPLY VELOCITY =====================
+        if (vel > MAX_VEL) vel = MAX_VEL;
+        if (vel < -MAX_VEL) vel = -MAX_VEL;
+
+        sorterMotor.setVelocity(vel);
         lastError = error;
     }
 
@@ -533,16 +481,9 @@ public class SorterLogicColor {
             return;
         }
 
+        // Disable auto-tune; we just mark as tuned
         if (!tuned) {
-            autoTuneGains();
-
-            safeTelemetry(() -> {
-                telemetry.addData("Homing", "DONE");
-                telemetry.addData("Tuning", "AUTO KD/KP...");
-                telemetry.addData("Alpha", opticalSorterHoming.alpha());
-                telemetry.update();
-            });
-            return;
+            tuned = true;
         }
 
         update();

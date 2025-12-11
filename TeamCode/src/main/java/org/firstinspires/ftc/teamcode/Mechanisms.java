@@ -40,10 +40,10 @@ public class Mechanisms {
     private double manualOuttakeSpeed = 0.7;
 
     public Servo rampAngleAdjust;
-    private static final double RAMP_ANGLE_MIN_POS = 0.07;
+    private static double RAMP_ANGLE_MIN_POS = 0.07;
     private static final double RAMP_ANGLE_MAX_POS = 0.7;
     private double rampAngleTarget = RAMP_ANGLE_MIN_POS;
-    private static final double RAMP_STEP = 0.15;
+    private static final double RAMP_STEP = 0.1;
 
     public Servo kickerServo;
     public static double KICKER_RESTING_POS = 0.45;
@@ -73,15 +73,14 @@ public class Mechanisms {
     private static final double VELOCITY_RECOVERY_THRESHOLD = 150;   // legacy
 
     // NEW percent-based detection
-    private static final double DIP_PERCENT_THRESHOLD = 0.18;        // 18% drop = contact
-    private static final double RECOVERY_PERCENT_MARGIN = 0.12;      // within 12% of target = recovered
+    public static double DIP_PERCENT_THRESHOLD = 0.10;        // 10% drop = contact
+    public static double RECOVERY_PERCENT_MARGIN = 0.20;      // within 20% of target = recovered
 
     // Safety timeout so we don't monitor forever on a misfire
     private ElapsedTime shotTimer = new ElapsedTime();
     private static final double SHOT_TIMEOUT = 1.0;                  // 1s max shot window
     private int lastShotPocket = 1;
-
-
+    public static double BACKUP_EXIT_TIME = 0.40;        // new
 
     private boolean pusherActive = false;
     public IMU imu;
@@ -323,7 +322,7 @@ public class Mechanisms {
             outtakeMotor.setVelocity(0);
 
         // ========================
-        // BALL EJECTION DETECTION
+        // BALL EJECTION DETECTION (RELIABLE VERSION)
         // ========================
         double currentVel = outtakeMotor.getVelocity();
 
@@ -331,9 +330,8 @@ public class Mechanisms {
 
             double targetVel = manualOuttakeSpeed * MAX_TICKS_PER_SEC_6000;
 
-            // Protect against divide-by-zero if shooter is off
-            if (targetVel < 100) {
-                // Shooter basically not spinning → don't try to detect
+            // Shooter basically not spinning, abort detection
+            if (targetVel < 200) {
                 monitoringShot = false;
                 dipDetected = false;
             } else {
@@ -341,30 +339,48 @@ public class Mechanisms {
                 // Percent drop from expected shooter speed
                 double dropPercent = (targetVel - currentVel) / targetVel;
 
-                // Step 1: detect clear contact dip
+                // ---- STEP 1: Detect dip (ball contact) ----
                 if (!dipDetected && dropPercent > DIP_PERCENT_THRESHOLD) {
                     dipDetected = true;
+                    shotTimer.reset();
                     telemetry.addLine("BALL CONTACT DETECTED");
                 }
 
-                // Step 2: detect recovery (ball has fully exited)
-                double recoveryError = Math.abs(currentVel - targetVel) / targetVel;
+                if (dipDetected) {
 
-                if (dipDetected && recoveryError < RECOVERY_PERCENT_MARGIN) {
-                    telemetry.addLine("BALL EXITED!");
+                    // Error after dip
+                    double recoveryError = Math.abs(currentVel - targetVel) / targetVel;
 
-                    // Clear the pocket that was just shot
-                    sorterLogic.clearPocket(lastShotPocket);
+                    // ---- STEP 2A: Normal recovery-based exit detection ----
+                    if (recoveryError < RECOVERY_PERCENT_MARGIN) {
+                        telemetry.addLine("BALL EXITED (STABLE RECOVERY)");
+                        sorterLogic.clearPocket(lastShotPocket);
+                        monitoringShot = false;
+                        dipDetected = false;
+                    }
 
-                    monitoringShot = false;
-                    dipDetected = false;
-                }
+                    // ---- STEP 2B: High velocity recovery (>= 95% of target) ----
+                    else if (currentVel > 0.95 * targetVel) {
+                        telemetry.addLine("BALL EXITED (HIGH RPM RECOVERY)");
+                        sorterLogic.clearPocket(lastShotPocket);
+                        monitoringShot = false;
+                        dipDetected = false;
+                    }
 
-                // Step 3: timeout safety (kicker jam or misfire)
-                if (shotTimer.seconds() > SHOT_TIMEOUT) {
-                    telemetry.addLine("SHOT TIMEOUT - NO EJECTION");
-                    monitoringShot = false;
-                    dipDetected = false;
+                    // ---- STEP 2C: Backup: dip happened, but shooter never stabilized ----
+                    else if (shotTimer.seconds() > 0.40) {   // 0.40s after dip
+                        telemetry.addLine("BALL EXITED (BACKUP TIMEOUT)");
+                        sorterLogic.clearPocket(lastShotPocket);
+                        monitoringShot = false;
+                        dipDetected = false;
+                    }
+
+                    // ---- HARD TIMEOUT (complete shot window) ----
+                    if (shotTimer.seconds() > SHOT_TIMEOUT) {
+                        telemetry.addLine("SHOT TIMEOUT - NO EXIT");
+                        monitoringShot = false;
+                        dipDetected = false;
+                    }
                 }
             }
         }

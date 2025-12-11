@@ -73,6 +73,23 @@ public class PostNut extends LinearOpMode {
         telemetry.update();
 
         while (!isStarted() && !isStopRequested()) {
+
+            // FORCE ROBOT-CENTRIC MODE BY DEFAULT
+
+            drivetrain.fieldCentricEnabled = false;
+            driveModeChosen = true;
+            allianceChosen = true;
+            startAngleChosen = true;
+
+            telemetry.addLine("Drive Mode: ROBOT-CENTRIC (default)");
+            telemetry.update();
+
+            // Keep sorter homing running
+            mechanisms.sorterInitLoop();
+            sleep(10);
+        }
+
+/*        while (!isStarted() && !isStopRequested()) {
             // 1 — DRIVE MODE SELECTION (FIRST)
             if (!driveModeChosen) {
                 telemetry.addLine("Choose Drive Mode:");
@@ -153,8 +170,7 @@ public class PostNut extends LinearOpMode {
 
             mechanisms.sorterInitLoop();
             sleep(10);
-        }
-
+        } */
 
         waitForStart();
         runtime.reset();

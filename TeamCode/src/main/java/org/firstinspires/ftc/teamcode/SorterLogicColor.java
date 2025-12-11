@@ -14,6 +14,8 @@ public class SorterLogicColor {
     Telemetry telemetry;
     DcMotorEx sorterMotor;
     ColorSensor opticalSorterHoming;
+    ColorSensor sorterColorSensor;
+
 
     // ---------- DASHBOARD-TUNABLE CONSTANTS ----------
 
@@ -121,6 +123,7 @@ public class SorterLogicColor {
 
         sorterMotor = hwMap.get(DcMotorEx.class, "sorterMotor");
         opticalSorterHoming = hwMap.get(ColorSensor.class, "opticalSorterHoming");
+        sorterColorSensor = hwMap.get(ColorSensor.class, "sorterColorSensor");
 
         sorterMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
 
@@ -293,12 +296,10 @@ public class SorterLogicColor {
 
     // ================= COLOR HELPERS =================
     private void updateColorCache() {
-        if (opticalSorterHoming == null) return;
-
-        cachedAlpha = opticalSorterHoming.alpha();
-        cachedR = opticalSorterHoming.red();
-        cachedG = opticalSorterHoming.green();
-        cachedB = opticalSorterHoming.blue();
+        cachedAlpha = sorterColorSensor.alpha();
+        cachedR = sorterColorSensor.red();
+        cachedG = sorterColorSensor.green();
+        cachedB = sorterColorSensor.blue();
     }
 
     public BallColor detectBallColor() {
@@ -363,6 +364,12 @@ public class SorterLogicColor {
             }
         }
         return null; // not found
+    }
+
+    public void clearPocket(int pocket) {
+        int idx = pocket - 1;
+        pocketColors[idx] = BallColor.UNKNOWN;
+        pocketReady[idx] = true;
     }
 
     // ================= NON-BLOCKING UPDATE =================

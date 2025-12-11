@@ -325,6 +325,7 @@ public class PostNut extends LinearOpMode {
             lastDpadDown = gamepad2.dpad_down;
 
             if (gamepad2.y) {
+                mechanisms.setShotPocket(selectedPocket);
                 mechanisms.ejectBall();
             }
 

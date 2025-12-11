@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -14,6 +15,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
+@Config
 public class Mechanisms {
 
     // --------- SORTER ----------
@@ -44,8 +46,8 @@ public class Mechanisms {
     private static final double RAMP_STEP = 0.15;
 
     public Servo kickerServo;
-    private static final double KICKER_RESTING_POS = 0.50;
-    private static final double KICKER_EJECT_POS = 0.83;
+    public static double KICKER_RESTING_POS = 0.45;
+    public static double KICKER_EJECT_POS = 0.83;
 
     // ---------- TELEMETRY ----------
     private Telemetry telemetry;
@@ -59,7 +61,7 @@ public class Mechanisms {
 
     private boolean kickerActive = false;
     private ElapsedTime kickerTimer = new ElapsedTime();
-    private static final double KICK_DURATION = 0.30;
+    public static double KICK_DURATION = 0.30;
 
     // ---- BALL EJECTION DETECTION ----
     private boolean monitoringShot = false;
@@ -77,6 +79,8 @@ public class Mechanisms {
     // Safety timeout so we don't monitor forever on a misfire
     private ElapsedTime shotTimer = new ElapsedTime();
     private static final double SHOT_TIMEOUT = 1.0;                  // 1s max shot window
+    private int lastShotPocket = 1;
+
 
 
     private boolean pusherActive = false;
@@ -211,6 +215,17 @@ public class Mechanisms {
         if (!kickerActive) {
             kickerActive = true;
             kickerTimer.reset();
+
+            // --- start monitoring this shot ---
+            if (outtakeActive && manualOuttakeSpeed > 0.1) {
+                monitoringShot = true;
+                dipDetected = false;
+                shotTimer.reset();
+            } else {
+                // Shooter isn't running → don't try to detect
+                monitoringShot = false;
+                dipDetected = false;
+            }
         }
     }
 
@@ -236,6 +251,10 @@ public class Mechanisms {
 
     public double getRampAngleCurrent() {
         return rampAngleAdjust.getPosition();
+    }
+
+    public void setShotPocket(int pocket) {
+        lastShotPocket = pocket;
     }
 
     private double rampTo(double current, double target, double rate) {
@@ -333,6 +352,9 @@ public class Mechanisms {
 
                 if (dipDetected && recoveryError < RECOVERY_PERCENT_MARGIN) {
                     telemetry.addLine("BALL EXITED!");
+
+                    // Clear the pocket that was just shot
+                    sorterLogic.clearPocket(lastShotPocket);
 
                     monitoringShot = false;
                     dipDetected = false;

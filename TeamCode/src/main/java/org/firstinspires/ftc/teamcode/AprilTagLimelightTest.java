@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.testers;
+package org.firstinspires.ftc.teamcode;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
@@ -34,7 +34,7 @@ public class AprilTagLimelightTest extends OpMode{
             telemetry.addData( "Targetx", llResult.getTx());
             telemetry.addData( "Targety", llResult.getTy());
             telemetry.addData( "Ta", llResult.getTa());
-
+            telemetry.addData( "ID", llResult.getBarcodeResults());
         }
         telemetry.update();
     }

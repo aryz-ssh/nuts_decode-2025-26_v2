@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.dashboard.config.Config;
 import com.pedropathing.follower.Follower;
+import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -415,8 +416,46 @@ public class PostNut extends LinearOpMode {
                 break;
         }
     }
-
     private double applyDeadband(double value) {
         return (Math.abs(value) > DEADZONE) ? value : 0;
     }
+    public void varunlimelight() {
+        if (gamepad1.b) {
+            mechanisms.limelight.pipelineSwitch(2);
+            //boolean aligned = false;
+            //while (opMode.opModeIsActive() && !aligned && isPressed) {
+            LLResult result = mechanisms.limelight.getLatestResult();
+            if ((result != null) && result.isValid()) {
+                double tx = result.getTx();
+                if (Math.abs(tx) > 3.0) {
+                    if (tx < 0) {
+                        MasterDrivetrain.frontLeft.setPower(-0.8);
+                        MasterDrivetrain.backLeft.setPower(-0.8);
+                        MasterDrivetrain.frontRight.setPower(0.8);
+                        MasterDrivetrain.backRight.setPower(0.8);
+                        telemetry.addData("Command", "Turn Right");
+                    } else {
+                        MasterDrivetrain.frontLeft.setPower(0.8);
+                        MasterDrivetrain.backLeft.setPower(0.8);
+                        MasterDrivetrain.frontRight.setPower(-0.8);
+                        MasterDrivetrain.backRight.setPower(-0.8);
+                        telemetry.addData("Command", "Turn Right");
+                    }
+                } else {
+                    MasterDrivetrain.frontLeft.setPower(0);
+                    MasterDrivetrain.backLeft.setPower(0);
+                    MasterDrivetrain.frontRight.setPower(0);
+                    MasterDrivetrain.backRight.setPower(0);
+                    telemetry.addData("Command", "Locked on TargeT!!");
+                    //aligned = true;
+                }
+//                opMode.telemetry.addData("X Offset", tx);
+//                opMode.telemetry.update();
+            } else {
+                telemetry.addData("Alignment", "No tag detected");
+                //telemetry.update();
+            }
+        }
+    }
+
 }

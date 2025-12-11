@@ -25,8 +25,13 @@ public class MasterDrivetrain {
     public static double BRAKE_SPEED_MULTIPLIER = 0.5;
 
 
+
+
     // ---------------- Motors ----------------
-    public DcMotorEx frontLeft, backLeft, frontRight, backRight;
+    public static DcMotorEx frontLeft;
+    public static DcMotorEx backLeft;
+    public static DcMotorEx frontRight;
+    public static DcMotorEx backRight;
 
     // ---------------- Ramp Smoothing ----------------
     public static double rampRate = 0.25;

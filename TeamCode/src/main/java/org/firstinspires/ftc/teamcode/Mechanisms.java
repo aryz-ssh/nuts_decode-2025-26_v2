@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.dashboard.config.Config;
+
+
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -15,11 +17,14 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
+
 @Config
 public class Mechanisms {
 
     // --------- SORTER ----------
     public SorterLogicColor sorterLogic;
+    public AprilTagLimelightActual limelight;
+
     private ElapsedTime sorterRate = new ElapsedTime();
     private static final double SORTER_PERIOD_MS = 60;
 
@@ -91,6 +96,8 @@ public class Mechanisms {
         initIntake(hw);
         initOuttake(hw);
         initIMU(hw);
+
+        limelight = new AprilTagLimelightActual();
 
         sorterLogic = new SorterLogicColor();
         sorterLogic.init(hw, telemetry);

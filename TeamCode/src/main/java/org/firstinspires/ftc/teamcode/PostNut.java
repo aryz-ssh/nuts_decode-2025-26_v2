@@ -419,6 +419,7 @@ public class PostNut extends LinearOpMode {
     private double applyDeadband(double value) {
         return (Math.abs(value) > DEADZONE) ? value : 0;
     }
+    /*
     public void varunlimelight() {
         if (gamepad1.b) {
             mechanisms.limelight.pipelineSwitch(2);
@@ -457,5 +458,6 @@ public class PostNut extends LinearOpMode {
             }
         }
     }
+    */
 
 }

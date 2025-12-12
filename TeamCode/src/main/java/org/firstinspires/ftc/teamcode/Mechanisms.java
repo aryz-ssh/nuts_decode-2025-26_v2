@@ -120,7 +120,7 @@ public class Mechanisms {
         intakeServoSecond.setPosition(INTAKE_SERVO_SECOND_RESTING_POS);
     }
 
-    private void initOuttake(HardwareMap hw) {
+    public void initOuttake(HardwareMap hw) {
         outtakeMotor = hw.get(DcMotorEx.class, "outtakeMotor");
         rampAngleAdjust = hw.get(Servo.class, "rampAngle");
         kickerServo = hw.get(Servo.class, "kickerServo");

@@ -94,7 +94,7 @@ public class CloseBlueAuto extends LinearOpMode {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(26.25, 132, Math.toRadians(143)));
+        follower.setStartingPose(new Pose(26.25, 132, Math.toRadians(141)));
 
         paths = new Paths(follower);
 
@@ -292,7 +292,7 @@ public class CloseBlueAuto extends LinearOpMode {
             ToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(26.250, 132.000), new Pose(33, 127))
+                            new BezierLine(new Pose(26.250, 132.000), new Pose(43.16819672, 118.2967213))
                     )
                     .setTangentHeadingInterpolation()
                     .setReversed()
@@ -301,9 +301,9 @@ public class CloseBlueAuto extends LinearOpMode {
             MoveAway = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(33, 127), new Pose(47, 132.8))
+                            new BezierLine(new Pose(43.16819672, 118.2967213), new Pose(46.9452459, 133.1688525))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(143), Math.toRadians(90))
+                    .setLinearHeadingInterpolation(Math.toRadians(141), Math.toRadians(270))
                     .build();
         }
     }

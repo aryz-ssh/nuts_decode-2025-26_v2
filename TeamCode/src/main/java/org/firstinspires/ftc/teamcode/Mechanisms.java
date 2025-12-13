@@ -45,7 +45,7 @@ public class Mechanisms {
     private double manualOuttakeSpeed = 0.7;
 
     public Servo rampAngleAdjust;
-    private static double RAMP_ANGLE_MIN_POS = 0.3;
+    public static double RAMP_ANGLE_MIN_POS = 0.3;
     private static final double RAMP_ANGLE_MAX_POS = 1;
     private double rampAngleTarget = RAMP_ANGLE_MIN_POS;
     private static final double RAMP_STEP = 0.1;
@@ -282,6 +282,10 @@ public class Mechanisms {
     public double getHeadingRadians() {
         YawPitchRollAngles angles = imu.getRobotYawPitchRollAngles();
         return angles.getYaw(AngleUnit.RADIANS);
+    }
+
+    public boolean isSorterMoving() {
+        return sorterLogic.isMoving();
     }
 
     // ---------- RESET ----------

@@ -11,6 +11,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.Mechanisms;
+import org.firstinspires.ftc.teamcode.SorterLogicColor;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -27,7 +28,6 @@ public class CloseRedAuto extends LinearOpMode {
   //  private Mechanisms mechanisms;
     private Mechanisms mechanisms;
 
-
     private ArrayList<String> intakeOrder = new ArrayList<>();
     private boolean intakeOn = false;
     private long delayStart = 0;
@@ -42,6 +42,7 @@ public class CloseRedAuto extends LinearOpMode {
         START_OUTTAKE,
         RAMP_UP,
         WAIT_FOR_HOME,
+        SORTER_SETTLE,
 
         MOVE_SORTER,
         WAIT_SORTER,
@@ -53,6 +54,9 @@ public class CloseRedAuto extends LinearOpMode {
 
         START_MOVE_AWAY,
         WAIT_MOVE_AWAY,
+
+        RETURN_TO_INTAKE,
+        WAIT_RETURN_TO_INTAKE,
 
         DONE
     }
@@ -66,6 +70,22 @@ public class CloseRedAuto extends LinearOpMode {
 
     boolean toShootStarted = false;
     boolean moveAwayStarted = false;
+    boolean returnCommanded = false;
+
+
+    // ================= DASHBOARD TUNABLES =================
+
+    // Shooter / outtake
+    public static double OUTTAKE_POWER = 0.55;
+    public static double RAMP_ANGLE_TARGET = 0.99;
+    public static double RAMP_UP_TIME = 1.5;
+
+    // Sorter timing
+    public static double SORTER_SETTLE_TIME = 0.4;
+
+    // Kicker timing
+    public static double FIRST_KICK_DELAY = 0.30;
+    public static double SECOND_KICK_DELAY = 0.45;
 
     ElapsedTime stateTimer = new ElapsedTime();
 
@@ -88,26 +108,14 @@ public class CloseRedAuto extends LinearOpMode {
         panelsTelemetry.debug("Status", "Initialized");
         panelsTelemetry.update(telemetry);
 
-        // ===============================
-        // SORTER HOMING INIT LOOP
-        // ===============================
         while (!isStarted() && !isStopRequested()) {
-            mechanisms.sorterInitLoop();      // decides homing actions
-            mechanisms.updateMechanisms();    // actually runs sorterLogic.update() -> motor moves
-
-            panelsTelemetry.debug("Sorter", "Homing...");
-            panelsTelemetry.debug("SorterPos", mechanisms.getSorterCurrentPosition());
-            panelsTelemetry.debug("SorterTarget", mechanisms.getSorterTargetPosition());
-            panelsTelemetry.update(telemetry);
-
-            idle();        // IMPORTANT: let hardware loop breathe
-            // or sleep(10);
+            mechanisms.sorterInitLoop();   // homing ONLY
+            idle();
         }
 
         waitForStart();
 
-        autoState = mechanisms.isSorterHomed() ? AutoState.START_TO_SHOOT : AutoState.WAIT_FOR_HOME;
-
+        autoState = AutoState.START_TO_SHOOT;
 
         while (opModeIsActive()) {
             if (autoState != AutoState.WAIT_FOR_HOME) {
@@ -116,22 +124,6 @@ public class CloseRedAuto extends LinearOpMode {
             mechanisms.updateMechanisms();
 
             switch (autoState) {
-                case WAIT_FOR_HOME:
-                    // keep homing state machine running AFTER start
-                    mechanisms.sorterInitLoop();
-                    mechanisms.updateMechanisms();
-
-                    panelsTelemetry.debug("WAIT", "Homing");
-                    panelsTelemetry.debug("SorterPos", mechanisms.getSorterCurrentPosition());
-                    panelsTelemetry.debug("SorterHomed", mechanisms.isSorterHomed());
-                    panelsTelemetry.update(telemetry);
-
-                    if (mechanisms.isSorterHomed()) {
-                        autoState = AutoState.START_TO_SHOOT;
-                    }
-                    break;
-
-
                 case START_TO_SHOOT:
                     if (!toShootStarted) {
                         follower.followPath(paths.ToShoot);
@@ -145,8 +137,8 @@ public class CloseRedAuto extends LinearOpMode {
                 // ===============================
                 case START_OUTTAKE:
                     if (!outtakeStarted) {
-                        mechanisms.engageOuttake(0.7);
-                        mechanisms.setRampAngle(0.9);
+                        mechanisms.engageOuttake(OUTTAKE_POWER);
+                        mechanisms.setRampAngle(RAMP_ANGLE_TARGET);
                         stateTimer.reset();
                         outtakeStarted = true;
                     }
@@ -163,7 +155,7 @@ public class CloseRedAuto extends LinearOpMode {
                 // WAIT FOR FULL RPM + RAMP
                 // ===============================
                 case RAMP_UP:
-                    if (stateTimer.seconds() >= 1.5) {
+                    if (stateTimer.seconds() >= RAMP_UP_TIME) {
                         sorterCommanded = false;
                         autoState = AutoState.MOVE_SORTER;
                     }
@@ -181,7 +173,14 @@ public class CloseRedAuto extends LinearOpMode {
                     break;
 
                 case WAIT_SORTER:
-                    if (sorterAtTarget()) {
+                    if (!isSorterMoving()) {
+                        stateTimer.reset();
+                        autoState = AutoState.SORTER_SETTLE;
+                    }
+                    break;
+
+                case SORTER_SETTLE:
+                    if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {   // ← tune: 0.35–0.5
                         autoState = AutoState.KICK_1;
                     }
                     break;
@@ -200,7 +199,7 @@ public class CloseRedAuto extends LinearOpMode {
                 // WAIT AFTER FIRST KICK
                 // ===============================
                 case WAIT_1:
-                    if (stateTimer.seconds() >= 0.30) {
+                    if (stateTimer.seconds() >= FIRST_KICK_DELAY) {
                         autoState = AutoState.KICK_2;
                     }
                     break;
@@ -218,7 +217,7 @@ public class CloseRedAuto extends LinearOpMode {
                 // WAIT AFTER SECOND KICK
                 // ===============================
                 case WAIT_2:
-                    if (stateTimer.seconds() >= 0.45) {
+                    if (stateTimer.seconds() >= SECOND_KICK_DELAY) {
                         autoState = AutoState.NEXT_POCKET;
                     }
                     break;
@@ -251,18 +250,32 @@ public class CloseRedAuto extends LinearOpMode {
 
                 case WAIT_MOVE_AWAY:
                     if (!follower.isBusy()) {
-                        autoState = AutoState.DONE;
+                        autoState = AutoState.RETURN_TO_INTAKE;
                     }
                     break;
 
+                case RETURN_TO_INTAKE:
+                    if (!returnCommanded) {
+                        mechanisms.disengageOuttake();
+                        mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
+                        mechanisms.sorterGoToIntake(1);
+                        returnCommanded = true;
+                    }
+                    autoState = AutoState.WAIT_RETURN_TO_INTAKE;
+                    break;
 
+                case WAIT_RETURN_TO_INTAKE:
+                    if (!isSorterMoving()) {
+                        autoState = AutoState.DONE;
+                    }
+                    break;
 
 
                 // ===============================
                 // FINISHED
                 // ===============================
                 case DONE:
-                    // idle
+                    // Robot parked. Mechanisms are safe. Do nothing.
                     break;
             }
 
@@ -275,11 +288,8 @@ public class CloseRedAuto extends LinearOpMode {
 
     }
 
-    private boolean sorterAtTarget() {
-        return Math.abs(
-                mechanisms.getSorterCurrentPosition()
-                        - mechanisms.getSorterTargetPosition()
-        ) < 20; // tune if needed
+    public boolean isSorterMoving() {
+        return mechanisms.isSorterMoving();
     }
 
     // ---------------- PATH LIST ----------------

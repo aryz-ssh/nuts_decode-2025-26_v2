@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-@Autonomous(name = "smallTriangleOff", group = "Autonomous")
+@Autonomous(name = "RedSmallTriangleOff", group = "Autonomous")
 @Configurable
 public class RedSmallTriangleOff extends LinearOpMode {
 

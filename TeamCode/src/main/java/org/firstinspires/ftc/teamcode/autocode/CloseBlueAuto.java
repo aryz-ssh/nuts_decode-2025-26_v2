@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-@Autonomous(name = "AutoCode", group = "Autonomous")
+@Autonomous(name = "Close Blue Auto - 3 ball", group = "Autonomous")
 @Configurable
 public class CloseBlueAuto extends LinearOpMode {
 

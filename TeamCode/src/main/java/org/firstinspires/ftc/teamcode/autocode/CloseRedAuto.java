@@ -302,7 +302,7 @@ public class CloseRedAuto extends LinearOpMode {
             ToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(117.000, 131.500), new Pose(100.09180327868853, 117.79672131147541))
+                            new BezierLine(new Pose(117.000, 131.500), new Pose(98.60508083140877, 115.56581986143188))
                     )
                     .setLinearHeadingInterpolation(Math.toRadians(36), Math.toRadians(36))
                     .build();
@@ -310,7 +310,7 @@ public class CloseRedAuto extends LinearOpMode {
             moveAway = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(100.09180327868853, 117.79672131147541), new Pose(96.31475409836065, 132.6688524590164))
+                            new BezierLine(new Pose(98.60508083140877, 115.56581986143188), new Pose(96.31475409836065, 132.6688524590164))
                     )
                     .setLinearHeadingInterpolation(Math.toRadians(36), Math.toRadians(270))
                     .build();

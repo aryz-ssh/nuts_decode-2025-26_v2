@@ -102,6 +102,11 @@ public class CloseBlueAuto extends LinearOpMode {
         panelsTelemetry.debug("Status", "Initialized");
         panelsTelemetry.update(telemetry);
 
+        while (!isStarted() && !isStopRequested()) {
+            mechanisms.sorterInitLoop();   // homing ONLY
+            idle();
+        }
+
         waitForStart();
 
         autoState = CloseBlueAuto.AutoState.START_TO_SHOOT;

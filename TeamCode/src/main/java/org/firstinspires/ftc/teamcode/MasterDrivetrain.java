@@ -20,13 +20,9 @@ public class MasterDrivetrain {
     public static double FR_SCALE = 1.0;
     public static double BL_SCALE = 0.64;
     public static double BR_SCALE = 0.64;
-    public static double MAX_TURN_SPEED = 0.80;   // 0.0–1.0, tunable
+    public static double MAX_TURN_SPEED = 0.9;   // 0.0–1.0, tunable
 
-    public static double BRAKE_HOLD_TORQUE = 0.18;
     public static double BRAKE_SPEED_MULTIPLIER = 0.5;
-
-
-
 
     // ---------------- Motors ----------------
     public static DcMotorEx frontLeft;
@@ -35,7 +31,7 @@ public class MasterDrivetrain {
     public static DcMotorEx backRight;
 
     // ---------------- Ramp Smoothing ----------------
-    public static double rampRate = 0.25;
+    public static double rampRate = 0.4;
     private double currentFL = 0, currentFR = 0, currentBL = 0, currentBR = 0;
 
     // ---------------- Brake Assist Toggle ----------------

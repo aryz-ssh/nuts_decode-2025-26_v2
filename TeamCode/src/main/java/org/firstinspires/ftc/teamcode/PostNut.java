@@ -186,19 +186,9 @@ public class PostNut extends LinearOpMode {
 
             // Reset full localization heading (Pedro IMU + Odo fused)
             if (gamepad1.back && !lastBack) {
-
-                // 1 — Read Pedro IMU heading AFTER reset
-                follower.setPose(follower.getPose().withHeading(0));
-
-                // 2 — Feed the new heading into drivetrain
-                drivetrain.startOffsetRadians = 0;
-                drivetrain.resetHeadingFromFollower(0);
-
-                // 3 — Optional: reset mecanisms IMU if you want it in sync
-                mechanisms.resetHeading();
+                mechanisms.resetHeading();                 // imu.resetYaw()
             }
             lastBack = gamepad1.back;
-
 
             double y  = applyDeadband(-gamepad1.left_stick_y);
             double x  = applyDeadband(gamepad1.left_stick_x);
@@ -206,8 +196,7 @@ public class PostNut extends LinearOpMode {
 
             drivetrain.brakeAssist = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
 
-            double heading = follower.getPose().getHeading();
-
+            double heading = mechanisms.getHeadingRadians();
 
             if (drivetrain.fieldCentricEnabled) {
                 drivetrain.driveFieldCentric(x, y, rx, heading);

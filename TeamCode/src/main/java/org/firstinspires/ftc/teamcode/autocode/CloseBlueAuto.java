@@ -23,7 +23,7 @@ public class CloseBlueAuto extends LinearOpMode {
     private TelemetryManager panelsTelemetry;
     private Follower follower;
     private Paths paths;
-  //  private Mechanisms mechanisms;
+    private Mechanisms mechanisms;
 
     private ArrayList<String> intakeOrder = new ArrayList<>();
     private boolean intakeOn = false;
@@ -32,8 +32,7 @@ public class CloseBlueAuto extends LinearOpMode {
 
     private String lastDetectedColor = null;
 
-    Mechanisms mechanisms = new Mechanisms();
-
+    m
     private enum AutoState {
         START_TO_SHOOT,
         WAIT_TO_SHOOT,

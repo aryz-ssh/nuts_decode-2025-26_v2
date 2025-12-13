@@ -78,9 +78,9 @@ public class BlueSmallTriangleOff extends LinearOpMode {
             Path1 = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(56.000, 8.000), new Pose(56.000, 26))
+                            new BezierLine(new Pose(56.000, 8.000), new Pose(56.000, 35.000))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(155))
+                    .setTangentHeadingInterpolation()
                     .build();
         }
     }

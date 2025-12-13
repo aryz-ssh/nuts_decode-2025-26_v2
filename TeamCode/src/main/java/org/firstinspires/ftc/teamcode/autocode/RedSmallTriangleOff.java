@@ -37,7 +37,7 @@ public class RedSmallTriangleOff extends LinearOpMode {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(56, 8, Math.toRadians(90)));
+        follower.setStartingPose(new Pose(88, 8, Math.toRadians(90)));
 
         paths = new Paths(follower);
 
@@ -78,9 +78,9 @@ public class RedSmallTriangleOff extends LinearOpMode {
             Path1 = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(56.000, 8.000), new Pose(90.000, 26.000))
+                            new BezierLine(new Pose(88.000, 8.000), new Pose(88.000, 35.000))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(25))
+                    .setTangentHeadingInterpolation()
                     .build();
         }
     }

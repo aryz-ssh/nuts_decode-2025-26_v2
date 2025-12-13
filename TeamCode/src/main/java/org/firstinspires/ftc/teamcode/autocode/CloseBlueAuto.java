@@ -295,16 +295,15 @@ public class CloseBlueAuto extends LinearOpMode {
             ToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(26.250, 132.000), new Pose(43.16819672, 118.2967213))
+                            new BezierLine(new Pose(26.250, 132.000), new Pose(45.89376443418014, 115.56581986143188))
                     )
                     .setTangentHeadingInterpolation()
                     .setReversed()
                     .build();
-
             MoveAway = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(43.16819672, 118.2967213), new Pose(46.9452459, 133.1688525))
+                            new BezierLine(new Pose(45.89376443418014, 115.56581986143188), new Pose(46.9452459, 133.1688525))
                     )
                     .setLinearHeadingInterpolation(Math.toRadians(141), Math.toRadians(270))
                     .build();

@@ -9,6 +9,7 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.Mechanisms;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
@@ -33,6 +34,60 @@ public class CloseBlueAuto extends LinearOpMode {
 
     Mechanisms mechanisms = new Mechanisms();
 
+    private enum AutoState {
+        START_TO_SHOOT,
+        WAIT_TO_SHOOT,
+
+        START_OUTTAKE,
+        RAMP_UP,
+        WAIT_FOR_HOME,
+        SORTER_SETTLE,
+
+        MOVE_SORTER,
+        WAIT_SORTER,
+        KICK_1,
+        WAIT_1,
+        KICK_2,
+        WAIT_2,
+        NEXT_POCKET,
+
+        START_MOVE_AWAY,
+        WAIT_MOVE_AWAY,
+
+        RETURN_TO_INTAKE,
+        WAIT_RETURN_TO_INTAKE,
+
+        DONE
+    }
+
+    boolean outtakeStarted = false;
+
+    CloseBlueAuto.AutoState autoState = CloseBlueAuto.AutoState.WAIT_FOR_HOME;
+
+    int currentPocket = 1;
+    boolean sorterCommanded = false;
+
+    boolean toShootStarted = false;
+    boolean moveAwayStarted = false;
+    boolean returnCommanded = false;
+
+
+    // ================= DASHBOARD TUNABLES =================
+
+    // Shooter / outtake
+    public static double OUTTAKE_POWER = 0.55;
+    public static double RAMP_ANGLE_TARGET = 0.99;
+    public static double RAMP_UP_TIME = 1.5;
+
+    // Sorter timing
+    public static double SORTER_SETTLE_TIME = 0.4;
+
+    // Kicker timing
+    public static double FIRST_KICK_DELAY = 0.30;
+    public static double SECOND_KICK_DELAY = 0.45;
+
+    ElapsedTime stateTimer = new ElapsedTime();
+
     @Override
     public void runOpMode() {
 
@@ -43,38 +98,195 @@ public class CloseBlueAuto extends LinearOpMode {
 
         paths = new Paths(follower);
 
-        //mechanisms = new Mechanisms();
-        //mechanisms.initMechanisms(hardwareMap, telemetry);
+        mechanisms = new Mechanisms();
+        mechanisms.initMechanisms(hardwareMap, telemetry);
 
         panelsTelemetry.debug("Status", "Initialized");
         panelsTelemetry.update(telemetry);
 
         waitForStart();
 
-        int state = 0;
+        autoState = CloseBlueAuto.AutoState.START_TO_SHOOT;
+
         while (opModeIsActive()) {
+            if (autoState != CloseBlueAuto.AutoState.WAIT_FOR_HOME) {
+                follower.update();
+            }
+            mechanisms.updateMechanisms();
 
-            follower.update();
+            switch (autoState) {
+                case START_TO_SHOOT:
+                    if (!toShootStarted) {
+                        follower.followPath(paths.ToShoot);
+                        toShootStarted = true;
+                    }
+                    autoState = CloseBlueAuto.AutoState.WAIT_TO_SHOOT;
+                    break;
 
-            switch (state) {
+                // ===============================
+                // DRIVE TO SHOOT POSITION
+                // ===============================
+                case START_OUTTAKE:
+                    if (!outtakeStarted) {
+                        mechanisms.engageOuttake(OUTTAKE_POWER);
+                        mechanisms.setRampAngle(RAMP_ANGLE_TARGET);
+                        stateTimer.reset();
+                        outtakeStarted = true;
+                    }
+                    autoState = CloseBlueAuto.AutoState.RAMP_UP;
+                    break;
 
-                case 0:
-                    follower.followPath(paths.ToShoot);
-                    state = 1;
+                case WAIT_TO_SHOOT:
+                    if (!follower.isBusy()) {
+                        autoState = CloseBlueAuto.AutoState.START_OUTTAKE;
+                    }
+                    break;
+
+                // ===============================
+                // WAIT FOR FULL RPM + RAMP
+                // ===============================
+                case RAMP_UP:
+                    if (stateTimer.seconds() >= RAMP_UP_TIME) {
+                        sorterCommanded = false;
+                        autoState = CloseBlueAuto.AutoState.MOVE_SORTER;
+                    }
+                    break;
+
+                // ===============================
+                // MOVE SORTER TO POCKET
+                // ===============================
+                case MOVE_SORTER:
+                    if (!sorterCommanded) {
+                        mechanisms.sorterGoToOuttake(currentPocket);
+                        sorterCommanded = true;
+                    }
+                    autoState = CloseBlueAuto.AutoState.WAIT_SORTER;
+                    break;
+
+                case WAIT_SORTER:
+                    if (!isSorterMoving()) {
+                        stateTimer.reset();
+                        autoState = CloseBlueAuto.AutoState.SORTER_SETTLE;
+                    }
+                    break;
+
+                case SORTER_SETTLE:
+                    if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {   // ← tune: 0.35–0.5
+                        autoState = CloseBlueAuto.AutoState.KICK_1;
+                    }
+                    break;
+
+                // ===============================
+                // FIRST KICK
+                // ===============================
+                case KICK_1:
+                    mechanisms.setShotPocket(currentPocket);
+                    mechanisms.ejectBall();
+                    stateTimer.reset();
+                    autoState = CloseBlueAuto.AutoState.WAIT_1;
+                    break;
+
+                // ===============================
+                // WAIT AFTER FIRST KICK
+                // ===============================
+                case WAIT_1:
+                    if (stateTimer.seconds() >= FIRST_KICK_DELAY) {
+                        autoState = CloseBlueAuto.AutoState.KICK_2;
+                    }
+                    break;
+
+                // ===============================
+                // SECOND FAILSAFE KICK
+                // ===============================
+                case KICK_2:
+                    mechanisms.ejectBall();
+                    stateTimer.reset();
+                    autoState = CloseBlueAuto.AutoState.WAIT_2;
+                    break;
+
+                // ===============================
+                // WAIT AFTER SECOND KICK
+                // ===============================
+                case WAIT_2:
+                    if (stateTimer.seconds() >= SECOND_KICK_DELAY) {
+                        autoState = CloseBlueAuto.AutoState.NEXT_POCKET;
+                    }
+                    break;
+
+                // ===============================
+                // ADVANCE TO NEXT POCKET
+                // ===============================
+                case NEXT_POCKET:
+                    currentPocket++;
+                    sorterCommanded = false;
+
+                    if (currentPocket > 3) {
+                        mechanisms.disengageOuttake();
+                        autoState = CloseBlueAuto.AutoState.START_MOVE_AWAY;
+                    } else {
+                        autoState = CloseBlueAuto.AutoState.MOVE_SORTER;
+                    }
+                    break;
+
+                // ===============================
+                // DRIVE AWAY
+                // ===============================
+                case START_MOVE_AWAY:
+                    if (!moveAwayStarted) {
+                        follower.followPath(paths.MoveAway);
+                        moveAwayStarted = true;
+                    }
+                    autoState = CloseBlueAuto.AutoState.WAIT_MOVE_AWAY;
+                    break;
+
+                case WAIT_MOVE_AWAY:
+                    if (!follower.isBusy()) {
+                        autoState = CloseBlueAuto.AutoState.RETURN_TO_INTAKE;
+                    }
+                    break;
+
+                case RETURN_TO_INTAKE:
+                    if (!returnCommanded) {
+                        mechanisms.disengageOuttake();
+                        mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
+                        mechanisms.sorterGoToIntake(1);
+                        returnCommanded = true;
+                    }
+                    autoState = CloseBlueAuto.AutoState.WAIT_RETURN_TO_INTAKE;
+                    break;
+
+                case WAIT_RETURN_TO_INTAKE:
+                    if (!isSorterMoving()) {
+                        autoState = CloseBlueAuto.AutoState.DONE;
+                    }
+                    break;
+
+
+                // ===============================
+                // FINISHED
+                // ===============================
+                case DONE:
+                    // Robot parked. Mechanisms are safe. Do nothing.
                     break;
             }
 
-            panelsTelemetry.debug("State", state);
+            panelsTelemetry.debug("AutoState", autoState);
+            panelsTelemetry.debug("Pocket", currentPocket);
             panelsTelemetry.debug("X", follower.getPose().getX());
             panelsTelemetry.debug("Y", follower.getPose().getY());
             panelsTelemetry.update(telemetry);
         }
+
     }
 
+    public boolean isSorterMoving() {
+        return mechanisms.isSorterMoving();
+    }
     // ---------------- PATH LIST ----------------
     public static class Paths {
 
         public PathChain ToShoot;
+        public PathChain MoveAway;
 
         public Paths(Follower follower) {
             ToShoot = follower
@@ -84,6 +296,14 @@ public class CloseBlueAuto extends LinearOpMode {
                     )
                     .setTangentHeadingInterpolation()
                     .setReversed()
+                    .build();
+
+            MoveAway = follower
+                    .pathBuilder()
+                    .addPath(
+                            new BezierLine(new Pose(33, 127), new Pose(47, 132.8))
+                    )
+                    .setLinearHeadingInterpolation(Math.toRadians(143), Math.toRadians(90))
                     .build();
         }
     }

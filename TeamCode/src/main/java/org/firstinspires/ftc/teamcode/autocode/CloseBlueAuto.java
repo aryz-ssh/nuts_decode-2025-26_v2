@@ -32,7 +32,6 @@ public class CloseBlueAuto extends LinearOpMode {
 
     private String lastDetectedColor = null;
 
-    m
     private enum AutoState {
         START_TO_SHOOT,
         WAIT_TO_SHOOT,

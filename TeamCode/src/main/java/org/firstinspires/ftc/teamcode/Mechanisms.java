@@ -45,8 +45,8 @@ public class Mechanisms {
     private double manualOuttakeSpeed = 0.7;
 
     public Servo rampAngleAdjust;
-    private static double RAMP_ANGLE_MIN_POS = 0.07;
-    private static final double RAMP_ANGLE_MAX_POS = 0.7;
+    private static double RAMP_ANGLE_MIN_POS = 0.3;
+    private static final double RAMP_ANGLE_MAX_POS = 1;
     private double rampAngleTarget = RAMP_ANGLE_MIN_POS;
     private static final double RAMP_STEP = 0.1;
 
@@ -66,7 +66,7 @@ public class Mechanisms {
 
     private boolean kickerActive = false;
     private ElapsedTime kickerTimer = new ElapsedTime();
-    public static double KICK_DURATION = 0.30;
+    public static double KICK_DURATION = 0.25;
 
     // ---- BALL EJECTION DETECTION ----
     private boolean monitoringShot = false;
@@ -171,6 +171,10 @@ public class Mechanisms {
         }
     }
 
+    public boolean isSorterHomed() {
+        return sorterLogic.isHomed();
+    }
+
     //    public void sorterHome() { sorterLogic.homeSorter(); }
 //    public boolean sorterIsHomed() { return sorterLogic.isHomed(); }
     public void sorterGoToIntake(int n) { sorterLogic.goToIntake(n); }
@@ -215,6 +219,11 @@ public class Mechanisms {
 
         rampAngleTarget = Math.max(RAMP_ANGLE_MIN_POS,
                 Math.min(RAMP_ANGLE_MAX_POS, rampAngleTarget));
+    }
+
+    public void setRampAngle(double target) {
+        rampAngleTarget = Math.max(RAMP_ANGLE_MIN_POS,
+                Math.min(RAMP_ANGLE_MAX_POS, target));
     }
 
     public void ejectBall() {
@@ -413,8 +422,4 @@ public class Mechanisms {
             }
         }
     }
-    // ---------- NEW SORTER CODE ----------
-    //First, we need to initialize the servo
-    //Create a colorsensor object
-    //After that
 }

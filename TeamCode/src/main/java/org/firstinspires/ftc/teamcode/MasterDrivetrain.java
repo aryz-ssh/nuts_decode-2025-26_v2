@@ -20,6 +20,7 @@ public class MasterDrivetrain {
     public static double FR_SCALE = 1.0;
     public static double BL_SCALE = 0.64;
     public static double BR_SCALE = 0.64;
+    public static double MAX_TURN_SPEED = 0.80;   // 0.0–1.0, tunable
 
     public static double BRAKE_HOLD_TORQUE = 0.18;
     public static double BRAKE_SPEED_MULTIPLIER = 0.5;
@@ -75,29 +76,42 @@ public class MasterDrivetrain {
     // TELEOP DRIVE — ROBOT CENTRIC
     // ----------------------------------------------------------
     public void driveRobotCentric(double x, double y, double turn, double headingRadians) {
+        // Robot-centric uses BRAKE behavior at ALL times
+        frontLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        frontRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        backLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        backRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
 
         boolean noInput =
                 Math.abs(x) < DEADZONE &&
                         Math.abs(y) < DEADZONE &&
                         Math.abs(turn) < DEADZONE;
 
-        // ------------------------------------------------------
-        // BRAKE ASSIST (HOLD + SLOW MODE)
-        // ------------------------------------------------------
+        // Limit rotation input
+        if (Math.abs(turn) > MAX_TURN_SPEED) {
+            turn = Math.signum(turn) * MAX_TURN_SPEED;
+        }
+
         if (brakeAssist) {
+
+            // --- If no input → ENABLE REAL BRAKE MODE ---
             if (noInput) {
-                frontLeft.setPower( BRAKE_HOLD_TORQUE);
-                backLeft.setPower(-BRAKE_HOLD_TORQUE);
-                frontRight.setPower(BRAKE_HOLD_TORQUE);
-                backRight.setPower(-BRAKE_HOLD_TORQUE);
+                // Set zero power to force BRAKE mode to engage
+                frontLeft.setPower(0);
+                frontRight.setPower(0);
+                backLeft.setPower(0);
+                backRight.setPower(0);
                 return;
             }
 
+            // --- If moving in slowmode → apply speed multiplier ---
             x *= BRAKE_SPEED_MULTIPLIER;
             y *= BRAKE_SPEED_MULTIPLIER;
             turn *= BRAKE_SPEED_MULTIPLIER;
+
         }
 
+        // If slowmode is NOT active → ZERO braking and ZERO slowdown
 
         // ------------------------------------------------------
         // STRAFE IMU DRIFT CORRECTION

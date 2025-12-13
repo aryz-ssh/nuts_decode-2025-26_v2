@@ -15,11 +15,24 @@ public class PostNut extends LinearOpMode {
     private Follower follower;
 
     long lastTelem = 0;
+
+    // gamepad
     public static double DEADZONE = 0.05;
+    public static double GAMEPAD_TRIGGER_THRESHOLD = 0.25;
 
     // ---------- Mechanisms ----------
     private Mechanisms mechanisms;
     private MasterDrivetrain drivetrain;
+
+    // drivetrain stuff
+    boolean allianceChosen = false;
+    boolean driveModeChosen = false;
+    boolean startAngleChosen = false;
+    private boolean lastBack = false;
+
+    // intake
+    private boolean intakeToggle = false;
+    private boolean lastIntakeTrigger = false;
 
     // ---------- Sorter Variables ----------
     private int selectedPocket = 1;
@@ -28,9 +41,11 @@ public class PostNut extends LinearOpMode {
     private boolean lastA = false;
     private boolean lastX = false;
 
-    // ---------- Sorter Auto-Mode ----------
+    // ---------- Sorter Color Fetching ----------
     private enum SorterMode { NONE, INTAKE, OUTTAKE }
     private SorterMode sorterMode = SorterMode.INTAKE;
+    private boolean lastGreenRequest = false;
+    private boolean lastPurpleRequest = false;
 
     // ---------- Outtake ----------
     private boolean outtakeOn = false;
@@ -44,19 +59,6 @@ public class PostNut extends LinearOpMode {
     private boolean lastDpadUp = false;
     private boolean lastDpadDown = false;
 
-    // init stuff
-
-    boolean allianceChosen = false;
-    boolean driveModeChosen = false;
-    boolean startAngleChosen = false;
-    private boolean lastBack = false;
-    private boolean lastGreenRequest = false;
-    private boolean lastPurpleRequest = false;
-    private boolean intakeToggle = false;
-    private boolean lastIntakeTrigger = false;
-
-    int startAngleIndex = 0;
-    // 0 = forward, 1 = back-right, 2 = back-left
 
 
     @Override
@@ -202,7 +204,7 @@ public class PostNut extends LinearOpMode {
             double x  = applyDeadband(gamepad1.left_stick_x);
             double rx = applyDeadband(gamepad1.right_stick_x);
 
-            drivetrain.brakeAssist = gamepad1.left_trigger > 0.3;
+            drivetrain.brakeAssist = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
 
             double heading = follower.getPose().getHeading();
 
@@ -214,7 +216,8 @@ public class PostNut extends LinearOpMode {
             }
 
             // ================= INTAKE TOGGLE (GAMEPAD1 RIGHT TRIGGER) =================
-            boolean intakeTriggerNow = gamepad1.right_trigger > 0.3;
+
+            boolean intakeTriggerNow = gamepad1.right_trigger > GAMEPAD_TRIGGER_THRESHOLD;
             boolean reversePressed = gamepad1.left_bumper;
 
             if (intakeTriggerNow && !lastIntakeTrigger) {
@@ -259,7 +262,7 @@ public class PostNut extends LinearOpMode {
             lastDpadLeft  = gamepad2.dpad_left;
 
             // === GREEN REQUEST — Left Trigger ===
-            boolean greenReq = gamepad2.left_trigger > 0.3;
+            boolean greenReq = gamepad2.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
 
             if (greenReq && !lastGreenRequest) {
 
@@ -283,7 +286,7 @@ public class PostNut extends LinearOpMode {
 
 
             // === PURPLE REQUEST — Right Trigger ===
-            boolean purpleReq = gamepad2.right_trigger > 0.3;
+            boolean purpleReq = gamepad2.right_trigger > GAMEPAD_TRIGGER_THRESHOLD;
 
             if (purpleReq && !lastPurpleRequest) {
 
@@ -387,7 +390,9 @@ public class PostNut extends LinearOpMode {
                 telemetry.addData("P3", pc[2]);
 
                 // --- Outtake ---
-                telemetry.addData("Outtake Speed", mechanisms.getManualOuttakeSpeed());
+                telemetry.addData("Outtake Power", mechanisms.getManualOuttakeSpeed());
+                telemetry.addData("Current Outtake Velocity", "%.0f t/s",
+                        mechanisms.outtakeMotor.getVelocity());
                 telemetry.addData("Ramp Angle", "%.2f / %.2f",
                         mechanisms.getRampAngleCurrent(),
                         mechanisms.getRampAngleTarget());

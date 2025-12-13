@@ -4,7 +4,6 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
@@ -18,7 +17,7 @@ import java.util.ArrayList;
 
 @Autonomous(name = "smallTriangleOff", group = "Autonomous")
 @Configurable
-public class smallTriangleOff extends LinearOpMode {
+public class RedSmallTriangleOff extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
@@ -79,9 +78,9 @@ public class smallTriangleOff extends LinearOpMode {
             Path1 = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(56.000, 8.000), new Pose(56.000, 36.000))
+                            new BezierLine(new Pose(56.000, 8.000), new Pose(90.000, 26.000))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(180))
+                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(25))
                     .build();
         }
     }

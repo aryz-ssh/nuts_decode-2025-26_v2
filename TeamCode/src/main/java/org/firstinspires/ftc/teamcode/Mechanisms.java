@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.acmerobotics.dashboard.config.Config;
 
 
+import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -20,10 +21,11 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 @Config
 public class Mechanisms {
+    // --------- la la la limelight ---------
+    public Limelight3A limelight;
 
     // --------- SORTER ----------
     public SorterLogicColor sorterLogic;
-    public AprilTagLimelightActual limelight;
 
     private ElapsedTime sorterRate = new ElapsedTime();
     private static final double SORTER_PERIOD_MS = 60;
@@ -34,8 +36,6 @@ public class Mechanisms {
     public Servo intakeServoSecond;
     private static final double TICKS_PER_REV_1150 = 145.1;
     private static final double MAX_TICKS_PER_SEC_1150 = (TICKS_PER_REV_1150 * 1150) / 60.0;
-    private static final double INTAKE_SERVO_SECOND_RESTING_POS = 0.9;
-    private static final double INTAKE_SERVO_SECOND_PUSH_POS = 0.17;
 
     // ---------- OUTTAKE SYSTEM ----------
     public DcMotorEx outtakeMotor;
@@ -87,7 +87,6 @@ public class Mechanisms {
     private int lastShotPocket = 1;
     public static double BACKUP_EXIT_TIME = 0.40;        // new
 
-    private boolean pusherActive = false;
     public IMU imu;
 
     // ---------- INIT ----------
@@ -97,7 +96,8 @@ public class Mechanisms {
         initOuttake(hw);
         initIMU(hw);
 
-        limelight = new AprilTagLimelightActual();
+        limelight = hw.get(Limelight3A.class, "limelight");
+        limelight.pipelineSwitch(0);
 
         sorterLogic = new SorterLogicColor();
         sorterLogic.init(hw, telemetry);
@@ -117,7 +117,7 @@ public class Mechanisms {
 
         intakeServoSecond = hw.get(Servo.class, "intakeServoSecond");
         intakeServoSecond.setDirection(Servo.Direction.FORWARD);
-        intakeServoSecond.setPosition(INTAKE_SERVO_SECOND_RESTING_POS);
+        intakeServoSecond.setPosition(0.5);
     }
 
     public void initOuttake(HardwareMap hw) {
@@ -244,10 +244,6 @@ public class Mechanisms {
         }
     }
 
-    public void pushBallToSorter(boolean pressed) {
-        pusherActive = pressed;
-    }
-
     public void increaseOuttakeSpeed(double delta) {
         manualOuttakeSpeed = Math.min(1.0, manualOuttakeSpeed + delta);
     }
@@ -302,24 +298,18 @@ public class Mechanisms {
         if (intakeActive) {
             double direction = intakeDirectionFlipRequested ? 1.0 : -1.0;
 
-            double servo1Pos = 0.5 + (direction * intakePowerRequested * 0.5);
-            servo1Pos = Math.max(0.0, Math.min(1.0, servo1Pos));
+            double intakeServoPos = 0.5 + (direction * intakePowerRequested * 0.5);
+            intakeServoPos = Math.max(0.0, Math.min(1.0, intakeServoPos));
 
-            intakeServoFirst.setPosition(servo1Pos);
+            intakeServoFirst.setPosition(intakeServoPos);
+            intakeServoSecond.setPosition(intakeServoPos);
 
             intakeMotor.setPower(direction * intakePowerRequested);
         } else {
             intakeMotor.setPower(0);
             intakeServoFirst.setPosition(0.5);
+            intakeServoSecond.setPosition(0.5);
         }
-
-        // ========================
-        // PUSHER (immediate return)
-        // ========================
-        if (pusherActive)
-            intakeServoSecond.setPosition(INTAKE_SERVO_SECOND_PUSH_POS);
-        else
-            intakeServoSecond.setPosition(INTAKE_SERVO_SECOND_RESTING_POS);
 
         // ========================
         // SORTER UPDATE

@@ -1,11 +1,5 @@
 package org.firstinspires.ftc.teamcode.autocode;
 
-import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierCurve;
-import com.pedropathing.geometry.BezierLine;
-import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.PathChain;
-
 public class BallAutoPathBlue12 { public static class Paths {
     public PathChain Scanmotif;
     public PathChain First3BallsintoGoal;
@@ -13,17 +7,18 @@ public class BallAutoPathBlue12 { public static class Paths {
     public PathChain HitGate;
     public PathChain Shoot2ndSetof3Balls;
     public PathChain Intake2ndSetof3Balls;
+    public PathChain Shoot2ndSetof3Balls;
     public PathChain Intake3rdSetof3Balls;
     public PathChain Shoot3rdSetof3Balls;
 
     public Paths(Follower follower) {
         Scanmotif = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(27.820, 133.852),
+                                new Pose(32.194410692588086, 135.77642770352375),
 
                                 new Pose(56.559, 113.380)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(-300))
+                ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(-300))
 
                 .build();
 

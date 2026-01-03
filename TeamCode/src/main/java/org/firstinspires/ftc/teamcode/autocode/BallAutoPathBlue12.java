@@ -5,7 +5,6 @@ public class BallAutoPathBlue12 { public static class Paths {
     public PathChain First3BallsintoGoal;
     public PathChain Intake;
     public PathChain HitGate;
-    public PathChain Shoot2ndSetof3Balls;
     public PathChain Intake2ndSetof3Balls;
     public PathChain Shoot2ndSetof3Balls;
     public PathChain Intake3rdSetof3Balls;

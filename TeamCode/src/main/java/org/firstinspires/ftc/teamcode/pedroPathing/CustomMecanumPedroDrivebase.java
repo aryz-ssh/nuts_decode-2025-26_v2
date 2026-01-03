@@ -4,6 +4,7 @@ import com.pedropathing.Drivetrain;
 import com.pedropathing.ftc.drivetrains.MecanumConstants;
 import com.pedropathing.math.Vector;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.MasterDrivetrain;
@@ -27,9 +28,38 @@ public class CustomMecanumPedroDrivebase extends Drivetrain {
     }
 
     @Override
-    public void runDrive(double[] drivePowers) {
-        master.runAutoDrive(drivePowers);
+    public void runDrive(double[] p) {
+        // Pedro order: [fl, bl, fr, br]
+        double fl = p[0];
+        double bl = p[1];
+        double fr = p[2];
+        double br = p[3];
+
+        // Detect strafe dominance IN WHEEL SPACE
+        boolean isStrafing =
+                Math.abs(fl + br - fr - bl) >      // lateral component
+                        Math.abs(fl + fr + bl + br) * 0.3; // forward component
+
+        if (isStrafing) {
+            bl *= PedroWheelTuning.BL; // ~0.54
+            br *= PedroWheelTuning.BR; // ~0.54
+            // fronts remain 1.0
+        }
+
+        // Normalize once
+        double max = Math.max(1.0,
+                Math.max(Math.abs(fl),
+                        Math.max(Math.abs(bl),
+                                Math.max(Math.abs(fr), Math.abs(br)))));
+
+        master.runAutoDrive(new double[]{
+                fl / max,
+                bl / max,
+                fr / max,
+                br / max
+        });
     }
+
 
     @Override
     public void breakFollowing() {
@@ -53,10 +83,11 @@ public class CustomMecanumPedroDrivebase extends Drivetrain {
     }
 
     private void setZeroPowerAll(DcMotor.ZeroPowerBehavior behavior) {
-        master.frontLeft.setZeroPowerBehavior(behavior);
-        master.frontRight.setZeroPowerBehavior(behavior);
-        master.backLeft.setZeroPowerBehavior(behavior);
-        master.backRight.setZeroPowerBehavior(behavior);
+        master.setZeroPowerBehaviorAll(
+                behavior == DcMotor.ZeroPowerBehavior.BRAKE
+                        ? DcMotorEx.ZeroPowerBehavior.BRAKE
+                        : DcMotorEx.ZeroPowerBehavior.FLOAT
+        );
     }
 
     @Override

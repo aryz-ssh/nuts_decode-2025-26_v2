@@ -1,18 +1,16 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.dashboard.config.Config;
-import com.pedropathing.follower.Follower;
-import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import org.firstinspires.ftc.teamcode.PostNut_LimelightController;
 
 @Config
 @TeleOp(name = "PostNut")
 public class PostNut extends LinearOpMode {
 
     private ElapsedTime runtime = new ElapsedTime();
-    private Follower follower;
 
     long lastTelem = 0;
 
@@ -23,12 +21,16 @@ public class PostNut extends LinearOpMode {
     // ---------- Mechanisms ----------
     private Mechanisms mechanisms;
     private MasterDrivetrain drivetrain;
+    private PostNut_LimelightController llController;
 
     // drivetrain stuff
     boolean allianceChosen = false;
     boolean driveModeChosen = false;
     boolean startAngleChosen = false;
     private boolean lastBack = false;
+
+    // FIELD-CENTRIC START ANGLE
+    private int startAngleIndex = 0;   // 0 = forward, 1 = back-right, 2 = back-left
 
     // intake
     private boolean intakeToggle = false;
@@ -59,6 +61,11 @@ public class PostNut extends LinearOpMode {
     private boolean lastDpadUp = false;
     private boolean lastDpadDown = false;
 
+    // ---------- LIMELIGHT AIM LOCK ----------
+    private boolean pipelineSet = false;
+
+    private boolean isRedAlliance = false;
+
 
 
     @Override
@@ -67,32 +74,64 @@ public class PostNut extends LinearOpMode {
         mechanisms = new Mechanisms();
         mechanisms.initMechanisms(hardwareMap, telemetry);
 
+        llController = new PostNut_LimelightController(mechanisms);
+
         drivetrain = new MasterDrivetrain();
         drivetrain.init(hardwareMap);
 
-        follower = org.firstinspires.ftc.teamcode.pedroPathing.Constants.createFollower(hardwareMap);
+        // ----- DEFAULT DRIVE MODE -----
+        driveModeChosen = true;   // no drive-mode menu
+        startAngleChosen = true;  // not used in robot-centric
 
         telemetry.addData("Status", "HOMING SORTER…");
         telemetry.update();
 
         while (!isStarted() && !isStopRequested()) {
 
-            // FORCE ROBOT-CENTRIC MODE BY DEFAULT
+            telemetry.addLine("=== ROBOT-CENTRIC MODE ===");
+            telemetry.addLine("Select Alliance for Limelight:");
+            telemetry.addLine("X = BLUE  (Pipeline 1)");
+            telemetry.addLine("B = RED   (Pipeline 0)");
 
-            drivetrain.fieldCentricEnabled = false;
-            driveModeChosen = true;
-            allianceChosen = true;
-            startAngleChosen = true;
+            // ---- ALLIANCE SELECTION ----
+            if (!allianceChosen) {
+                if (gamepad1.x) {
+                    isRedAlliance = false;
+                    allianceChosen = true;
+                }
+                if (gamepad1.b) {
+                    isRedAlliance = true;
+                    allianceChosen = true;
+                }
+            }
 
-            telemetry.addLine("Drive Mode: ROBOT-CENTRIC (default)");
-            telemetry.update();
+            // ---- LIMELIGHT PIPELINE SET (ONCE) ----
+            if (allianceChosen && !pipelineSet) {
+                int pipeline = isRedAlliance ? 0 : 1;
+                llController.setPipeline(pipeline);
 
-            // Keep sorter homing running
+                pipelineSet = true;
+            }
+
+            telemetry.addData("Alliance",
+                    allianceChosen
+                            ? (isRedAlliance ? "RED" : "BLUE")
+                            : "CHOOSE");
+
+            telemetry.addData("Limelight Pipeline",
+                    pipelineSet
+                            ? (isRedAlliance ? "0 (RED)" : "1 (BLUE)")
+                            : "WAITING");
+
+            // ---- KEEP SORTER HOMING ----
             mechanisms.sorterInitLoop();
-            sleep(10);
+
+            telemetry.update();
+            sleep(20);
         }
 
-/*        while (!isStarted() && !isStopRequested()) {
+/*
+        while (!isStarted() && !isStopRequested()) {
             // 1 — DRIVE MODE SELECTION (FIRST)
             if (!driveModeChosen) {
                 telemetry.addLine("Choose Drive Mode:");
@@ -173,7 +212,7 @@ public class PostNut extends LinearOpMode {
 
             mechanisms.sorterInitLoop();
             sleep(10);
-        } */
+        }*/
 
         waitForStart();
         runtime.reset();
@@ -184,25 +223,28 @@ public class PostNut extends LinearOpMode {
             //                GAMEPAD 1 — DRIVE AND INTAKE
             // =============================================================
 
-            // Reset full localization heading (Pedro IMU + Odo fused)
-            if (gamepad1.back && !lastBack) {
-                mechanisms.resetHeading();                 // imu.resetYaw()
-            }
-            lastBack = gamepad1.back;
+            llController.update();
 
+            if (gamepad1.back) {
+                drivetrain.resetImuYaw();
+            }
+
+            // Stick input
             double y  = applyDeadband(-gamepad1.left_stick_y);
             double x  = applyDeadband(gamepad1.left_stick_x);
             double rx = applyDeadband(gamepad1.right_stick_x);
 
-            drivetrain.brakeAssist = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
+            // aim-lock toggle
+            llController.updateToggle(gamepad1.y);
 
-            double heading = mechanisms.getHeadingRadians();
+            // apply limelight correction
+            rx = llController.getTurnCorrection(rx);
 
-            if (drivetrain.fieldCentricEnabled) {
-                drivetrain.driveFieldCentric(x, y, rx, heading);
-            } else {
-                drivetrain.driveRobotCentric(x, y, rx, heading);
-            }
+            // drive
+            boolean brake =
+                    gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
+
+            drivetrain.driveRobotCentric(x, y, rx, brake);
 
             // ================= INTAKE TOGGLE (GAMEPAD1 RIGHT TRIGGER) =================
 
@@ -226,10 +268,6 @@ public class PostNut extends LinearOpMode {
             if (intakeToggle) {
                 mechanisms.engageIntake(1.0, reversePressed);
             }
-
-
-            // pusher
-            mechanisms.pushBallToSorter(gamepad1.right_bumper);
 
             // =============================================================
             //                       GAMEPAD 2 — MECHANISMS
@@ -386,10 +424,40 @@ public class PostNut extends LinearOpMode {
                         mechanisms.getRampAngleCurrent(),
                         mechanisms.getRampAngleTarget());
 
+                telemetry.addLine("---- IMU ----");
+
+                telemetry.addData("Heading (deg)", "%.2f",
+                        drivetrain.getHeadingDeg());
+                telemetry.addData("Locked (deg)", "%.2f",
+                        drivetrain.getLockedHeadingDeg());
+                telemetry.addData("Error (deg)", "%.2f",
+                        drivetrain.getHeadingErrorDeg());
+
+                telemetry.addLine("---- LIMELIGHT ----");
+
+                telemetry.addData("LL Connected", llController.isConnected());
+                telemetry.addData("LL Valid", llController.isValid());
+
+                telemetry.addData("Target Seen", llController.hasTarget());
+                telemetry.addData("Goal Tag",
+                        llController.getLockedFiducial() == -1
+                                ? "NONE"
+                                : llController.getLockedFiducial());
+
+                telemetry.addData("tx (deg)", "%.2f", llController.getTx());
+                telemetry.addData("tx Trim", "%.2f", PostNut_LimelightController.TX_TRIM);
+
+                telemetry.addData("Aim Lock",
+                        llController.isAimLockEnabled() ? "ON" : "OFF");
+
+                telemetry.addData("Turn Cmd (rx)", "%.2f", rx);
+
+                telemetry.addData("Fiducials", llController.getFiducialCount());
+                telemetry.addData("Pipeline", llController.getCurrentPipeline());
+
                 telemetry.addData("Time", runtime.seconds());
                 telemetry.update();
 
-                lastTelem = System.currentTimeMillis();
             }
         }
     }

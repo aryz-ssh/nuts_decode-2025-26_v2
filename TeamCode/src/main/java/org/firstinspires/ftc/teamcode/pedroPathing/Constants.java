@@ -15,13 +15,13 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
-            .mass(11.7934016)
-            .forwardZeroPowerAcceleration(-61.796424856692)
-            .lateralZeroPowerAcceleration(-87.550458680425)
-            .translationalPIDFCoefficients(new PIDFCoefficients(0.075, 0, 0.065, 0.005))
-            .headingPIDFCoefficients(new PIDFCoefficients(0.75, 0, 0.027, 0.003))
-            .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.01, 0,0.0001,0.6,0.01))
-            .centripetalScaling(0.0005);
+            .mass(11.7934016);
+            // .forwardZeroPowerAcceleration(-61.796424856692)
+            // .lateralZeroPowerAcceleration(-87.550458680425)
+            // .translationalPIDFCoefficients(new PIDFCoefficients(0.075, 0, 0.065, 0.005))
+            // .headingPIDFCoefficients(new PIDFCoefficients(0.75, 0, 0.027, 0.003))
+            // .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.01, 0,0.0001,0.6,0.01))
+            // .centripetalScaling(0.0005);
 
     public static PathConstraints pathConstraints = new PathConstraints(0.99,
             100,
@@ -37,9 +37,9 @@ public class Constants {
             .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .xVelocity(72.344021142073)
-            .yVelocity(58.201999979257);
+            .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD);
+            // .xVelocity(72.344021142073)
+            // .yVelocity(58.201999979257);
 
     public static ThreeWheelIMUConstants localizerConstants = new ThreeWheelIMUConstants()
             .forwardTicksToInches(0.0044305534901019)
@@ -63,6 +63,7 @@ public class Constants {
 
         return new FollowerBuilder(followerConstants, hardwareMap)
                 .pathConstraints(pathConstraints)
+                .mecanumDrivetrain(driveConstants)
                 .setDrivetrain(drivebase)
                 .threeWheelIMULocalizer(localizerConstants)
                 .build();

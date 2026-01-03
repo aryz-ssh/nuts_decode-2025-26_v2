@@ -10,7 +10,6 @@ public class BallAutoPathBlue12 { public static class Paths {
     public PathChain Shoot2ndSetof3Balls;
     public PathChain Intake3rdSetof3Balls;
     public PathChain Shoot3rdSetof3Balls;
-
     public Paths(Follower follower) {
         Scanmotif = follower.pathBuilder().addPath(
                         new BezierLine(

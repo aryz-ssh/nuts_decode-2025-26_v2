@@ -6,10 +6,10 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.Mechanisms;
-@Autonomous(name = "Big Triangle Auto - 12 Ball", group = "Autonomous")
+@Autonomous(name = "Blue Big Triangle Auto - 12 Ball", group = "Autonomous")
 @Configurable
 
-public class BallAutoPathBlue12 extends LinearOpMode  {
+public class BlueAuto12BallBigTriangle extends LinearOpMode  {
 
 
     private Mechanisms mechanisms;
@@ -123,7 +123,7 @@ public class BallAutoPathBlue12 extends LinearOpMode  {
             idle();
         }
         while (opModeIsActive()) {
-            if (autoState != BallAutoPathBlue12.AutoState.WAIT_FOR_HOME) {
+            if (autoState != BlueAuto12BallBigTriangle.AutoState.WAIT_FOR_HOME) {
                 follower.update();
             }
         }

@@ -123,7 +123,7 @@ public class RedAuto12BallBigTriangle extends LinearOpMode  {
             idle();
         }
         while (opModeIsActive()) {
-            if (autoState != BlueAuto12BallBigTriangle.AutoState.WAIT_FOR_HOME) {
+            if (autoState != RedAuto12BallBigTriangle.AutoState.WAIT_FOR_HOME) {
                 follower.update();
             }
         }

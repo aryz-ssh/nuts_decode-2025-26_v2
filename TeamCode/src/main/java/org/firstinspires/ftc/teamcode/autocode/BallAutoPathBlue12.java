@@ -1,6 +1,19 @@
 package org.firstinspires.ftc.teamcode.autocode;
 
-public class BallAutoPathBlue12 { public static class Paths {
+import com.bylazar.configurables.annotations.Configurable;
+import com.pedropathing.paths.PathChain;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+
+import org.firstinspires.ftc.teamcode.Mechanisms;
+@Autonomous(name = "Big Triangle Auto - 12 Ball", group = "Autonomous")
+@Configurable
+
+public class BallAutoPathBlue12 extends LinearOpMode  {
+
+
+    private Mechanisms mechanisms;
+    public static class Paths {
     public PathChain Scanmotif;
     public PathChain First3BallsintoGoal;
     public PathChain Intake;
@@ -9,6 +22,7 @@ public class BallAutoPathBlue12 { public static class Paths {
     public PathChain Shoot2ndSetof3Balls;
     public PathChain Intake3rdSetof3Balls;
     public PathChain Shoot3rdSetof3Balls;
+
 
     public Paths(Follower follower) {
         Scanmotif = follower.pathBuilder().addPath(
@@ -102,5 +116,16 @@ public class BallAutoPathBlue12 { public static class Paths {
                 .build();
     }
 }
+    @Override
+    public void runOpMode() {
+        while (!isStarted() && !isStopRequested()) {
+            mechanisms.sorterInitLoop();   // homing ONLY
+            idle();
+        }
+        while (opModeIsActive()) {
+            if (autoState != BallAutoPathBlue12.AutoState.WAIT_FOR_HOME) {
+                follower.update();
+            }
+        }
 
 }

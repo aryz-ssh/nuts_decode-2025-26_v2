@@ -10,7 +10,7 @@ import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
-import org.firstinspires.ftc.teamcode.Mechanisms;
+//import org.firstinspires.ftc.teamcode.Mechanisms;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @Autonomous(name = "AutoCode", group = "Autonomous")
@@ -20,7 +20,7 @@ public class PreNut extends LinearOpMode {
     private TelemetryManager panelsTelemetry;
     private Follower follower;
     private Paths paths;
-    private Mechanisms mechanisms;
+   // private Mechanisms mechanisms;
 
     @Override
     public void runOpMode() {
@@ -32,8 +32,8 @@ public class PreNut extends LinearOpMode {
 
         paths = new Paths(follower);
 
-        mechanisms = new Mechanisms();
-        mechanisms.initMechanisms(hardwareMap, telemetry);
+      //  mechanisms = new Mechanisms();
+      //  mechanisms.initMechanisms(hardwareMap, telemetry);
 
         panelsTelemetry.debug("Status", "Initialized");
         panelsTelemetry.update(telemetry);

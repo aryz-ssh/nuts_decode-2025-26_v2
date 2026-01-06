@@ -34,38 +34,40 @@ public class SorterLogicColor {
 
     public static int B2_INTAKE = 176;
     public static int B2_OUTTAKE = -80;
+    public static int TICKS_PER_REV = 536; // example – measure this
+    public static int POCKET_SPACING = TICKS_PER_REV / 3;
 
     // Match the tuned Manual class values
     public static int B3_INTAKE = 373;
     public static int B3_OUTTAKE = 114;
 
     // Positioning
-    public static int POSITION_TOLERANCE = 4;     // acceptable final error in ticks
+    public static int POSITION_TOLERANCE = 3;     // acceptable final error in ticks
     public static double Kp = 0.8;                // kept for dashboard visibility (not really used now)
     public static double Kd = 0.35;
-    public static int MAX_VEL = 1000;              // hard max velocity (ticks/s)
+    public static int MAX_VEL = 1800;              // hard max velocity (ticks/s)
 
     // Zone thresholds (distance to target in ticks)
-    public static int ZONE1_THRESH = 120;  // was 150
-    public static int ZONE2_THRESH = 70;   // was 80
-    public static int ZONE3_THRESH = 30;   // was 40
-    public static int ZONE4_THRESH = 10;   // was 15
+    public static int ZONE1_THRESH = 200;  // was 150
+    public static int ZONE2_THRESH = 120;   // was 80
+    public static int ZONE3_THRESH = 60;   // was 40
+    public static int ZONE4_THRESH = 20;   // was 15
 
     // Zone velocities (ticks/s)
-    public static int VEL_ZONE1 = 800;   // was 600
-    public static int VEL_ZONE2 = 600;   // was 400
-    public static int VEL_ZONE3 = 350;   // was 250
-    public static int VEL_ZONE4 = 200;    // was 150
-    public static int VEL_ZONE5 = 100;    // was 80
+    public static int VEL_ZONE1 = 1600;   // was 600
+    public static int VEL_ZONE2 = 1100;   // was 400
+    public static int VEL_ZONE3 = 600;   // was 250
+    public static int VEL_ZONE4 = 300;    // was 150
 
     // Smooth final approach controller
-    public static double FINAL_K = 8.0;       // strength of final approach
-    public static int FINAL_CLAMP = 200;      // max speed near target
-    public static int REWIND_VEL = 350;
+    public static double FINAL_K = 12.0;       // strength of final approach
+    public static int FINAL_CLAMP = 300;      // max speed near target
+    // Predictive braking tuning
+    // public static int BRAKE_DIVISOR = 400;   // lower = stronger braking
 
     // Telemetry throttling
     public static long TELEMETRY_INTERVAL_MS = 120;
-    public static double UPDATE_PERIOD_MS = 10.0;
+    public static double UPDATE_PERIOD_MS = 5.0;
 
     // ---------- INTERNAL STATE (NOT CONFIG) ----------
 
@@ -88,6 +90,17 @@ public class SorterLogicColor {
     int stableCount = 0;
 
     public enum BallColor { PURPLE, GREEN, UNKNOWN }
+
+    // ---------- COLOR STABILITY STATE ----------
+    private BallColor lastCandidate = BallColor.UNKNOWN;
+    private int colorStableCount = 0;
+
+    // ---------- COLOR TUNABLES ----------
+    public static float COLOR_DOMINANCE_RATIO = 1.15f;
+    public static float COLOR_CONFIDENCE_MIN  = 0.05f;
+    public static int REQUIRED_STABLE_FRAMES  = 3;
+    private BallColor latchedColor = BallColor.UNKNOWN;
+    private boolean colorLatched = false;
 
     // Raw cached sensor values
     private int cachedAlpha = 0;
@@ -237,6 +250,9 @@ public class SorterLogicColor {
         targetPos = pos;
         moving = true;
         stableCount = 0;
+        lastError = 0;   // <-- ADD THIS
+        colorLatched = false;
+        latchedColor = BallColor.UNKNOWN;
     }
 
     public void goToIntake(int n) {
@@ -250,6 +266,17 @@ public class SorterLogicColor {
         if (n == 1) goToPosition(B1_OUTTAKE);
         else if (n == 2) goToPosition(B2_OUTTAKE);
         else if (n == 3) goToPosition(B3_OUTTAKE);
+    }
+
+    public boolean isAtOuttakePosition(int pocket) {
+        int target;
+
+        if (pocket == 1) target = B1_OUTTAKE;
+        else if (pocket == 2) target = B2_OUTTAKE;
+        else target = B3_OUTTAKE;
+
+        return Math.abs(sorterMotor.getCurrentPosition() - target)
+                <= POSITION_TOLERANCE;
     }
 
     public void markPocketReady(int pocket) {
@@ -303,58 +330,49 @@ public class SorterLogicColor {
     }
 
     public BallColor detectBallColor() {
-        // Update sensor values
         updateColorCache();
 
-        // Ignore color when the sorter is moving
-        if (moving) return BallColor.UNKNOWN;
+        if (colorLatched) return latchedColor;
 
-        // Convert to float for stable comparisons
+        if (!isAtIntakePosition()) return BallColor.UNKNOWN;
+
         float a = cachedAlpha / 1000f;
         float r = cachedR / 1000f;
         float g = cachedG / 1000f;
         float b = cachedB / 1000f;
 
-        // 1. MUST be reading solid plastic, not a hole
-        if (a < 0.20f) {
-            return BallColor.UNKNOWN;
+        if (a < 0.15f) return BallColor.UNKNOWN;
+
+        float margin = 0.002f;
+
+        if (b > g + margin && b > r + margin) {
+            latchedColor = BallColor.PURPLE;
+            colorLatched = true;
+            return latchedColor;
         }
 
-        // 2. Reject ambiguous readings caused by holes
-        float diffRG = Math.abs(r - g);
-        float diffGB = Math.abs(g - b);
-        float diffBR = Math.abs(b - r);
-
-        if (diffRG < 0.001f && diffGB < 0.001f && diffBR < 0.001f) {
-            return BallColor.UNKNOWN;
-        }
-
-        // 3. PURPLE detection — BLUE dominates
-        if (b > g + 0.001f && b > r + 0.001f) {
-            return BallColor.PURPLE;
-        }
-
-        // 4. GREEN detection — GREEN dominates
-        if (g > b + 0.001f && g > r + 0.001f) {
-            return BallColor.GREEN;
+        if (g > b + margin && g > r + margin) {
+            latchedColor = BallColor.GREEN;
+            colorLatched = true;
+            return latchedColor;
         }
 
         return BallColor.UNKNOWN;
     }
 
     public void storeColorForCurrentPocket(BallColor color) {
-
         if (color == BallColor.UNKNOWN) return;
 
         int idx = currentIntakePocket - 1;
 
-        // Only overwrite when the pocket is ready for a new ball
         if (!pocketReady[idx]) return;
 
         pocketColors[idx] = color;
-
-        // After storing a new ball, mark pocket as "occupied"
         pocketReady[idx] = false;
+
+        // CLEAR latch after storing
+        colorLatched = false;
+        latchedColor = BallColor.UNKNOWN;
     }
 
     public Integer getPocketWithColor(BallColor color) {
@@ -370,6 +388,22 @@ public class SorterLogicColor {
         int idx = pocket - 1;
         pocketColors[idx] = BallColor.UNKNOWN;
         pocketReady[idx] = true;
+    }
+
+    private int wrapTicks(int ticks) {
+        int r = ticks % TICKS_PER_REV;
+        if (r < 0) r += TICKS_PER_REV;
+        return r;
+    }
+
+    private int circularError(int target, int current) {
+        int error = wrapTicks(target) - wrapTicks(current);
+
+        // Wrap into range [-TICKS_PER_REV/2, +TICKS_PER_REV/2]
+        if (error >  TICKS_PER_REV / 2) error -= TICKS_PER_REV;
+        if (error < -TICKS_PER_REV / 2) error += TICKS_PER_REV;
+
+        return error;
     }
 
     // ================= NON-BLOCKING UPDATE =================
@@ -389,13 +423,24 @@ public class SorterLogicColor {
         if (!moving) return;
 
         int current = sorterMotor.getCurrentPosition();
-        int error = targetPos - current;
+        int error = circularError(targetPos, current);
         int absError = Math.abs(error);
 
         safeTelemetry(() -> {
             telemetry.addData("Err", error);
             telemetry.addData("AbsErr", absError);
         });
+
+        // ---------------- Predictive braking ----------------
+        double scale = 1.0;
+
+        // Use lastError as a proxy for approach speed
+/*        int brakingDist = (Math.abs(lastError) * Math.abs(lastError)) / BRAKE_DIVISOR;// divisor tunes aggressiveness
+
+        if (absError < brakingDist) {
+            scale = (double) absError / Math.max(brakingDist, 1);
+            scale = Math.max(scale, 0.3); // never fully kill motion
+        }*/
 
         // ===================== REACHED TARGET =====================
         if (absError <= POSITION_TOLERANCE) {
@@ -414,13 +459,13 @@ public class SorterLogicColor {
         stableCount = 0;
 
         // ===================== EXTREMELY CLOSE (<2) =====================
-        if (absError <= 2) {
+/*        if (absError <= 2) {
             sorterMotor.setVelocity(0);
             moving = false;
             safeTelemetry(() -> telemetry.addData("CorrState", "STOP_CLOSE"));
             lastError = error;
             return;
-        }
+        }*/
 
         int vel;
 
@@ -454,6 +499,8 @@ public class SorterLogicColor {
         }
 
         // ===================== APPLY VELOCITY =====================
+        vel = (int)(vel * scale);
+
         if (vel > MAX_VEL) vel = MAX_VEL;
         if (vel < -MAX_VEL) vel = -MAX_VEL;
 

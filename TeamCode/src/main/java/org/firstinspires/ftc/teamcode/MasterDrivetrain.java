@@ -34,12 +34,13 @@ public class MasterDrivetrain {
     // ---------------- Heading Hold ----------------
     private double lockedHeadingDeg = 0.0;
 
-    public static double HEADING_KP = 0.04;      // turn per degree
+    public static double HEADING_KP = 0.0;      // turn per degree 0.04
     public static double MAX_HEADING_CORR = 0.35;
     public static double TURN_DEADBAND = 0.08;
     public static double TURN_CORRECT_SPEED_FLOOR = 0.2;
     private long lastTurnTimeMs = 0;
     public static long TURN_SETTLE_MS = 150; // 100–200ms sweet spot
+    private boolean wasMovingZPB = false;
 
 
     // ---------------- Ramp State ----------------
@@ -186,6 +187,21 @@ public class MasterDrivetrain {
                         Math.abs(y) > 1e-3 ||
                         Math.abs(turn) > 1e-3;
 
+        // ----- ZERO POWER BEHAVIOR SWITCH (STATE-BASED) -----
+        if (isMoving != wasMovingZPB) {
+            DcMotorEx.ZeroPowerBehavior zpb =
+                    isMoving
+                            ? DcMotorEx.ZeroPowerBehavior.FLOAT
+                            : DcMotorEx.ZeroPowerBehavior.BRAKE;
+
+            frontLeft.setZeroPowerBehavior(zpb);
+            frontRight.setZeroPowerBehavior(zpb);
+            backLeft.setZeroPowerBehavior(zpb);
+            backRight.setZeroPowerBehavior(zpb);
+
+            wasMovingZPB = isMoving;
+        }
+
         boolean translating = Math.abs(x) > 1e-3 || Math.abs(y) > 1e-3;
 
         // Kick detection
@@ -259,34 +275,6 @@ public class MasterDrivetrain {
         frontRight.setPower(curFR);
         backLeft.setPower(curBL);
         backRight.setPower(curBR);
-    }
-
-    // ----------------------------------------------------------
-    // AUTO DRIVE (UNCHANGED)
-    // ----------------------------------------------------------
-    public void runAutoDrive(double[] p) {
-
-        double fl = p[0];
-        double bl = p[1];
-        double fr = p[2];
-        double br = p[3];
-
-        double max = Math.max(1.0,
-                Math.max(Math.abs(fl),
-                        Math.max(Math.abs(fr),
-                                Math.max(Math.abs(bl), Math.abs(br)))));
-
-        frontLeft.setPower(fl / max);
-        frontRight.setPower(fr / max);
-        backLeft.setPower(bl / max);
-        backRight.setPower(br / max);
-    }
-
-    public void setZeroPowerBehaviorAll(DcMotorEx.ZeroPowerBehavior behavior) {
-        frontLeft.setZeroPowerBehavior(behavior);
-        frontRight.setZeroPowerBehavior(behavior);
-        backLeft.setZeroPowerBehavior(behavior);
-        backRight.setZeroPowerBehavior(behavior);
     }
 
     // ----------------------------------------------------------

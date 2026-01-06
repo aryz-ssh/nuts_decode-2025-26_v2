@@ -15,12 +15,12 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
-            .mass(11.7934016);
-            // .forwardZeroPowerAcceleration(-61.796424856692)
-            // .lateralZeroPowerAcceleration(-87.550458680425)
-            // .translationalPIDFCoefficients(new PIDFCoefficients(0.075, 0, 0.065, 0.005))
-            // .headingPIDFCoefficients(new PIDFCoefficients(0.75, 0, 0.027, 0.003))
-            // .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.01, 0,0.0001,0.6,0.01))
+            .mass(11.3398)
+            .forwardZeroPowerAcceleration(-79.981519040563273)
+            .lateralZeroPowerAcceleration(-68.253952903901287)
+            .translationalPIDFCoefficients(new PIDFCoefficients(0.12, 0, 0.002, 0.08))
+            .headingPIDFCoefficients(new PIDFCoefficients(0.82, 0, 0.005, 0.05));
+            // .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.01, 0,0.0001,0.6,0.01));
             // .centripetalScaling(0.0005);
 
     public static PathConstraints pathConstraints = new PathConstraints(0.99,
@@ -37,14 +37,13 @@ public class Constants {
             .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD);
-            // .xVelocity(72.344021142073)
-            // .yVelocity(58.201999979257);
-
+            .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
+            .xVelocity(31.440613303778722)
+            .yVelocity(22.32240864811224);
     public static ThreeWheelIMUConstants localizerConstants = new ThreeWheelIMUConstants()
-            .forwardTicksToInches(0.0044305534901019)
-            .strafeTicksToInches(0.0046180983954515)
-            .turnTicksToInches(0.001976225513021)
+            .forwardTicksToInches(0.0044274088283232)
+            .strafeTicksToInches(0.0044247984836949)
+            .turnTicksToInches(0.0019740928037213)
             .leftPodY(7)
             .rightPodY(-7)
             .strafePodX(-1.5)

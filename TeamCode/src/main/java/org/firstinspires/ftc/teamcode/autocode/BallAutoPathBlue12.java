@@ -1,19 +1,12 @@
-package org.firstinspires.ftc.teamcode.autocode;
+/*package org.firstinspires.ftc.teamcode.autocode;
 
-import com.bylazar.configurables.annotations.Configurable;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.BezierCurve;
+import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
-import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
-import org.firstinspires.ftc.teamcode.Mechanisms;
-@Autonomous(name = "Big Triangle Auto - 12 Ball", group = "Autonomous")
-@Configurable
-
-public class BallAutoPathBlue12 extends LinearOpMode  {
-
-
-    private Mechanisms mechanisms;
-    public static class Paths {
+public class BallAutoPathBlue12 { public static class Paths {
     public PathChain Scanmotif;
     public PathChain First3BallsintoGoal;
     public PathChain Intake;
@@ -129,3 +122,4 @@ public class BallAutoPathBlue12 extends LinearOpMode  {
         }
 
 }
+*/

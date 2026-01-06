@@ -12,14 +12,11 @@ import org.firstinspires.ftc.teamcode.MasterDrivetrain;
 public class CustomMecanumPedroDrivebase extends Drivetrain {
 
     private final PedroMecanumMathOnly pedro;
-    private final MasterDrivetrain master;
+    private final PedroMotorIO motors;
 
     public CustomMecanumPedroDrivebase(HardwareMap hw, MecanumConstants constants) {
-
         pedro = new PedroMecanumMathOnly(hw, constants);
-
-        master = new MasterDrivetrain();
-        master.init(hw);
+        motors = new PedroMotorIO(hw);
     }
 
     @Override
@@ -35,35 +32,45 @@ public class CustomMecanumPedroDrivebase extends Drivetrain {
         double fr = p[2];
         double br = p[3];
 
-        // Detect strafe dominance IN WHEEL SPACE
-        boolean isStrafing =
-                Math.abs(fl + br - fr - bl) >      // lateral component
-                        Math.abs(fl + fr + bl + br) * 0.3; // forward component
+        // ---------- STRAFE CLARITY (wheel space) ----------
+        double forward = Math.abs(fl + fr + bl + br);
+        double lateral = Math.abs(fl + br - fr - bl);
 
-        if (isStrafing) {
-            bl *= PedroWheelTuning.BL; // ~0.54
-            br *= PedroWheelTuning.BR; // ~0.54
-            // fronts remain 1.0
-        }
+        double clarity = lateral / (forward + lateral + 1e-6); // 0..1
 
-        // Normalize once
+        // ---------- LINEAR REAR FADE ----------
+        double t = (clarity - PedroWheelTuning.STRAFE_FADE_START)
+                / (PedroWheelTuning.STRAFE_FADE_END - PedroWheelTuning.STRAFE_FADE_START);
+
+        t = Math.max(0.0, Math.min(1.0, t));
+
+        double rearFade = 1.0 + (PedroWheelTuning.BL - 1.0) * t;
+        // NOTE: BL and BR are already equal — intentional
+
+        // ---------- APPLY BASE SCALE + FADE ----------
+        fl *= PedroWheelTuning.FL;
+        fr *= PedroWheelTuning.FR;
+
+        bl *= PedroWheelTuning.BL_BASE * PedroWheelTuning.BL * rearFade;
+        br *= PedroWheelTuning.BR_BASE * PedroWheelTuning.BR * rearFade;
+
+        // ---------- NORMALIZE ----------
         double max = Math.max(1.0,
                 Math.max(Math.abs(fl),
                         Math.max(Math.abs(bl),
                                 Math.max(Math.abs(fr), Math.abs(br)))));
 
-        master.runAutoDrive(new double[]{
+        motors.setPowers(
                 fl / max,
                 bl / max,
                 fr / max,
                 br / max
-        });
+        );
     }
-
 
     @Override
     public void breakFollowing() {
-        master.stop();
+        motors.stop();
     }
 
     @Override
@@ -83,7 +90,7 @@ public class CustomMecanumPedroDrivebase extends Drivetrain {
     }
 
     private void setZeroPowerAll(DcMotor.ZeroPowerBehavior behavior) {
-        master.setZeroPowerBehaviorAll(
+        motors.setZeroPowerBehavior(
                 behavior == DcMotor.ZeroPowerBehavior.BRAKE
                         ? DcMotorEx.ZeroPowerBehavior.BRAKE
                         : DcMotorEx.ZeroPowerBehavior.FLOAT

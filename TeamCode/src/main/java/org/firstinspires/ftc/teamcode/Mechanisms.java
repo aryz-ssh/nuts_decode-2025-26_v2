@@ -54,7 +54,7 @@ public class Mechanisms {
     public static double KICKER_RESTING_POS = 0.45;
     public static double KICKER_EJECT_POS = 0.83;
 
-    // ---------- TELEMETRY ----------
+    // ---------- TELEMETRY -----------
     private Telemetry telemetry;
 
     // ---------- MECHANISM STATES ----------

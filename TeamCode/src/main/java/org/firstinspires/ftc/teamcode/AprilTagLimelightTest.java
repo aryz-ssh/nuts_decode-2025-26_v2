@@ -28,15 +28,25 @@ public class AprilTagLimelightTest extends OpMode{
     public void loop() {
         YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
         limelight.updateRobotOrientation(orientation.getYaw());
+
         LLResult llResult = limelight.getLatestResult();
-        if (llResult != null && llResult.isValid()){
-            Pose3D botPose = llResult.getBotpose_MT2();
-            telemetry.addData( "Targetx", llResult.getTx());
-            telemetry.addData( "Targety", llResult.getTy());
-            telemetry.addData( "Ta", llResult.getTa());
-            telemetry.addData( "ID", llResult.getBarcodeResults());
+
+        if (llResult != null && llResult.isValid()) {
+
+            telemetry.addData("Tx", llResult.getTx());
+            telemetry.addData("Ty", llResult.getTy());
+            telemetry.addData("Ta", llResult.getTa());
+
+            if (!llResult.getFiducialResults().isEmpty()) {
+                int tagID = llResult.getFiducialResults().get(0).getFiducialId();
+                telemetry.addData("AprilTag ID", tagID);
+            } else {
+                telemetry.addData("AprilTag ID", "None");
+            }
         }
+
         telemetry.update();
     }
+
 
 }

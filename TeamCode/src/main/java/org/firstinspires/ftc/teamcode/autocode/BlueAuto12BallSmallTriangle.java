@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode;
+/* package org.firstinspires.ftc.teamcode.autocode;
 //I Did not import anything like path chain
 public class BlueAuto12BallSmallTriangle {
 
@@ -106,3 +106,4 @@ public class BlueAuto12BallSmallTriangle {
         }
     }
 }
+*/

@@ -13,6 +13,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -23,6 +25,8 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 public class Mechanisms {
     // --------- la la la limelight ---------
     public Limelight3A limelight;
+    public static int MOTIF_PIPELINE = 3;
+    public static long MOTIF_SCAN_TIMEOUT_MS = 1500;
 
     // --------- SORTER ----------
     public SorterLogicColor sorterLogic;
@@ -43,6 +47,11 @@ public class Mechanisms {
     private static final double MAX_TICKS_PER_SEC_6000 = (TICKS_PER_REV_6000 * 6000) / 60.0;
 
     private double manualOuttakeSpeed = 0.7;
+
+    public static double FLYWHEEL_P = 0.01;
+    public static double FLYWHEEL_I = 0.0;
+    public static double FLYWHEEL_D = 0.0;
+    public static double FLYWHEEL_F = 13.9;
 
     public Servo rampAngleAdjust;
     public static double RAMP_ANGLE_MIN_POS = 0.3;
@@ -80,6 +89,7 @@ public class Mechanisms {
 
         limelight = hw.get(Limelight3A.class, "limelight");
         limelight.pipelineSwitch(0);
+        limelight.start();
 
         sorterLogic = new SorterLogicColor();
         sorterLogic.init(hw, telemetry);
@@ -112,12 +122,23 @@ public class Mechanisms {
         outtakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         outtakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
+        outtakeMotor.setPIDFCoefficients(
+                DcMotor.RunMode.RUN_USING_ENCODER,
+                new PIDFCoefficients(
+                        FLYWHEEL_P,
+                        FLYWHEEL_I,
+                        FLYWHEEL_D,
+                        FLYWHEEL_F
+                )
+        );
+
         rampAngleAdjust.setDirection(Servo.Direction.FORWARD);
         rampAngleAdjust.setPosition(RAMP_ANGLE_MIN_POS);
 
         kickerServo.setDirection(Servo.Direction.FORWARD);
         kickerServo.setPosition(KICKER_RESTING_POS);
     }
+
 
     private void initIMU(HardwareMap hw) {
         // ---------------- IMU INIT ----------------
@@ -165,25 +186,6 @@ public class Mechanisms {
     public int getSorterCurrentPosition() { return sorterLogic.getCurrentPos();}
     public int getSorterTargetPosition() { return sorterLogic.getTargetPos(); }
     public boolean sorterIsMoving() { return sorterLogic.moving; }
-
-    public String getSorterStateText(int pocket) {
-        int targetIntake, targetOuttake;
-
-        if (pocket == 1) {
-            targetIntake  = sorterLogic.B1_INTAKE;
-            targetOuttake = sorterLogic.B1_OUTTAKE;
-        } else if (pocket == 2) {
-            targetIntake  = sorterLogic.B2_INTAKE;
-            targetOuttake = sorterLogic.B2_OUTTAKE;
-        } else {
-            targetIntake  = sorterLogic.B3_INTAKE;
-            targetOuttake = sorterLogic.B3_OUTTAKE;
-        }
-
-        if (sorterLogic.targetPos == targetIntake)  return "INTAKE";
-        if (sorterLogic.targetPos == targetOuttake) return "OUTTAKE";
-        return "UNKNOWN";
-    }
 
     // ---------- OUTTAKE ----------
     public void engageOuttake(double speed) {
@@ -240,6 +242,22 @@ public class Mechanisms {
         lastShotPocket = pocket;
     }
 
+    public void autoAdvanceIntakePocketIfNeeded() {
+
+        // Only advance if:
+        // 1) Sorter just captured a ball
+        // 2) Sorter is not currently moving
+        if (!sorterLogic.consumeBallJustStored()) return;
+        if (sorterLogic.isMoving()) return;
+
+        int current = sorterLogic.getCurrentIntakePocket();
+
+        int nextPocket = current + 1;
+        if (nextPocket > 3) return;  // no wrap in auto
+
+        sorterLogic.goToIntake(nextPocket);
+    }
+
     private double rampTo(double current, double target, double rate) {
         double delta = target - current;
         if (Math.abs(delta) > rate)
@@ -293,6 +311,10 @@ public class Mechanisms {
 
             if (detected != SorterLogicColor.BallColor.UNKNOWN)
                 sorterLogic.storeColorForCurrentPocket(detected);
+        }
+
+        if (sorterLogic.autoAdvanceEnabled) {
+            autoAdvanceIntakePocketIfNeeded();
         }
 
         // ========================

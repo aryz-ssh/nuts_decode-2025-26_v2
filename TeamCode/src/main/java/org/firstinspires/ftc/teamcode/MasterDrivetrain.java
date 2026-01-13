@@ -19,33 +19,18 @@ public class MasterDrivetrain {
     private IMU imu;
 
     // ---------------- Tuning ----------------
-    public static double BRAKE_MULT = 0.5;
     public static double RAMP_RATE = 0.4;
-    public static double MIN_POWER = 0.15;   // 0.10–0.18 typical
-    public static double KICK_MULT = 1.4;    // 1.2–1.5
-    public static long KICK_TIME_MS = 100; // 60–120 ms
-
+    public static double MIN_POWER = 0.15;
+    public static double KICK_MULT = 1.4;
+    public static long KICK_TIME_MS = 100;
 
     public static double FL_SCALE = 1.0;
     public static double FR_SCALE = 1.0;
     public static double BL_SCALE = 1.0;
     public static double BR_SCALE = 1.0;
 
-    // ---------------- Heading Hold ----------------
-    private double lockedHeadingDeg = 0.0;
-
-    public static double HEADING_KP = 0.0;      // turn per degree 0.04
-    public static double MAX_HEADING_CORR = 0.35;
-    public static double TURN_DEADBAND = 0.08;
-    public static double TURN_CORRECT_SPEED_FLOOR = 0.2;
-    private long lastTurnTimeMs = 0;
-    public static long TURN_SETTLE_MS = 150; // 100–200ms sweet spot
-    private boolean wasMovingZPB = false;
-
-
     // ---------------- Ramp State ----------------
     private double curFL = 0, curFR = 0, curBL = 0, curBR = 0;
-
     private boolean wasMoving = false;
     private long kickStartTime = 0;
 
@@ -53,7 +38,9 @@ public class MasterDrivetrain {
     private double lastImuYawDeg = 0.0;
     private double continuousHeadingDeg = 0.0;
     private boolean imuInitialized = false;
-    private boolean wasTranslating = false;
+
+    // ---------------- ZPB ----------------
+    private boolean wasMovingZPB = false;
 
     public MasterDrivetrain() {}
 
@@ -70,10 +57,10 @@ public class MasterDrivetrain {
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        frontLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
-        frontRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
-        backLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
-        backRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        frontLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
+        frontRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
+        backLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
+        backRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
 
         imu = hardwareMap.get(IMU.class, "imu");
 
@@ -89,96 +76,22 @@ public class MasterDrivetrain {
     }
 
     // ----------------------------------------------------------
-    // ROBOT-CENTRIC DRIVE (BRAKE ALLOWED)
+    // ROBOT-CENTRIC DRIVE
     // ----------------------------------------------------------
-    public void driveRobotCentric(double x, double y, double turn, boolean brake) {
+    public void driveRobotCentric(double x, double y, double turn) {
         updateContinuousHeading();
-
-        if (brake) {
-            x *= BRAKE_MULT;
-            y *= BRAKE_MULT;
-            turn *= BRAKE_MULT;
-        }
-
-        // --------------------------------------------------
-        // HEADING HOLD (robot-centric ONLY)
-        // --------------------------------------------------
-
-        double currentHeadingDeg = continuousHeadingDeg;
-
-        boolean translating =
-                Math.abs(x) > 1e-3 ||
-                        Math.abs(y) > 1e-3;
-
-        boolean driverTurning =
-                Math.abs(turn) > TURN_DEADBAND;
-
-        // --------------------------------------------------
-        // HEADING LOCK LOGIC (EDGE-BASED)
-        // --------------------------------------------------
-
-        // Lock heading ONCE when translation starts
-        if (translating && !wasTranslating && !driverTurning) {
-            lockedHeadingDeg = currentHeadingDeg;
-        }
-
-        // If driver manually turns, release and re-lock immediately
-        if (driverTurning) {
-            lockedHeadingDeg = currentHeadingDeg;
-        }
-
-        // Track translation state
-        wasTranslating = translating;
-
-        double finalTurn;
-
-// track last time the driver actively turned
-        if (driverTurning) {
-            lastTurnTimeMs = System.currentTimeMillis();
-        }
-
-// are we still in the post-turn settle window?
-        boolean inTurnSettle =
-                (System.currentTimeMillis() - lastTurnTimeMs) < TURN_SETTLE_MS;
-
-        if (driverTurning) {
-            // Driver has full control
-            finalTurn = turn;
-            lockedHeadingDeg = currentHeadingDeg;
-
-        } else if (!inTurnSettle) {
-            // Heading hold is allowed (even if x/y = 0)
-            double errorDeg = wrapDegrees(lockedHeadingDeg - currentHeadingDeg);
-
-            // FULL correction at all times
-            double speedScale = 1.0;
-
-            finalTurn = -HEADING_KP * speedScale * errorDeg;
-
-            finalTurn = Math.max(
-                    -MAX_HEADING_CORR,
-                    Math.min(MAX_HEADING_CORR, finalTurn)
-            );
-
-
-        } else {
-            // Settling period — do NOTHING
-            finalTurn = 0.0;
-            lockedHeadingDeg = currentHeadingDeg;
-        }
-
-        driveMecanum(x, y, finalTurn);
+        driveMecanum(x, y, turn);
     }
 
     // ----------------------------------------------------------
-    // FIELD-CENTRIC DRIVE (NO BRAKE)
+    // FIELD-CENTRIC DRIVE
     // ----------------------------------------------------------
     public void driveFieldCentric(double x, double y, double turn) {
         driveMecanum(x, y, turn);
     }
 
     // ----------------------------------------------------------
-    // CORE MECANUM (shared)
+    // CORE MECANUM
     // ----------------------------------------------------------
     private void driveMecanum(double x, double y, double turn) {
 
@@ -187,12 +100,10 @@ public class MasterDrivetrain {
                         Math.abs(y) > 1e-3 ||
                         Math.abs(turn) > 1e-3;
 
-        // ----- ZERO POWER BEHAVIOR SWITCH (STATE-BASED) -----
+        // ----- ZERO POWER BEHAVIOR SWITCH -----
         if (isMoving != wasMovingZPB) {
             DcMotorEx.ZeroPowerBehavior zpb =
-                    isMoving
-                            ? DcMotorEx.ZeroPowerBehavior.FLOAT
-                            : DcMotorEx.ZeroPowerBehavior.BRAKE;
+                    isMoving ? DcMotorEx.ZeroPowerBehavior.FLOAT : DcMotorEx.ZeroPowerBehavior.FLOAT;
 
             frontLeft.setZeroPowerBehavior(zpb);
             frontRight.setZeroPowerBehavior(zpb);
@@ -210,9 +121,7 @@ public class MasterDrivetrain {
         }
         wasMoving = isMoving;
 
-        boolean inKick =
-                isMoving &&
-                        (System.currentTimeMillis() - kickStartTime < KICK_TIME_MS);
+        boolean inKick = isMoving && (System.currentTimeMillis() - kickStartTime < KICK_TIME_MS);
 
         // ---------------- Mecanum math ----------------
         double fl = y + x + turn;
@@ -220,29 +129,16 @@ public class MasterDrivetrain {
         double bl = y - x + turn;
         double br = y + x - turn;
 
-        // ---------------- Strafe dominance detection ----------------
-        // Lateral vs forward comparison (Pedro-style)
-        boolean isStrafing =
-                Math.abs(fl + br - fr - bl) >
-                        Math.abs(fl + fr + bl + br) * 0.3;
-
-        // ---------------- Apply scaling ONLY for strafe ----------------
+        // ---------------- Strafe scaling ----------------
+        boolean isStrafing = Math.abs(fl + br - fr - bl) > Math.abs(fl + fr + bl + br) * 0.3;
         if (isStrafing) {
             bl *= BL_SCALE;
             br *= BR_SCALE;
-            // fronts intentionally untouched
         }
 
         // ---------------- Normalize ----------------
-        double max = Math.max(1.0,
-                Math.max(Math.abs(fl),
-                        Math.max(Math.abs(fr),
-                                Math.max(Math.abs(bl), Math.abs(br)))));
-
-        fl /= max;
-        fr /= max;
-        bl /= max;
-        br /= max;
+        double max = Math.max(1.0, Math.max(Math.abs(fl), Math.max(Math.abs(fr), Math.max(Math.abs(bl), Math.abs(br)))));
+        fl /= max; fr /= max; bl /= max; br /= max;
 
         // ---------------- Min power ----------------
         if (translating) {
@@ -254,22 +150,13 @@ public class MasterDrivetrain {
 
         // ---------------- Kick ----------------
         if (inKick) {
-            fl *= KICK_MULT;
-            fr *= KICK_MULT;
-            bl *= KICK_MULT;
-            br *= KICK_MULT;
+            fl *= KICK_MULT; fr *= KICK_MULT; bl *= KICK_MULT; br *= KICK_MULT;
         }
 
-        fl = clamp(fl);
-        fr = clamp(fr);
-        bl = clamp(bl);
-        br = clamp(br);
+        fl = clamp(fl); fr = clamp(fr); bl = clamp(bl); br = clamp(br);
 
         // ---------------- Ramp ----------------
-        curFL = ramp(curFL, fl);
-        curFR = ramp(curFR, fr);
-        curBL = ramp(curBL, bl);
-        curBR = ramp(curBR, br);
+        curFL = ramp(curFL, fl); curFR = ramp(curFR, fr); curBL = ramp(curBL, bl); curBR = ramp(curBR, br);
 
         frontLeft.setPower(curFL);
         frontRight.setPower(curFR);
@@ -281,8 +168,11 @@ public class MasterDrivetrain {
     // IMU ACCESS
     // ----------------------------------------------------------
     public double getHeadingRad() {
-        return imu.getRobotYawPitchRollAngles()
-                .getYaw(AngleUnit.RADIANS);
+        return imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
+    }
+
+    public double getHeadingDeg() {
+        return continuousHeadingDeg;
     }
 
     // ----------------------------------------------------------
@@ -290,15 +180,13 @@ public class MasterDrivetrain {
     // ----------------------------------------------------------
     private double ramp(double cur, double target) {
         double delta = target - cur;
-        if (Math.abs(delta) > RAMP_RATE)
-            return cur + Math.signum(delta) * RAMP_RATE;
+        if (Math.abs(delta) > RAMP_RATE) return cur + Math.signum(delta) * RAMP_RATE;
         return target;
     }
 
     private double applyMinPower(double val) {
         if (Math.abs(val) < 1e-4) return 0;
-        return Math.signum(val) *
-                (MIN_POWER + (1.0 - MIN_POWER) * Math.abs(val));
+        return Math.signum(val) * (MIN_POWER + (1.0 - MIN_POWER) * Math.abs(val));
     }
 
     private double clamp(double v) {
@@ -306,8 +194,7 @@ public class MasterDrivetrain {
     }
 
     private void updateContinuousHeading() {
-        double rawYaw = imu.getRobotYawPitchRollAngles()
-                .getYaw(AngleUnit.DEGREES);
+        double rawYaw = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
 
         if (!imuInitialized) {
             lastImuYawDeg = rawYaw;
@@ -317,41 +204,18 @@ public class MasterDrivetrain {
         }
 
         double delta = rawYaw - lastImuYawDeg;
-
-        // unwrap across ±180
-        if (delta > 180)  delta -= 360;
+        if (delta > 180) delta -= 360;
         if (delta < -180) delta += 360;
 
         continuousHeadingDeg += delta;
         lastImuYawDeg = rawYaw;
     }
 
-    private double wrapDegrees(double deg) {
-        while (deg > 180)  deg -= 360;
-        while (deg < -180) deg += 360;
-        return deg;
-    }
-
     public void resetImuYaw() {
         imu.resetYaw();
-
         imuInitialized = false;
         lastImuYawDeg = 0.0;
         continuousHeadingDeg = 0.0;
-
-        lockedHeadingDeg = 0.0;
-    }
-
-    public double getHeadingDeg() {
-        return continuousHeadingDeg;
-    }
-
-    public double getLockedHeadingDeg() {
-        return lockedHeadingDeg;
-    }
-
-    public double getHeadingErrorDeg() {
-        return wrapDegrees(lockedHeadingDeg - continuousHeadingDeg);
     }
 
     public void stop() {

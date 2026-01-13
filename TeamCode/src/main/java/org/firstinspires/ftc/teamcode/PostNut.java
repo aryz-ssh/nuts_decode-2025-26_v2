@@ -78,7 +78,7 @@ public class PostNut extends LinearOpMode {
             rx = limelight.getAutoAlignTurn(gamepad1.x, rx);
 
             boolean brake = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
-            drivetrain.driveRobotCentric(x, y, rx, brake);
+            drivetrain.driveRobotCentric(x, y, rx);
 
             // ---------- Intake toggle ----------
             boolean intakeTriggerNow = gamepad1.right_trigger > GAMEPAD_TRIGGER_THRESHOLD;

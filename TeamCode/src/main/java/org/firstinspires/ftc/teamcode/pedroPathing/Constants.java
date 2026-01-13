@@ -18,11 +18,11 @@ import org.firstinspires.ftc.teamcode.MecanumDrive;
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
             .mass(13.1538)
-            .forwardZeroPowerAcceleration(-58.32109480876014)
-            .lateralZeroPowerAcceleration(-106.968388707083117)
-            .translationalPIDFCoefficients(new PIDFCoefficients(0.12, 0, 0.002, 0.07))
-            .headingPIDFCoefficients(new PIDFCoefficients(0.85, 0, 0.0001, 0.035))
-            .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.03, 0,0.0001,0.3,0.025));
+            .forwardZeroPowerAcceleration(-27.976707401431)
+            .lateralZeroPowerAcceleration(-58.838768513832)
+            .translationalPIDFCoefficients(new PIDFCoefficients(0.06, 0, 0.006, 0.025))
+            .headingPIDFCoefficients(new PIDFCoefficients(0.7, 0, 0.04, 0.02));
+            // .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.03, 0,0.0001,0.3,0.025));
             // .centripetalScaling(0.0005);
 
     public static PathConstraints pathConstraints = new PathConstraints(0.99,
@@ -31,7 +31,7 @@ public class Constants {
             1);
 
     public static MecanumConstants driveConstants = new MecanumConstants()
-            .maxPower(1)
+            .maxPower(0.7)
             .rightFrontMotorName("rightFront")
             .rightRearMotorName("rightBack")
             .leftRearMotorName("leftBack")
@@ -40,13 +40,13 @@ public class Constants {
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .xVelocity(27.12947965656154)
-            .yVelocity(30.15317804994846);
+            .xVelocity(63.931380392050265)
+            .yVelocity(42.99333541698602);
 
     public static ThreeWheelIMUConstants localizerConstants = new ThreeWheelIMUConstants()
-            .forwardTicksToInches(0.0044274088283232)
-            .strafeTicksToInches(0.0044247984836949)
-            .turnTicksToInches(0.0019740928037213)
+            .forwardTicksToInches(0.0060564408396097)
+            .strafeTicksToInches(0.0029499244889298)
+            .turnTicksToInches(0.0019681621148874)
             .leftPodY(7)
             .rightPodY(-7)
             .strafePodX(-1.5)

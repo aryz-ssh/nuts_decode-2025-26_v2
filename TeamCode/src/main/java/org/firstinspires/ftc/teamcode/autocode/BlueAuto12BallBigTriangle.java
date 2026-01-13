@@ -54,6 +54,7 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
     public static int MOTIF_PIPELINE = 2;
     public static int RED_PIPELINE = 1;
     public static long MOTIF_SCAN_TIMEOUT_MS = 1500;
+    public static long  SHOOTING_DELAY = 500;
     public static double OUTTAKE_POWER = 0.7;
     public static double RAMP_POSITION = 0.7;
     private boolean isPreloadPhase = true;
@@ -303,7 +304,7 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
             // 4) Allow kicker + spacing time
             long kickStart = System.currentTimeMillis();
             while (opModeIsActive()
-                    && System.currentTimeMillis() - kickStart < 500) {
+                    && System.currentTimeMillis() - kickStart < SHOOTING_DELAY) {
 
                 mechanisms.updateMechanisms();
                 sleep(10);

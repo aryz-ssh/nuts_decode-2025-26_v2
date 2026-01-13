@@ -13,6 +13,9 @@ public class CustomMecanumPedroDrivebase extends Drivetrain {
 
     private final PedroMecanumMathOnly pedro;
     private final PedroMotorIO motors;
+//    public static double lastTranslMag = 0.0;
+//    public static double lastRotMag = 0.0;
+//    public static double lastOrbitScale = 1.0;
 
     public CustomMecanumPedroDrivebase(HardwareMap hw, MecanumConstants constants) {
         pedro = new PedroMecanumMathOnly(hw, constants);
@@ -32,41 +35,40 @@ public class CustomMecanumPedroDrivebase extends Drivetrain {
         double fr = p[2];
         double br = p[3];
 
-        // ---------- STRAFE CLARITY (wheel space) ----------
-        double forward = Math.abs(fl + fr + bl + br);
-        double lateral = Math.abs(fl + br - fr - bl);
+        // 1) wheel -> chassis
+        double vx = (fl + fr + bl + br) / 4.0;
+        double vy = (-fl + fr + bl - br) / 4.0;
+        double om = (-fl + fr - bl + br) / 4.0;
 
-        double clarity = lateral / (forward + lateral + 1e-6); // 0..1
+        // 2) single counter-rotation K (rear scale acknowledged)
+        double kRear = (1.0 - PedroWheelTuning.REAR_SCALE) / 2.0;
+        om += (kRear + PedroWheelTuning.STRAFE_YAW_K) * vy;
 
-        // ---------- LINEAR REAR FADE ----------
-        double t = (clarity - PedroWheelTuning.STRAFE_FADE_START)
-                / (PedroWheelTuning.STRAFE_FADE_END - PedroWheelTuning.STRAFE_FADE_START);
+        // 3) chassis -> wheel
+        double nfl = vx - vy - om;
+        double nfr = vx + vy + om;
+        double nbl = vx + vy - om;
+        double nbr = vx - vy + om;
 
-        t = Math.max(0.0, Math.min(1.0, t));
-
-        double rearFade = 1.0 + (PedroWheelTuning.BL - 1.0) * t;
-        // NOTE: BL and BR are already equal — intentional
-
-        // ---------- APPLY BASE SCALE + FADE ----------
-        fl *= PedroWheelTuning.FL;
-        fr *= PedroWheelTuning.FR;
-
-        bl *= PedroWheelTuning.BL_BASE * PedroWheelTuning.BL * rearFade;
-        br *= PedroWheelTuning.BR_BASE * PedroWheelTuning.BR * rearFade;
-
-        // ---------- NORMALIZE ----------
-        double max = Math.max(1.0,
-                Math.max(Math.abs(fl),
-                        Math.max(Math.abs(bl),
-                                Math.max(Math.abs(fr), Math.abs(br)))));
-
-        motors.setPowers(
-                fl / max,
-                bl / max,
-                fr / max,
-                br / max
+        // 4) normalize once
+        double max = Math.max(
+                Math.max(Math.abs(nfl), Math.abs(nfr)),
+                Math.max(Math.abs(nbl), Math.abs(nbr))
         );
+        if (max > 1.0) {
+            nfl /= max;
+            nfr /= max;
+            nbl /= max;
+            nbr /= max;
+        }
+
+        // 5) rear scaling LAST
+        nbl *= PedroWheelTuning.REAR_SCALE;
+        nbr *= PedroWheelTuning.REAR_SCALE;
+
+        motors.setPowers(nfl, nbl, nfr, nbr);
     }
+
 
     @Override
     public void breakFollowing() {

@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode;
+/* package org.firstinspires.ftc.teamcode.autocode;
 
 public class RedAuto12BallSmallTriangle {
 
@@ -107,3 +107,4 @@ public class RedAuto12BallSmallTriangle {
     }
 
 }
+*/

@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
+import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -16,7 +18,6 @@ public class SorterLogicColor {
     ColorSensor opticalSorterHoming;
     ColorSensor sorterColorSensor;
 
-
     // ---------- DASHBOARD-TUNABLE CONSTANTS ----------
 
     // Homing
@@ -28,51 +29,67 @@ public class SorterLogicColor {
     public static int HOMING_CREEP_VEL = 100;
     public static int HOMING_SETTLE_MS = 500;
 
+    // Overshoot recovery (snap-back)
+    public static int RETURN_MIN_VEL = 220;    // speed used after crossing target
+    public static int RETURN_MAX_VEL = 450;    // cap during snap-back
+    public static int RETURN_ZONE_TICKS = 40;  // only do snap-back when near target
+    public static int RETURN_HOLD_CYCLES = 2;  // cycles to keep snap-back active
+
+    private int returnCountdown = 0;
+
+    // ---------- DASHBOARD ----------
+    private FtcDashboard dashboard = FtcDashboard.getInstance();
+    private TelemetryPacket packet;
+
+    // Dashboard signals
+    public static double dbgTargetPos = 0;
+    public static double dbgCurrentPos = 0;
+    public static double dbgErrorGraph = 0;
+    public static double dbgCmdVelocity = 0;
+    public static double dbgActualVelocity = 0;
+
     // Pocket positions (encoder ticks)
     public static int B1_INTAKE = 0;
     public static int B1_OUTTAKE = -259;
 
     public static int B2_INTAKE = 176;
     public static int B2_OUTTAKE = -80;
-    public static int TICKS_PER_REV = 536; // example – measure this
-    public static int POCKET_SPACING = TICKS_PER_REV / 3;
 
     // Match the tuned Manual class values
     public static int B3_INTAKE = 373;
     public static int B3_OUTTAKE = 114;
 
-    // Positioning
+    // Encoder wrap
+    public static int TICKS_PER_REV = 537; // keep accurate (gobilda 5203 435rpm is 537.6 CPR at motor shaft)
+
+    // Position tolerance / settle
     public static int POSITION_TOLERANCE = 3;     // acceptable final error in ticks
-    public static double Kp = 0.8;                // kept for dashboard visibility (not really used now)
-    public static double Kd = 0.35;
-    public static int MAX_VEL = 1800;              // hard max velocity (ticks/s)
+    public static int HOLD_STABLE_CYCLES = 3;     // how many consecutive cycles inside tolerance before stop
 
-    // Zone thresholds (distance to target in ticks)
-    public static int ZONE1_THRESH = 200;  // was 150
-    public static int ZONE2_THRESH = 120;   // was 80
-    public static int ZONE3_THRESH = 60;   // was 40
-    public static int ZONE4_THRESH = 20;   // was 15
+    // ======= NEW: SIMPLE POSITION→VELOCITY CONTROL =======
+    // Think of this as: vel_cmd = K_POS * error
+    // Higher = faster moves, but too high can overshoot / oscillate.
+    public static double K_POS_FWD = 12.0;
+    public static double K_POS_REV = 16.0; // stronger correction
 
-    // Zone velocities (ticks/s)
-    public static int VEL_ZONE1 = 1600;   // was 600
-    public static int VEL_ZONE2 = 1100;   // was 400
-    public static int VEL_ZONE3 = 600;   // was 250
-    public static int VEL_ZONE4 = 300;    // was 150
+    // Optional damping (usually you can keep this 0.0)
+    // vel_cmd -= K_D * (error - lastError)
+    public static double K_D = 0.0;               // start at 0; only add if you see bounce
 
-    // Smooth final approach controller
-    public static double FINAL_K = 12.0;       // strength of final approach
-    public static int FINAL_CLAMP = 300;      // max speed near target
-    // Predictive braking tuning
-    // public static int BRAKE_DIVISOR = 400;   // lower = stronger braking
+    // Velocity limits
+    public static int MAX_VEL = 1800;             // hard cap (ticks/s)
+    public static int FINAL_CLAMP = 300;          // cap when close to target (prevents slamming)
 
-    // Telemetry throttling
-    public static long TELEMETRY_INTERVAL_MS = 120;
+    // “Stiction floor” to avoid getting stuck near target due to friction
+    public static int MIN_VEL = 120;              // set 0 to disable
+
+    // When do we switch to the close-range clamp?
+    public static int CLAMP_ZONE_TICKS = 25;      // within this error, clamp to ±FINAL_CLAMP
+
+    // Update pacing
     public static double UPDATE_PERIOD_MS = 5.0;
 
     // ---------- INTERNAL STATE (NOT CONFIG) ----------
-
-    // Throttled telemetry
-    private long lastTelem = 0;
 
     // States
     boolean sorterHomed = false;
@@ -89,16 +106,11 @@ public class SorterLogicColor {
     int lastError = 0;
     int stableCount = 0;
 
+    private boolean ballJustStored = false;
+
     public enum BallColor { PURPLE, GREEN, UNKNOWN }
 
-    // ---------- COLOR STABILITY STATE ----------
-    private BallColor lastCandidate = BallColor.UNKNOWN;
-    private int colorStableCount = 0;
-
-    // ---------- COLOR TUNABLES ----------
-    public static float COLOR_DOMINANCE_RATIO = 1.15f;
-    public static float COLOR_CONFIDENCE_MIN  = 0.05f;
-    public static int REQUIRED_STABLE_FRAMES  = 3;
+    // ---------- COLOR TUNABLES / STATE ----------
     private BallColor latchedColor = BallColor.UNKNOWN;
     private boolean colorLatched = false;
 
@@ -109,26 +121,26 @@ public class SorterLogicColor {
     private int cachedB = 0;
 
     public BallColor[] pocketColors = new BallColor[] {
-            BallColor.UNKNOWN, // Pocket 1
-            BallColor.UNKNOWN, // Pocket 2
-            BallColor.UNKNOWN  // Pocket 3
+            BallColor.UNKNOWN,
+            BallColor.UNKNOWN,
+            BallColor.UNKNOWN
     };
 
     public boolean[] pocketReady = {true, true, true};
-
-
-    private int currentIntakePocket = 1; // starts at pocket 1
+    private int currentIntakePocket = 1;
 
     private ElapsedTime updateRate = new ElapsedTime();
 
-    // ================= TELEMETRY WRAPPER =================
-    private void safeTelemetry(Runnable r) {
-        long now = System.currentTimeMillis();
-        if (now - lastTelem >= TELEMETRY_INTERVAL_MS) {
-            r.run();
-            lastTelem = now;
-        }
-    }
+    // ---------- DEBUG STATE ----------
+    private int dbgError = 0;
+    private int dbgAbsError = 0;
+    private String dbgCorrState = "IDLE";
+    private boolean dbgHoming = false;
+    public boolean autoAdvanceEnabled = true;
+
+    // Debug signals (Dashboard graph-friendly if you choose to pipe them)
+    public static double dbgVelCmd = 0;
+    public static double dbgVelActual = 0;
 
     // ================= INIT =================
     public void init(HardwareMap hwMap, Telemetry tel) {
@@ -143,7 +155,6 @@ public class SorterLogicColor {
         sorterMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         sorterMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
 
-        // Start at pocket 1 intake
         targetPos = B1_INTAKE;
         moving = false;
 
@@ -156,7 +167,6 @@ public class SorterLogicColor {
         if (sorterHomed || homingFault) return;
 
         homingAttempts++;
-
         if (homingAttempts > MAX_ATTEMPTS) {
             homingFault = true;
             sorterMotor.setVelocity(0);
@@ -219,7 +229,6 @@ public class SorterLogicColor {
 
             long creepStart = System.currentTimeMillis();
             while (opticalSorterHoming.alpha() < HOME_THRESHOLD) {
-
                 if (System.currentTimeMillis() - creepStart > HOMING_CREEP_TIMEOUT_MS) {
                     sorterMotor.setVelocity(0);
                     return;
@@ -242,6 +251,8 @@ public class SorterLogicColor {
 
         currentIntakePocket = 1;
         pocketReady[0] = true;
+        stableCount = 0;
+        lastError = 0;
     }
 
     // ================= COMMANDS =================
@@ -250,7 +261,9 @@ public class SorterLogicColor {
         targetPos = pos;
         moving = true;
         stableCount = 0;
-        lastError = 0;   // <-- ADD THIS
+        lastError = 0;
+
+        // reset color latch any time we command motion
         colorLatched = false;
         latchedColor = BallColor.UNKNOWN;
     }
@@ -268,21 +281,6 @@ public class SorterLogicColor {
         else if (n == 3) goToPosition(B3_OUTTAKE);
     }
 
-    public boolean isAtOuttakePosition(int pocket) {
-        int target;
-
-        if (pocket == 1) target = B1_OUTTAKE;
-        else if (pocket == 2) target = B2_OUTTAKE;
-        else target = B3_OUTTAKE;
-
-        return Math.abs(sorterMotor.getCurrentPosition() - target)
-                <= POSITION_TOLERANCE;
-    }
-
-    public void markPocketReady(int pocket) {
-        pocketReady[pocket - 1] = true;
-    }
-
     // ================= PUBLIC ACCESSORS =================
     public boolean isAtIntakePosition() {
         int target;
@@ -293,32 +291,26 @@ public class SorterLogicColor {
         return Math.abs(sorterMotor.getCurrentPosition() - target) <= POSITION_TOLERANCE;
     }
 
-    public int getCurrentPos() {
-        return sorterMotor.getCurrentPosition();
+    public boolean isAtOuttakePosition(int pocket) {
+        int target;
+        if (pocket == 1) target = B1_OUTTAKE;
+        else if (pocket == 2) target = B2_OUTTAKE;
+        else target = B3_OUTTAKE;
+
+        return Math.abs(sorterMotor.getCurrentPosition() - target) <= POSITION_TOLERANCE;
     }
 
-    public int getTargetPos() {
-        return targetPos;
-    }
+    public int getCurrentPos() { return sorterMotor.getCurrentPosition(); }
+    public int getTargetPos() { return targetPos; }
+    public boolean isHomed() { return sorterHomed; }
+    public boolean hasFault() { return homingFault; }
+    public boolean isMoving() { return moving; }
+    public BallColor[] getPocketColors() { return pocketColors; }
+    public void setCurrentIntakePocket(int n) { currentIntakePocket = n; }
+    public int getCurrentIntakePocket() { return currentIntakePocket; }
 
-    public boolean isHomed() {
-        return sorterHomed;
-    }
-
-    public boolean hasFault() {
-        return homingFault;
-    }
-
-    public boolean isMoving() {
-        return moving;
-    }
-
-    public SorterLogicColor.BallColor[] getPocketColors() {
-        return pocketColors;
-    }
-
-    public void setCurrentIntakePocket(int n) {
-        currentIntakePocket = n;
+    public void markPocketReady(int pocket) {
+        pocketReady[pocket - 1] = true;
     }
 
     // ================= COLOR HELPERS =================
@@ -333,7 +325,6 @@ public class SorterLogicColor {
         updateColorCache();
 
         if (colorLatched) return latchedColor;
-
         if (!isAtIntakePosition()) return BallColor.UNKNOWN;
 
         float a = cachedAlpha / 1000f;
@@ -364,24 +355,31 @@ public class SorterLogicColor {
         if (color == BallColor.UNKNOWN) return;
 
         int idx = currentIntakePocket - 1;
-
         if (!pocketReady[idx]) return;
 
         pocketColors[idx] = color;
         pocketReady[idx] = false;
 
-        // CLEAR latch after storing
+        ballJustStored = true;
+
+        // clear latch after storing
         colorLatched = false;
         latchedColor = BallColor.UNKNOWN;
     }
 
+    public boolean consumeBallJustStored() {
+        if (ballJustStored) {
+            ballJustStored = false;
+            return true;
+        }
+        return false;
+    }
+
     public Integer getPocketWithColor(BallColor color) {
         for (int i = 0; i < 3; i++) {
-            if (pocketColors[i] == color) {
-                return i + 1; // pockets are 1,2,3
-            }
+            if (pocketColors[i] == color) return i + 1;
         }
-        return null; // not found
+        return null;
     }
 
     public void clearPocket(int pocket) {
@@ -390,67 +388,46 @@ public class SorterLogicColor {
         pocketReady[idx] = true;
     }
 
-    private int wrapTicks(int ticks) {
-        int r = ticks % TICKS_PER_REV;
-        if (r < 0) r += TICKS_PER_REV;
-        return r;
-    }
-
-    private int circularError(int target, int current) {
-        int error = wrapTicks(target) - wrapTicks(current);
-
-        // Wrap into range [-TICKS_PER_REV/2, +TICKS_PER_REV/2]
-        if (error >  TICKS_PER_REV / 2) error -= TICKS_PER_REV;
-        if (error < -TICKS_PER_REV / 2) error += TICKS_PER_REV;
-
-        return error;
-    }
-
     // ================= NON-BLOCKING UPDATE =================
     public void update() {
-        // Keep color cache fresh every cycle
-        updateColorCache();
-
         if (updateRate.milliseconds() < UPDATE_PERIOD_MS) return;
         updateRate.reset();
 
         if (homingFault) {
             sorterMotor.setVelocity(0);
             moving = false;
+            dbgCorrState = "FAULT";
             return;
         }
 
-        if (!moving) return;
+        if (!moving) {
+            dbgCorrState = "IDLE";
+            return;
+        }
 
         int current = sorterMotor.getCurrentPosition();
-        int error = circularError(targetPos, current);
+        int error = targetPos - current;
         int absError = Math.abs(error);
 
-        safeTelemetry(() -> {
-            telemetry.addData("Err", error);
-            telemetry.addData("AbsErr", absError);
-        });
+        // detect crossing
+        boolean crossedTarget =
+                (error != 0) &&
+                        (lastError != 0) &&
+                        ((error > 0) != (lastError > 0));
 
-        // ---------------- Predictive braking ----------------
-        double scale = 1.0;
+        if (crossedTarget && absError <= RETURN_ZONE_TICKS) {
+            returnCountdown = RETURN_HOLD_CYCLES;
+        }
 
-        // Use lastError as a proxy for approach speed
-/*        int brakingDist = (Math.abs(lastError) * Math.abs(lastError)) / BRAKE_DIVISOR;// divisor tunes aggressiveness
-
-        if (absError < brakingDist) {
-            scale = (double) absError / Math.max(brakingDist, 1);
-            scale = Math.max(scale, 0.3); // never fully kill motion
-        }*/
-
-        // ===================== REACHED TARGET =====================
+        // reached target
         if (absError <= POSITION_TOLERANCE) {
             stableCount++;
-            if (stableCount >= 3) {
+            if (stableCount >= HOLD_STABLE_CYCLES) {
                 sorterMotor.setVelocity(0);
                 moving = false;
-                safeTelemetry(() -> telemetry.addData("CorrState", "HOLD_DONE"));
+                dbgCorrState = "HOLD_DONE";
             } else {
-                safeTelemetry(() -> telemetry.addData("CorrState", "HOLD_NUDGE"));
+                dbgCorrState = "HOLD_NUDGE";
             }
             lastError = error;
             return;
@@ -458,94 +435,93 @@ public class SorterLogicColor {
 
         stableCount = 0;
 
-        // ===================== EXTREMELY CLOSE (<2) =====================
-/*        if (absError <= 2) {
-            sorterMotor.setVelocity(0);
-            moving = false;
-            safeTelemetry(() -> telemetry.addData("CorrState", "STOP_CLOSE"));
-            lastError = error;
-            return;
-        }*/
+        double velCmdD;
 
-        int vel;
+        // ================= SNAP-BACK MODE =================
+        if (returnCountdown > 0) {
+            returnCountdown--;
 
-        // ===================== FAR ZONES =====================
-        if (absError > ZONE1_THRESH) {
-            vel = VEL_ZONE1 * Integer.signum(error);
-            safeTelemetry(() -> telemetry.addData("CorrState", "ZONE1"));
+            velCmdD = Math.signum(error)
+                    * Math.max(RETURN_MIN_VEL, absError * K_POS_REV);
+
+            velCmdD = Math.min(Math.abs(velCmdD), RETURN_MAX_VEL)
+                    * Math.signum(velCmdD);
+
+            dbgCorrState = "RETURN";
         }
-        else if (absError > ZONE2_THRESH) {
-            vel = VEL_ZONE2 * Integer.signum(error);
-            safeTelemetry(() -> telemetry.addData("CorrState", "ZONE2"));
-        }
-        else if (absError > ZONE3_THRESH) {
-            vel = VEL_ZONE3 * Integer.signum(error);
-            safeTelemetry(() -> telemetry.addData("CorrState", "ZONE3"));
-        }
-        else if (absError > ZONE4_THRESH) {
-            vel = VEL_ZONE4 * Integer.signum(error);
-            safeTelemetry(() -> telemetry.addData("CorrState", "ZONE4"));
-        }
-        // ===================== FINAL APPROACH (SMOOTH MODE) =====================
+        // ================= NORMAL MODE =================
         else {
-            // velocity = k_final * error
-            vel = (int)(FINAL_K * error);
+            double k = (error > 0) ? K_POS_FWD : K_POS_REV;
+            velCmdD = k * error;
 
-            // clamp for smoothness
-            if (vel > FINAL_CLAMP)  vel = FINAL_CLAMP;
-            if (vel < -FINAL_CLAMP) vel = -FINAL_CLAMP;
-
-            safeTelemetry(() -> telemetry.addData("CorrState", "FINAL_SMOOTH"));
+            if (absError <= CLAMP_ZONE_TICKS) {
+                velCmdD = Math.max(
+                        Math.min(velCmdD, FINAL_CLAMP),
+                        -FINAL_CLAMP
+                );
+                dbgCorrState = "CLAMP";
+            } else {
+                dbgCorrState = "CRUISE";
+            }
         }
 
-        // ===================== APPLY VELOCITY =====================
-        vel = (int)(vel * scale);
+        // global clamp
+        velCmdD = Math.max(
+                Math.min(velCmdD, MAX_VEL),
+                -MAX_VEL
+        );
 
-        if (vel > MAX_VEL) vel = MAX_VEL;
-        if (vel < -MAX_VEL) vel = -MAX_VEL;
+        // stiction floor (only outside clamp)
+        if (absError > CLAMP_ZONE_TICKS &&
+                Math.abs(velCmdD) < MIN_VEL &&
+                Math.abs(velCmdD) > 0) {
+            velCmdD = MIN_VEL * Math.signum(velCmdD);
+        }
 
-        sorterMotor.setVelocity(vel);
+        int velCmd = (int) velCmdD;
+        sorterMotor.setVelocity(velCmd);
+
+        dbgVelCmd = velCmd;
+        dbgVelActual = sorterMotor.getVelocity();
+
+        dbgTargetPos = targetPos;
+        dbgCurrentPos = current;
+        dbgErrorGraph = error;
+        dbgCmdVelocity = velCmd;
+        dbgActualVelocity = sorterMotor.getVelocity();
+
+        TelemetryPacket packet = new TelemetryPacket();
+        packet.put("error", error);
+        packet.put("cmdVelocity", velCmd);
+        packet.put("state", dbgCorrState);
+        dashboard.sendTelemetryPacket(packet);
+
         lastError = error;
     }
 
     // ================= INIT LOOP =================
     public void init_loop() {
-
         if (homingFault) {
-            safeTelemetry(() -> {
-                telemetry.addLine("SORTER HOMING FAILED!");
-                telemetry.addData("Attempts", homingAttempts);
-                telemetry.update();
-            });
+            dbgHoming = false;
             return;
         }
 
         if (!sorterHomed) {
             homeSorter();
-
-            safeTelemetry(() -> {
-                telemetry.addData("Homing", "IN PROGRESS");
-                telemetry.addData("Attempts", homingAttempts);
-                telemetry.addData("Alpha", opticalSorterHoming.alpha());
-                telemetry.update();
-            });
+            dbgHoming = true;
             return;
         }
 
-        // Disable auto-tune; we just mark as tuned
-        if (!tuned) {
-            tuned = true;
-        }
+        if (!tuned) tuned = true;
 
         update();
-
-        safeTelemetry(() -> {
-            telemetry.addData("Homing", "DONE");
-            telemetry.addData("Tuned", tuned);
-            telemetry.addData("Encoder", sorterMotor.getCurrentPosition());
-            telemetry.addData("Kp", Kp);
-            telemetry.addData("Kd", Kd);
-            telemetry.update();
-        });
+        dbgHoming = false;
     }
+
+    // ================= DEBUG GETTERS =================
+    public int getDebugError() { return dbgError; }
+    public int getDebugAbsError() { return dbgAbsError; }
+    public String getDebugCorrState() { return dbgCorrState; }
+    public boolean isDebugHoming() { return dbgHoming; }
+    public int getHomingAttempts() { return homingAttempts; }
 }

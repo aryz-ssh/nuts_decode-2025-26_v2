@@ -1,223 +1,507 @@
 package org.firstinspires.ftc.teamcode.autocode;
 
-import static org.firstinspires.ftc.teamcode.pedroPathing.Tuning.follower;
-
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-
 import org.firstinspires.ftc.teamcode.Mechanisms;
+import org.firstinspires.ftc.teamcode.SorterLogicColor;
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
+import org.firstinspires.ftc.robotcore.external.navigation.Position;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @Autonomous(name = "Blue Big Triangle Auto - 12 Ball", group = "Autonomous")
 @Configurable
-
 public class BlueAuto12BallBigTriangle extends LinearOpMode {
+
     private Mechanisms mechanisms;
 
-    Follower follower = Constants.createFollower(hardwareMap);
+    /* ===================== POSES ===================== */
 
-    private enum AutoState {
-        START_TO_SHOOT,
-        WAIT_TO_SHOOT,
+    private static final Pose START          = new Pose(32.1944, 135.7764);
+    private static final Pose SHOOT_POS       = new Pose(44.0, 105.0);
+    private static final Pose INTAKE_1_END    = new Pose(15.0, 84.0);
+    private static final Pose HIT_GATE_END    = new Pose(15.0, 72.0);
+    private static final Pose INTAKE_2_END    = new Pose(15.0, 60.0);
+    private static final Pose INTAKE_3_END    = new Pose(15.0, 35.0);
 
-        START_OUTTAKE,
-        RAMP_UP,
-        WAIT_FOR_HOME,
-        SORTER_SETTLE,
+    /* ===================== PATHS ===================== */
 
-        MOVE_SORTER,
-        WAIT_SORTER,
-        KICK_1,
-        WAIT_1,
-        KICK_2,
-        WAIT_2,
-        NEXT_POCKET,
+    private PathChain scanMotif;
+    private PathChain first3;
+    private PathChain intake1;
+    private PathChain hitGate;
+    private PathChain shoot1;
+    private PathChain intake2;
+    private PathChain shoot2;
+    private PathChain intake3;
+    private PathChain shoot3;
+    private PathChain end;
 
-        START_MOVE_AWAY,
-        WAIT_MOVE_AWAY,
+    private Follower follower;
 
-        RETURN_TO_INTAKE,
-        WAIT_RETURN_TO_INTAKE,
+    public static long INTAKE_SETTLE_MS = 750; // dashboard-tunable
+    public static double INTAKE_PATH_SPEED = 0.75;
+    public static int MOTIF_PIPELINE = 2;
+    public static int RED_PIPELINE = 1;
+    public static long MOTIF_SCAN_TIMEOUT_MS = 1500;
+    public static long  SHOOTING_DELAY = 500;
+    public static double OUTTAKE_POWER = 0.7;
+    public static double RAMP_POSITION = 0.7;
+    private boolean isPreloadPhase = true;
 
-        DONE
-    }
-
+    private int detectedMotifId = -1;
 
     @Override
     public void runOpMode() {
 
-        while (!isStarted() && !isStopRequested()) {
-            mechanisms.sorterInitLoop();   // homing ONLY
-            idle();
-        }
+        mechanisms = new Mechanisms();
+        mechanisms.initMechanisms(hardwareMap, telemetry);
+
+        follower = Constants.createFollower(hardwareMap);
+        buildPaths();
+
+        telemetry.addLine("Initialized (Mechanisms + Follower)");
+        telemetry.update();
+
         waitForStart();
 
+        if (!opModeIsActive()) return;
 
-        Scanmotif(follower);
-        follower.followPath(Scanmotif);
-        while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
+        // ---------- HOME ----------
+        homeAllMechanisms();
+        mechanisms.setRampAngle(RAMP_POSITION);
+
+        // ---------- LIMELIGHT ----------
+        scanMotifWithLimelight();
+
+        // ---------- BEGINNING ----------
+        mechanisms.engageOuttake(OUTTAKE_POWER);
+        runPath(scanMotif, 1.0);
+
+        // ----- SHOOT PRELOAD -----
+        runPath(first3, 1.0);
+        // correctPoseFromLimelight();
+        shootAllPockets();
+        mechanisms.disengageOuttake();
+        isPreloadPhase = false;
+
+        // ----- INTAKE 1 -----
+        startIntake();
+        runPath(intake1, INTAKE_PATH_SPEED);
+
+        // settle AFTER intake path
+        long t0 = System.currentTimeMillis();
+        while (opModeIsActive() && System.currentTimeMillis() - t0 < INTAKE_SETTLE_MS) {
+            mechanisms.updateMechanisms();
+            sleep(10);
         }
-        First3BallsintoGoal(follower);
-        follower.followPath(First3BallsintoGoal);
-        while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
+
+        // stopIntake();
+
+        // ----- HIT GATE -----
+        runPath(hitGate, 1.0);
+
+        // ----- SHOOT SECOND SET -----
+        mechanisms.engageOuttake(OUTTAKE_POWER);
+        runPath(shoot1, 1.0);
+
+        stopIntake();
+
+        //correctPoseFromLimelight();
+        shootAllPockets();
+        mechanisms.disengageOuttake();
+
+        // ----- INTAKE 2 -----
+        startIntake();
+        runPath(intake2, INTAKE_PATH_SPEED);
+
+        // settle AFTER intake path
+        t0 = System.currentTimeMillis();
+        while (opModeIsActive() && System.currentTimeMillis() - t0 < INTAKE_SETTLE_MS) {
+            mechanisms.updateMechanisms();
+            sleep(10);
         }
-        Intake(follower);
-        follower.followPath(Intake);
-        while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
+
+        // stopIntake();
+
+        // ----- SHOOT THIRD SET -----
+        mechanisms.engageOuttake(OUTTAKE_POWER);
+        runPath(shoot2,1.0);
+
+        stopIntake();
+
+        // correctPoseFromLimelight();
+        shootAllPockets();
+        mechanisms.disengageOuttake();
+
+        // ----- INTAKE 3 -----
+        startIntake();
+        runPath(intake3, INTAKE_PATH_SPEED);
+
+        // settle AFTER intake path
+        t0 = System.currentTimeMillis();
+        while (opModeIsActive() && System.currentTimeMillis() - t0 < INTAKE_SETTLE_MS) {
+            mechanisms.updateMechanisms();
+            sleep(10);
         }
-        HitGate(follower);
-        follower.followPath(HitGate);
-        while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
+
+        //stopIntake();
+
+        // ----- SHOOT FOURTH SET -----
+        mechanisms.engageOuttake(OUTTAKE_POWER);
+        runPath(shoot3,1.0);
+
+        stopIntake();
+
+        // correctPoseFromLimelight();
+        shootAllPockets();
+        mechanisms.disengageOuttake();
+
+        mechanisms.sorterGoToIntake(1);
+        mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
+        runPath(end, 1.0);
+    }
+
+    private void homeAllMechanisms() {
+
+        telemetry.addLine("Homing sorter...");
+        telemetry.update();
+
+        // Run sorter init loop until homed
+        while (opModeIsActive() && !mechanisms.isSorterHomed()) {
+            mechanisms.sorterInitLoop();
+            mechanisms.updateMechanisms();
+            sleep(10);
         }
-        Shoot1stSetof3Balls(follower);
-        follower.followPath(Shoot1stSetof3Balls);
-        while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
+
+        telemetry.addLine("Sorter homed");
+        telemetry.update();
+    }
+
+    private void scanMotifWithLimelight() {
+
+        telemetry.addLine("Scanning motif...");
+        telemetry.update();
+
+        mechanisms.limelight.pipelineSwitch(MOTIF_PIPELINE);
+
+        long start = System.currentTimeMillis();
+        boolean found = false;
+
+        while (opModeIsActive()
+                && !found
+                && System.currentTimeMillis() - start < MOTIF_SCAN_TIMEOUT_MS) {
+
+            LLResult result = mechanisms.limelight.getLatestResult();
+
+            if (result != null) {
+
+                // FTC-SAFE fiducial access
+                java.util.List<LLResultTypes.FiducialResult> fiducials =
+                        result.getFiducialResults();
+
+                if (fiducials != null && !fiducials.isEmpty()) {
+                    found = true;
+
+                    detectedMotifId = fiducials.get(0).getFiducialId();
+                    telemetry.addData("Motif detected", detectedMotifId);
+                }
+            }
+
+            telemetry.update();
+            sleep(20);
         }
-        Intake2ndSetof3Balls(follower);
-        follower.followPath(Intake2ndSetof3Balls);
-        while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
+
+
+        if (!found) {
+            detectedMotifId = 21; // default GPP (or whatever your safe default is)
+            telemetry.addData("Motif defaulted", detectedMotifId);
         }
-        Shoot2ndSetof3Balls(follower);
-        follower.followPath(Shoot2ndSetof3Balls);
-        while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
-        }
-        Intake3rdSetof3Balls(follower);
-        follower.followPath(Intake3rdSetof3Balls);
-        while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
-        }
-        Shoot3rdSetof3Balls(follower);
-        follower.followPath(Shoot3rdSetof3Balls);
-        while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
+
+        telemetry.update();
+        mechanisms.limelight.pipelineSwitch(RED_PIPELINE);
+    }
+
+    private void correctPoseFromLimelight() {
+
+        LLResult result = mechanisms.limelight.getLatestResult();
+        if (result == null || !result.isValid()) return;
+        if (result.getBotposeTagCount() < 1) return;
+
+        Pose3D pose3d = result.getBotpose_MT2();
+        if (pose3d == null) return;
+
+        Position pos = pose3d.getPosition();
+        YawPitchRollAngles rot = pose3d.getOrientation();
+
+        // Limelight botpose is METERS (per SDK)
+        double xInches = pos.x * 39.3701;
+        double yInches = pos.y * 39.3701;
+
+        // SDK uses yaw = firstAngle (degrees)
+        double headingRad = Math.toRadians(rot.getYaw(AngleUnit.DEGREES));
+        // double headingRad = Math.toRadians(rot.getYaw(AngleUnit.DEGREES)) + Math.PI;
+
+        Pose correctedPose = new Pose(xInches, yInches, headingRad);
+
+        follower.setPose(correctedPose);
+    }
+
+
+
+    private void shootAllPockets() {
+        for (int step = 0; step < 3; step++) {
+
+            int pocket;
+
+            // ---------- PRELOAD ----------
+            if (isPreloadPhase) {
+                pocket = step + 1;
+            }
+            // ---------- SORTED PHASE ----------
+            else {
+                SorterLogicColor.BallColor required =
+                        getRequiredColorForStep(step);
+
+                if (required == SorterLogicColor.BallColor.UNKNOWN)
+                    continue;
+
+                Integer foundPocket =
+                        mechanisms.sorterLogic.getPocketWithColor(required);
+
+                if (foundPocket == null)
+                    continue; // required color not present
+
+                pocket = foundPocket;
+            }
+
+            // 1) Rotate sorter to selected pocket
+            mechanisms.sorterGoToOuttake(pocket);
+
+            // 2) Wait until sorter reaches target
+            while (opModeIsActive() && mechanisms.isSorterMoving()) {
+                mechanisms.updateMechanisms();
+                sleep(10);
+            }
+
+            // Small settle delay
+            sleep(50);
+
+            // 3) Fire exactly once (THIS clears the pocket)
+            mechanisms.setShotPocket(pocket);
+            mechanisms.ejectBall();
+
+            // 4) Allow kicker + spacing time
+            long kickStart = System.currentTimeMillis();
+            while (opModeIsActive()
+                    && System.currentTimeMillis() - kickStart < SHOOTING_DELAY) {
+
+                mechanisms.updateMechanisms();
+                sleep(10);
+            }
         }
     }
 
-    public PathChain Scanmotif;
+    private void startIntake() {
+        mechanisms.sorterLogic.autoAdvanceEnabled = true;
 
-    private void Scanmotif(Follower follower) {
-        Scanmotif = follower.pathBuilder().addPath(
-                        new BezierLine(
-                                new Pose(32.194410692588086, 135.77642770352375),
+        // reset intake sequence to pocket 1 so detection/storage is deterministic
+        mechanisms.sorterGoToIntake(1);
 
-                                new Pose(56.559, 113.380)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(-300))
+        // wait briefly for the sorter to get there (or at least stop moving)
+        long t0 = System.currentTimeMillis();
+        while (opModeIsActive()
+                && mechanisms.isSorterMoving()
+                && System.currentTimeMillis() - t0 < 500) {
+            mechanisms.updateMechanisms();
+            sleep(10);
+        }
 
-                .build();
-    }
-    //
-    public PathChain First3BallsintoGoal;
-
-    private void First3BallsintoGoal(Follower follower) {
-        First3BallsintoGoal = follower.pathBuilder().addPath(
-                        new BezierLine(
-                                new Pose(56.559, 113.380),
-
-                                new Pose(44.000, 105.000)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(-300), Math.toRadians(-225))
-
-                .build();
+        mechanisms.engageIntake(1.0, true);
     }
 
-    public PathChain Intake;
-    private void Intake(Follower follower) {
-        Intake = follower.pathBuilder().addPath(
-                        new BezierCurve(
-                                new Pose(44.000, 105.000),
-                                new Pose(55.000, 80.000),
-                                new Pose(15.000, 84.000)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(-225), Math.toRadians(-180))
-
-                .build();
+    private void stopIntake() {
+        mechanisms.disengageIntake();
     }
-    public PathChain HitGate;
-    private void HitGate (Follower follower){
-        HitGate = follower.pathBuilder().addPath(
-                        new BezierCurve(
-                                new Pose(15.000, 84.000),
-                                new Pose(24.000, 72.000),
-                                new Pose(15.000, 72.000)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(-180), Math.toRadians(-270))
 
-                .build();
+
+    private SorterLogicColor.BallColor getRequiredColorForStep(int step) {
+        switch (detectedMotifId) {
+
+            case 21: // GPP
+                if (step == 0) return SorterLogicColor.BallColor.GREEN;
+                if (step == 1) return SorterLogicColor.BallColor.PURPLE;
+                if (step == 2) return SorterLogicColor.BallColor.PURPLE;
+                break;
+
+            case 22: // PGP
+                if (step == 0) return SorterLogicColor.BallColor.PURPLE;
+                if (step == 1) return SorterLogicColor.BallColor.GREEN;
+                if (step == 2) return SorterLogicColor.BallColor.PURPLE;
+                break;
+
+            case 23: // PPG
+                if (step == 0) return SorterLogicColor.BallColor.PURPLE;
+                if (step == 1) return SorterLogicColor.BallColor.PURPLE;
+                if (step == 2) return SorterLogicColor.BallColor.GREEN;
+                break;
+        }
+
+        return SorterLogicColor.BallColor.UNKNOWN;
     }
-    public PathChain Shoot1stSetof3Balls;
-    private void Shoot1stSetof3Balls (Follower follower) {
-        Shoot1stSetof3Balls = follower.pathBuilder().addPath(
-                        new BezierCurve(
-                                new Pose(15.000, 72.000),
-                                new Pose(48.000, 96.000),
-                                new Pose(44.000, 105.000)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(-270), Math.toRadians(-225))
 
-                .build();
+    private String getMotifName(int id) {
+        switch (id) {
+            case 21: return "GPP";
+            case 22: return "PGP";
+            case 23: return "PPG";
+            default: return "UNKNOWN";
+        }
     }
-    public PathChain Intake2ndSetof3Balls;
-    private void Intake2ndSetof3Balls (Follower follower){
-        Intake2ndSetof3Balls = follower.pathBuilder().addPath(
-                        new BezierCurve(
-                                new Pose(44.000, 105.000),
-                                new Pose(55.000, 45.000),
-                                new Pose(15.000, 60.000)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(-225), Math.toRadians(-180))
 
-                .build();
+    /* ===================== PATH EXEC ===================== */
+
+    private void runPath(PathChain path, double speedScale) {
+        follower.setMaxPower(speedScale);
+        follower.followPath(path);
+
+        while (opModeIsActive() && follower.isBusy()) {
+            follower.update();
+            mechanisms.updateMechanisms();
+        }
+
+        follower.setMaxPower(1.0); // restore default
     }
-    public PathChain Shoot2ndSetof3Balls;
-    private void Shoot2ndSetof3Balls (Follower follower){
-        Shoot2ndSetof3Balls = follower.pathBuilder().addPath(
-                        new BezierCurve(
-                                new Pose(15.000, 60.000),
-                                new Pose(48.000, 72.000),
-                                new Pose(44.000, 105.000)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(-180), Math.toRadians(-225))
 
-                .build();
-    }
-    public PathChain Intake3rdSetof3Balls;
-    private void Intake3rdSetof3Balls (Follower follower){
-        Intake3rdSetof3Balls = follower.pathBuilder().addPath(
-                        new BezierCurve(
-                                new Pose(44.000, 105.000),
-                                new Pose(72.000, 24.000),
-                                new Pose(15.000, 35.000)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(-225), Math.toRadians(-180))
+    /* ===================== PATH BUILD ===================== */
 
-                .build();
-    }
-    public PathChain Shoot3rdSetof3Balls;
-    private void Shoot3rdSetof3Balls (Follower follower){
-        Shoot3rdSetof3Balls = follower.pathBuilder().addPath(
-                        new BezierCurve(
-                                new Pose(15.000, 35.000),
-                                new Pose(28.500, 67.000),
-                                new Pose(44.000, 105.000)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(-180), Math.toRadians(-225))
+    private void buildPaths() {
 
+        scanMotif = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        START,
+                        new Pose(56.559, 113.380)
+                ))
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(90),
+                        Math.toRadians(-300)
+                )
                 .build();
 
+        first3 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        new Pose(56.559, 113.380),
+                        SHOOT_POS
+                ))
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(-300),
+                        Math.toRadians(-225)
+                )
+                .build();
+
+        intake1 = follower.pathBuilder()
+                .addPath(new BezierCurve(
+                        SHOOT_POS,
+                        new Pose(55.0, 80.0),
+                        INTAKE_1_END
+                ))
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(-225),
+                        Math.toRadians(-180)
+                )
+                .build();
+
+        hitGate = follower.pathBuilder()
+                .addPath(new BezierCurve(
+                        INTAKE_1_END,
+                        new Pose(24.0, 72.0),
+                        HIT_GATE_END
+                ))
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(-180),
+                        Math.toRadians(-270)
+                )
+                .build();
+
+        shoot1 = follower.pathBuilder()
+                .addPath(new BezierCurve(
+                        HIT_GATE_END,
+                        new Pose(48.0, 96.0),
+                        SHOOT_POS
+                ))
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(-270),
+                        Math.toRadians(-225)
+                )
+                .build();
+
+        intake2 = follower.pathBuilder()
+                .addPath(new BezierCurve(
+                        SHOOT_POS,
+                        new Pose(55.0, 45.0),
+                        INTAKE_2_END
+                ))
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(-225),
+                        Math.toRadians(-180)
+                )
+                .build();
+
+        shoot2 = follower.pathBuilder()
+                .addPath(new BezierCurve(
+                        INTAKE_2_END,
+                        new Pose(48.0, 72.0),
+                        SHOOT_POS
+                ))
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(-180),
+                        Math.toRadians(-225)
+                )
+                .build();
+
+        intake3 = follower.pathBuilder()
+                .addPath(new BezierCurve(
+                        SHOOT_POS,
+                        new Pose(72.0, 24.0),
+                        INTAKE_3_END
+                ))
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(-225),
+                        Math.toRadians(-180)
+                )
+                .build();
+
+        shoot3 = follower.pathBuilder()
+                .addPath(new BezierCurve(
+                        INTAKE_3_END,
+                        new Pose(28.5, 67.0),
+                        SHOOT_POS
+                ))
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(-180),
+                        Math.toRadians(-225)
+                )
+                .build();
+
+        end = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        new Pose(44.000, 105.000),
+                        new Pose(44.000, 135.776)
+                ))
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(-225),
+                        Math.toRadians(-90)
+                )
+                .build();
     }
 }

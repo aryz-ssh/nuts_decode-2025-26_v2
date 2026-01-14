@@ -8,42 +8,68 @@ public class AprilTagLimelight {
 
     private Limelight3A limelight;
 
+    // ---- TUNING CONSTANTS ----
+    private static final double STRAFE_KP = 0.035;
+    private static final double STRAFE_DEADBAND = 0.7;
+    private static final double MAX_STRAFE_POWER = 0.6;
+
     // Constructor
     public AprilTagLimelight(HardwareMap hw) {
         limelight = hw.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(8); // default pipeline
+        limelight.pipelineSwitch(8); // AprilTag pipeline
     }
 
     // ---------------- BASIC METHODS ----------------
 
-    // Returns true if Limelight sees a target
-
-    public int hasTarget() {
+    public boolean hasTarget() {
         LLResult result = limelight.getLatestResult();
-        return (result != null && result.isValid()) ? 1 : 0;
+        return result != null && result.isValid();
     }
 
-    // Returns true if the Limelight sees a target
-
-
-    // Returns horizontal offset from target (tx)
     public double getTx() {
-        return limelight.getLatestResult().getTx();
+        LLResult result = limelight.getLatestResult();
+        return (result != null) ? result.getTx() : 0.0;
     }
 
-    // Returns vertical offset from target (ty)
     public double getTy() {
-        return limelight.getLatestResult().getTy();
+        LLResult result = limelight.getLatestResult();
+        return (result != null) ? result.getTy() : 0.0;
     }
 
-    // Optional: distance calculation example
-    public double getDistance() {
-        double targetHeight = 24.0; // inches
-        double cameraHeight = 8.0;  // inches
-        double cameraAngle = 20.0;  // degrees
-        double ty = getTy();
-        double radians = Math.toRadians(cameraAngle + ty);
-        return (targetHeight - cameraHeight) / Math.tan(radians);
+    // ---------------- AUTO STRAFE ----------------
+
+    /**
+     * Returns strafe power to align robot with AprilTag
+     * Positive = strafe right
+     * Negative = strafe left
+     */
+    public double getAutoStrafePower(boolean enable) {
+        if (!enable || !hasTarget()) return 0.0;
+
+        double tx = getTx();
+
+        // Deadband
+        if (Math.abs(tx) < STRAFE_DEADBAND) return 0.0;
+
+        double power = tx * STRAFE_KP;
+
+        // Clamp power
+        power = Math.max(-MAX_STRAFE_POWER, Math.min(MAX_STRAFE_POWER, power));
+
+        return power;
+    }
+
+    // ---------------- OPTIONAL TURN ALIGN ----------------
+
+    public double getAutoAlignTurn(boolean enable, double driverTurn) {
+        if (!enable || !hasTarget()) return driverTurn;
+
+        double kP = 0.02;
+        double deadband = 1.0;
+        double tx = getTx();
+
+        if (Math.abs(tx) < deadband) return 0.0;
+        return tx * kP;
     }
 
     // ---------------- PIPELINE ----------------
@@ -53,51 +79,11 @@ public class AprilTagLimelight {
     }
 
     public int getCurrentPipeline() {
-        return limelight.getLatestResult().getPipelineIndex();
-    }
-
-    // ---------------- AUTO-ALIGN ----------------
-
-    public double getAutoAlignTurn(boolean forceAlign, double currentRx) {
-        boolean onTarget = hasTarget() == 1; // declare here
-        if (forceAlign && onTarget) {
-            double kP = 0.02;
-            double tx = getTx();
-            double deadband = 1.0;
-            if (Math.abs(tx) < deadband) return 0;
-            return tx * kP;
-        }
-        return currentRx;
-    }
-
-    // Optional: simple update loop if needed
-    public void update() {
-        // Could add smoothing, LED control, etc.
-    }
-
-    // Add getters if you need for telemetry
-
-    public int getFiducialCount() {
-        return limelight.getLatestResult().getTa() > 0 ? 1 : 0; // simplified
-    }
-
-    public double getCurrentTurnCmd() {
-        return 0; // placeholder if you want to store auto-turn output
+        LLResult result = limelight.getLatestResult();
+        return (result != null) ? result.getPipelineIndex() : -1;
     }
 
     public boolean isConnected() {
         return limelight != null;
-    }
-
-    public boolean isValid() {
-        return true; // placeholder
-    }
-
-    public boolean isAimLockEnabled() {
-        return false; // placeholder, implement if you add toggle logic
-    }
-
-    public int getLockedFiducial() {
-        return -1; // placeholder, implement if you store locked tag ID
     }
 }

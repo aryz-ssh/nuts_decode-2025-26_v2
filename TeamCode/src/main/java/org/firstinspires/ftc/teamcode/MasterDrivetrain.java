@@ -18,7 +18,7 @@ public class MasterDrivetrain {
     // ---------------- IMU ----------------
     private IMU imu;
 
-    // ---------------- Tuning ----------------
+    // ---------------- Drive Tuning ----------------
     public static double RAMP_RATE = 0.4;
     public static double MIN_POWER = 0.15;
     public static double KICK_MULT = 1.4;
@@ -28,6 +28,11 @@ public class MasterDrivetrain {
     public static double FR_SCALE = 1.0;
     public static double BL_SCALE = 1.0;
     public static double BR_SCALE = 1.0;
+
+    // ---------------- Limelight Align Tuning ----------------
+    public static double ALIGN_KP = 0.035;
+    public static double ALIGN_MAX_POWER = 0.45;
+    public static double ALIGN_TOLERANCE_DEG = 0.8;
 
     // ---------------- Ramp State ----------------
     private double curFL = 0, curFR = 0, curBL = 0, curBR = 0;
@@ -84,10 +89,29 @@ public class MasterDrivetrain {
     }
 
     // ----------------------------------------------------------
-    // FIELD-CENTRIC DRIVE
+    // FIELD-CENTRIC (placeholder)
     // ----------------------------------------------------------
     public void driveFieldCentric(double x, double y, double turn) {
         driveMecanum(x, y, turn);
+    }
+
+    // ----------------------------------------------------------
+    // AUTO STRAFE TO LIMELIGHT TARGET
+    // tx = horizontal offset in degrees
+    // ----------------------------------------------------------
+    public void autoStrafeToTarget(double tx) {
+
+        double strafePower = 0;
+
+        if (Math.abs(tx) > ALIGN_TOLERANCE_DEG) {
+            strafePower = tx * ALIGN_KP;
+            strafePower = clamp(strafePower);
+            strafePower = Math.max(-ALIGN_MAX_POWER,
+                    Math.min(ALIGN_MAX_POWER, strafePower));
+        }
+
+        // Strafe only — no forward, no turn
+        driveRobotCentric(strafePower, 0, 0);
     }
 
     // ----------------------------------------------------------
@@ -100,10 +124,9 @@ public class MasterDrivetrain {
                         Math.abs(y) > 1e-3 ||
                         Math.abs(turn) > 1e-3;
 
-        // ----- ZERO POWER BEHAVIOR SWITCH -----
         if (isMoving != wasMovingZPB) {
             DcMotorEx.ZeroPowerBehavior zpb =
-                    isMoving ? DcMotorEx.ZeroPowerBehavior.FLOAT : DcMotorEx.ZeroPowerBehavior.FLOAT;
+                    DcMotorEx.ZeroPowerBehavior.FLOAT;
 
             frontLeft.setZeroPowerBehavior(zpb);
             frontRight.setZeroPowerBehavior(zpb);
@@ -115,32 +138,36 @@ public class MasterDrivetrain {
 
         boolean translating = Math.abs(x) > 1e-3 || Math.abs(y) > 1e-3;
 
-        // Kick detection
         if (isMoving && !wasMoving) {
             kickStartTime = System.currentTimeMillis();
         }
         wasMoving = isMoving;
 
-        boolean inKick = isMoving && (System.currentTimeMillis() - kickStartTime < KICK_TIME_MS);
+        boolean inKick =
+                isMoving &&
+                        (System.currentTimeMillis() - kickStartTime < KICK_TIME_MS);
 
-        // ---------------- Mecanum math ----------------
         double fl = y + x + turn;
         double fr = y - x - turn;
         double bl = y - x + turn;
         double br = y + x - turn;
 
-        // ---------------- Strafe scaling ----------------
-        boolean isStrafing = Math.abs(fl + br - fr - bl) > Math.abs(fl + fr + bl + br) * 0.3;
+        boolean isStrafing =
+                Math.abs(fl + br - fr - bl) >
+                        Math.abs(fl + fr + bl + br) * 0.3;
+
         if (isStrafing) {
             bl *= BL_SCALE;
             br *= BR_SCALE;
         }
 
-        // ---------------- Normalize ----------------
-        double max = Math.max(1.0, Math.max(Math.abs(fl), Math.max(Math.abs(fr), Math.max(Math.abs(bl), Math.abs(br)))));
+        double max = Math.max(1.0,
+                Math.max(Math.abs(fl),
+                        Math.max(Math.abs(fr),
+                                Math.max(Math.abs(bl), Math.abs(br)))));
+
         fl /= max; fr /= max; bl /= max; br /= max;
 
-        // ---------------- Min power ----------------
         if (translating) {
             fl = applyMinPower(fl);
             fr = applyMinPower(fr);
@@ -148,15 +175,22 @@ public class MasterDrivetrain {
             br = applyMinPower(br);
         }
 
-        // ---------------- Kick ----------------
         if (inKick) {
-            fl *= KICK_MULT; fr *= KICK_MULT; bl *= KICK_MULT; br *= KICK_MULT;
+            fl *= KICK_MULT;
+            fr *= KICK_MULT;
+            bl *= KICK_MULT;
+            br *= KICK_MULT;
         }
 
-        fl = clamp(fl); fr = clamp(fr); bl = clamp(bl); br = clamp(br);
+        fl = clamp(fl);
+        fr = clamp(fr);
+        bl = clamp(bl);
+        br = clamp(br);
 
-        // ---------------- Ramp ----------------
-        curFL = ramp(curFL, fl); curFR = ramp(curFR, fr); curBL = ramp(curBL, bl); curBR = ramp(curBR, br);
+        curFL = ramp(curFL, fl);
+        curFR = ramp(curFR, fr);
+        curBL = ramp(curBL, bl);
+        curBR = ramp(curBR, br);
 
         frontLeft.setPower(curFL);
         frontRight.setPower(curFR);
@@ -165,7 +199,7 @@ public class MasterDrivetrain {
     }
 
     // ----------------------------------------------------------
-    // IMU ACCESS
+    // IMU
     // ----------------------------------------------------------
     public double getHeadingRad() {
         return imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
@@ -180,13 +214,15 @@ public class MasterDrivetrain {
     // ----------------------------------------------------------
     private double ramp(double cur, double target) {
         double delta = target - cur;
-        if (Math.abs(delta) > RAMP_RATE) return cur + Math.signum(delta) * RAMP_RATE;
+        if (Math.abs(delta) > RAMP_RATE)
+            return cur + Math.signum(delta) * RAMP_RATE;
         return target;
     }
 
     private double applyMinPower(double val) {
         if (Math.abs(val) < 1e-4) return 0;
-        return Math.signum(val) * (MIN_POWER + (1.0 - MIN_POWER) * Math.abs(val));
+        return Math.signum(val) *
+                (MIN_POWER + (1.0 - MIN_POWER) * Math.abs(val));
     }
 
     private double clamp(double v) {
@@ -194,7 +230,8 @@ public class MasterDrivetrain {
     }
 
     private void updateContinuousHeading() {
-        double rawYaw = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+        double rawYaw =
+                imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
 
         if (!imuInitialized) {
             lastImuYawDeg = rawYaw;

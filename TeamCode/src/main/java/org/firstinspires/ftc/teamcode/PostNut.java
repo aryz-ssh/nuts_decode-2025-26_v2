@@ -4,12 +4,14 @@ import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import org.firstinspires.ftc.teamcode.AprilTagLimelight;
 
 @Config
 @TeleOp(name = "PostNut")
 public class PostNut extends LinearOpMode {
 
     private ElapsedTime runtime = new ElapsedTime();
+    private long lastTelem = 0;
 
     // ---------- Gamepad ----------
     public static double DEADZONE = 0.05;
@@ -29,7 +31,7 @@ public class PostNut extends LinearOpMode {
     private boolean lastDpadLeft = false;
     private boolean lastDpadRight = false;
     private boolean lastA = false;
-    private boolean lastX2 = false;
+    private boolean lastX = false;
 
     private enum SorterMode { NONE, INTAKE, OUTTAKE }
     private SorterMode sorterMode = SorterMode.INTAKE;
@@ -48,8 +50,13 @@ public class PostNut extends LinearOpMode {
     private boolean lastDpadUp = false;
     private boolean lastDpadDown = false;
 
+    // ---------- Drive / Limelight ----------
+    boolean allianceChosen = false;
+    boolean pipelineSet = false;
+    private boolean isRedAlliance = false;
+
     @Override
-    public void runOpMode() {
+    public void runOpMode() throws InterruptedException {
 
         mechanisms = new Mechanisms();
         mechanisms.initMechanisms(hardwareMap, telemetry);
@@ -57,58 +64,94 @@ public class PostNut extends LinearOpMode {
         drivetrain = new MasterDrivetrain();
         drivetrain.init(hardwareMap);
 
+
         limelight = new AprilTagLimelight(hardwareMap);
 
         telemetry.addData("Status", "Initialized");
         telemetry.update();
+
+        // ----- Pre-start: select alliance & pipeline -----
+        while (!isStarted() && !isStopRequested()) {
+            telemetry.addLine("=== ROBOT-CENTRIC MODE ===");
+            telemetry.addLine("Select Alliance for Limelight:");
+            telemetry.addLine("X = BLUE  (Pipeline 1)");
+            telemetry.addLine("B = RED   (Pipeline 0)");
+
+            if (!allianceChosen) {
+                if (gamepad1.x) {
+                    isRedAlliance = false;
+                    allianceChosen = true;
+                }
+                if (gamepad1.b) {
+                    isRedAlliance = true;
+                    allianceChosen = true;
+                }
+            }
+
+            // Set limelight pipeline once
+            if (allianceChosen && !pipelineSet) {
+                int pipeline = isRedAlliance ? 0 : 1;
+                limelight.setPipeline(pipeline);
+                pipelineSet = true;
+            }
+
+            telemetry.addData("Alliance",
+                    allianceChosen ? (isRedAlliance ? "RED" : "BLUE") : "CHOOSE");
+            telemetry.addData("Limelight Pipeline",
+                    pipelineSet ? (isRedAlliance ? "0 (RED)" : "1 (BLUE)") : "WAITING");
+
+            mechanisms.sorterInitLoop();
+            telemetry.update();
+            sleep(20);
+        }
 
         waitForStart();
         runtime.reset();
 
         while (opModeIsActive()) {
 
-            // ---------- Driver joystick ----------
+            // =============================================================
+            //                GAMEPAD 1 — DRIVE AND INTAKE
+            // =============================================================
+
+
+            if (gamepad1.back) drivetrain.resetImuYaw();
+
+            // Stick input
             double y  = applyDeadband(-gamepad1.left_stick_y);
             double x  = applyDeadband(gamepad1.left_stick_x);
             double rx = applyDeadband(gamepad1.right_stick_x);
 
-            // ------------------------------------------------
-            // APRILTAG AUTO-STRAFE (X BUTTON)
-            // ------------------------------------------------
+
+
+            // ----- Auto-strafe (AprilTag) overrides x-axis -----
             boolean autoStrafeEnabled = gamepad1.x;
-
             if (autoStrafeEnabled) {
-                double autoStrafe =
-                        limelight.getAutoStrafePower(true);
-
-                // Override strafe only
-                drivetrain.driveRobotCentric(
-                        autoStrafe,
-                        y,
-                        rx
-                );
+                double autoStrafe = limelight.getAutoStrafePower(true);
+                drivetrain.driveRobotCentric(autoStrafe, y, rx, gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD);
             } else {
-                drivetrain.driveRobotCentric(x, y, rx);
+                boolean brake = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
+                drivetrain.driveRobotCentric(x, y, rx, brake);
             }
 
             // ---------- Intake toggle ----------
-            boolean intakeTriggerNow =
-                    gamepad1.right_trigger > GAMEPAD_TRIGGER_THRESHOLD;
+            boolean intakeTriggerNow = gamepad1.right_trigger > GAMEPAD_TRIGGER_THRESHOLD;
             boolean reversePressed = gamepad1.left_bumper;
 
             if (intakeTriggerNow && !lastIntakeTrigger) {
                 intakeToggle = !intakeToggle;
-                if (intakeToggle)
-                    mechanisms.engageIntake(1.0, reversePressed);
-                else
-                    mechanisms.disengageIntake();
+                if (intakeToggle) mechanisms.engageIntake(1.0, reversePressed);
+                else mechanisms.disengageIntake();
             }
             lastIntakeTrigger = intakeTriggerNow;
 
-            if (intakeToggle)
-                mechanisms.engageIntake(1.0, reversePressed);
+            if (intakeToggle) mechanisms.engageIntake(1.0, reversePressed);
 
-            // ---------- Gamepad 2 sorter ----------
+            // =============================================================
+            //                       GAMEPAD 2 — MECHANISMS
+            // =============================================================
+
+            // Pocket select
             if (gamepad2.dpad_right && !lastDpadRight) {
                 selectedPocket++;
                 if (selectedPocket > 3) selectedPocket = 1;
@@ -122,15 +165,11 @@ public class PostNut extends LinearOpMode {
             lastDpadRight = gamepad2.dpad_right;
             lastDpadLeft = gamepad2.dpad_left;
 
-            handleColorRequest(
-                    SorterLogicColor.BallColor.GREEN,
-                    gamepad2.left_trigger > GAMEPAD_TRIGGER_THRESHOLD
-            );
-            handleColorRequest(
-                    SorterLogicColor.BallColor.PURPLE,
-                    gamepad2.right_trigger > GAMEPAD_TRIGGER_THRESHOLD
-            );
+            // Color requests
+            handleColorRequest(SorterLogicColor.BallColor.GREEN, gamepad2.left_trigger > GAMEPAD_TRIGGER_THRESHOLD);
+            handleColorRequest(SorterLogicColor.BallColor.PURPLE, gamepad2.right_trigger > GAMEPAD_TRIGGER_THRESHOLD);
 
+            // A/X/B/Y
             if (gamepad2.a && !lastA) {
                 mechanisms.sorterLogic.markPocketReady(selectedPocket);
                 mechanisms.sorterGoToIntake(selectedPocket);
@@ -138,25 +177,21 @@ public class PostNut extends LinearOpMode {
             }
             lastA = gamepad2.a;
 
-            if (gamepad2.x && !lastX2) {
+            if (gamepad2.x && !lastX) {
                 mechanisms.sorterGoToOuttake(selectedPocket);
                 sorterMode = SorterMode.OUTTAKE;
             }
-            lastX2 = gamepad2.x;
+            lastX = gamepad2.x;
 
             if (gamepad2.b && !lastB) {
                 outtakeOn = !outtakeOn;
-                if (outtakeOn)
-                    mechanisms.engageOuttake(mechanisms.getManualOuttakeSpeed());
-                else
-                    mechanisms.disengageOuttake();
+                if (outtakeOn) mechanisms.engageOuttake(mechanisms.getManualOuttakeSpeed());
+                else mechanisms.disengageOuttake();
             }
             lastB = gamepad2.b;
 
-            if (gamepad2.dpad_up && !lastDpadUp)
-                mechanisms.increaseOuttakeSpeed(0.1);
-            if (gamepad2.dpad_down && !lastDpadDown)
-                mechanisms.decreaseOuttakeSpeed(0.1);
+            if (gamepad2.dpad_up && !lastDpadUp) mechanisms.increaseOuttakeSpeed(0.1);
+            if (gamepad2.dpad_down && !lastDpadDown) mechanisms.decreaseOuttakeSpeed(0.1);
             lastDpadUp = gamepad2.dpad_up;
             lastDpadDown = gamepad2.dpad_down;
 
@@ -165,41 +200,64 @@ public class PostNut extends LinearOpMode {
                 mechanisms.ejectBall();
             }
 
+            // Ramp angle adjustments
             boolean rb2 = gamepad2.right_bumper;
             boolean lb2 = gamepad2.left_bumper;
-
-            if (rb2 && !lastRB2)
-                mechanisms.adjustOuttakeAngle(true, false);
-            if (lb2 && !lastLB2)
-                mechanisms.adjustOuttakeAngle(false, true);
-
+            if (rb2 && !lastRB2) mechanisms.adjustOuttakeAngle(true, false);
+            if (lb2 && !lastLB2) mechanisms.adjustOuttakeAngle(false, true);
             lastRB2 = rb2;
             lastLB2 = lb2;
 
             mechanisms.updateMechanisms();
 
-            // ---------- Telemetry ----------
-            telemetry.addData("AprilTag Seen", limelight.hasTarget());
-            telemetry.addData(
-                    "Auto Strafe Power",
-                    "%.2f",
-                    limelight.getAutoStrafePower(gamepad1.x)
-            );
-            telemetry.update();
+            // =============================================================
+            //                          TELEMETRY
+            // =============================================================
+            if (System.currentTimeMillis() - lastTelem > 100) {
+                lastTelem = System.currentTimeMillis();
+
+                telemetry.addData("Mode", sorterMode);
+
+                int curPos = mechanisms.getSorterCurrentPosition();
+                int tgtPos = mechanisms.getSorterTargetPosition();
+                telemetry.addData("Sorter Pos", curPos);
+                telemetry.addData("Target Pos", tgtPos);
+                telemetry.addData("Error", tgtPos - curPos);
+
+                telemetry.addData("Selected Pocket", selectedPocket);
+
+                SorterLogicColor.BallColor[] pc = mechanisms.sorterLogic.getPocketColors();
+                telemetry.addData("P1", pc[0]);
+                telemetry.addData("P2", pc[1]);
+                telemetry.addData("P3", pc[2]);
+
+                telemetry.addData("Outtake Power", mechanisms.getManualOuttakeSpeed());
+                telemetry.addData("Current Outtake Velocity", "%.0f t/s", mechanisms.outtakeMotor.getVelocity());
+                telemetry.addData("Ramp Angle", "%.2f / %.2f", mechanisms.getRampAngleCurrent(), mechanisms.getRampAngleTarget());
+
+                telemetry.addLine("---- IMU ----");
+                telemetry.addData("Heading (deg)", "%.2f", drivetrain.getHeadingDeg());
+                telemetry.addData("Locked (deg)", "%.2f", drivetrain.getLockedHeadingDeg());
+                telemetry.addData("Error (deg)", "%.2f", drivetrain.getHeadingErrorDeg());
+
+                telemetry.addLine("---- LIMELIGHT (PostNut) ----");
+
+                telemetry.addLine("---- LIMELIGHT (AprilTag) ----");
+                telemetry.addData("Auto Strafe Power", "%.2f", limelight.getAutoStrafePower(gamepad1.x));
+                telemetry.addData("tx (AprilTag)", limelight.getTx());
+
+                telemetry.addData("Time", runtime.seconds());
+                telemetry.update();
+            }
         }
     }
 
     // ---------- Helpers ----------
     private void applySorterModeToPocket() {
         switch (sorterMode) {
-            case INTAKE:
-                mechanisms.sorterGoToIntake(selectedPocket);
-                break;
-            case OUTTAKE:
-                mechanisms.sorterGoToOuttake(selectedPocket);
-                break;
-            case NONE:
-                break;
+            case INTAKE: mechanisms.sorterGoToIntake(selectedPocket); break;
+            case OUTTAKE: mechanisms.sorterGoToOuttake(selectedPocket); break;
+            case NONE: break;
         }
     }
 
@@ -207,18 +265,11 @@ public class PostNut extends LinearOpMode {
         return Math.abs(value) > DEADZONE ? value : 0;
     }
 
-    private void handleColorRequest(
-            SorterLogicColor.BallColor color,
-            boolean pressed
-    ) {
-        boolean lastRequest =
-                color == SorterLogicColor.BallColor.GREEN
-                        ? lastGreenRequest
-                        : lastPurpleRequest;
+    private void handleColorRequest(SorterLogicColor.BallColor color, boolean pressed) {
+        boolean lastRequest = (color == SorterLogicColor.BallColor.GREEN) ? lastGreenRequest : lastPurpleRequest;
 
         if (pressed && !lastRequest) {
-            Integer pocket =
-                    mechanisms.sorterLogic.getPocketWithColor(color);
+            Integer pocket = mechanisms.sorterLogic.getPocketWithColor(color);
             if (pocket != null) {
                 selectedPocket = pocket;
                 sorterMode = SorterMode.OUTTAKE;
@@ -227,9 +278,7 @@ public class PostNut extends LinearOpMode {
             }
         }
 
-        if (color == SorterLogicColor.BallColor.GREEN)
-            lastGreenRequest = pressed;
-        else
-            lastPurpleRequest = pressed;
+        if (color == SorterLogicColor.BallColor.GREEN) lastGreenRequest = pressed;
+        else lastPurpleRequest = pressed;
     }
 }

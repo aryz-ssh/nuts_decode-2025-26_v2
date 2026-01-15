@@ -4,6 +4,7 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+
 public class AprilTagLimelight {
 
     private Limelight3A limelight;
@@ -21,19 +22,35 @@ public class AprilTagLimelight {
 
     // ---------------- BASIC METHODS ----------------
 
-    public boolean hasTarget() {
-        LLResult result = limelight.getLatestResult();
-        return result != null && result.isValid();
-    }
 
     public double getTx() {
-        LLResult result = limelight.getLatestResult();
-        return (result != null) ? result.getTx() : 0.0;
+        return limelight.getLatestResult().getTx();
+
     }
 
     public double getTy() {
-        LLResult result = limelight.getLatestResult();
-        return (result != null) ? result.getTy() : 0.0;
+        return limelight.getLatestResult().getTy();
+    }
+    public long getDouble(){
+
+    }
+    public double getDistance(){
+        double targetOffsetAngle_Vertical = getTy();
+
+        // how many degrees back is your limelight rotated from perfectly vertical?
+        double limelightMountAngleDegrees = 10.0;
+
+        // distance from the center of the Limelight lens to the floor
+        double limelightLensHeightInches = 16.1;
+
+        // distance from the target to the floor
+        double goalHeightInches = 60.0;
+
+        double angleToGoalDegrees = limelightMountAngleDegrees + targetOffsetAngle_Vertical;
+        double angleToGoalRadians = angleToGoalDegrees * (3.14159 / 180.0);
+
+        //calculate distance
+        double distanceFromLimelightToGoalInches = (goalHeightInches - limelightLensHeightInches) / Math.tan(angleToGoalRadians);
     }
 
     // ---------------- AUTO STRAFE ----------------
@@ -44,7 +61,6 @@ public class AprilTagLimelight {
      * Negative = strafe left
      */
     public double getAutoStrafePower(boolean enable) {
-        if (!enable || !hasTarget()) return 0.0;
 
         double tx = getTx();
 
@@ -62,7 +78,6 @@ public class AprilTagLimelight {
     // ---------------- OPTIONAL TURN ALIGN ----------------
 
     public double getAutoAlignTurn(boolean enable, double driverTurn) {
-        if (!enable || !hasTarget()) return driverTurn;
 
         double kP = 0.02;
         double deadband = 1.0;

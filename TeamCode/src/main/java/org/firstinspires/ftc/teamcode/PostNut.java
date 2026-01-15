@@ -220,33 +220,34 @@ public class PostNut extends LinearOpMode {
 
                 int curPos = mechanisms.getSorterCurrentPosition();
                 int tgtPos = mechanisms.getSorterTargetPosition();
-                telemetry.addData("Sorter Pos", curPos);
-                telemetry.addData("Target Pos", tgtPos);
-                telemetry.addData("Error", tgtPos - curPos);
+             //   telemetry.addData("Sorter Pos", curPos);
+               // telemetry.addData("Target Pos", tgtPos);
+                //telemetry.addData("Error", tgtPos - curPos);
 
-                telemetry.addData("Selected Pocket", selectedPocket);
+              //  telemetry.addData("Selected Pocket", selectedPocket);
 
                 SorterLogicColor.BallColor[] pc = mechanisms.sorterLogic.getPocketColors();
-                telemetry.addData("P1", pc[0]);
-                telemetry.addData("P2", pc[1]);
-                telemetry.addData("P3", pc[2]);
+               // telemetry.addData("P1", pc[0]);
+               // telemetry.addData("P2", pc[1]);
+              //  telemetry.addData("P3", pc[2]);
 
                 telemetry.addData("Outtake Power", mechanisms.getManualOuttakeSpeed());
                 telemetry.addData("Current Outtake Velocity", "%.0f t/s", mechanisms.outtakeMotor.getVelocity());
                 telemetry.addData("Ramp Angle", "%.2f / %.2f", mechanisms.getRampAngleCurrent(), mechanisms.getRampAngleTarget());
 
-                telemetry.addLine("---- IMU ----");
-                telemetry.addData("Heading (deg)", "%.2f", drivetrain.getHeadingDeg());
-                telemetry.addData("Locked (deg)", "%.2f", drivetrain.getLockedHeadingDeg());
-                telemetry.addData("Error (deg)", "%.2f", drivetrain.getHeadingErrorDeg());
+              //  telemetry.addLine("---- IMU ----");
+             //   telemetry.addData("Heading (deg)", "%.2f", drivetrain.getHeadingDeg());
+              //  telemetry.addData("Locked (deg)", "%.2f", drivetrain.getLockedHeadingDeg());
+             //   telemetry.addData("Error (deg)", "%.2f", drivetrain.getHeadingErrorDeg());
 
-                telemetry.addLine("---- LIMELIGHT (PostNut) ----");
+             //   telemetry.addLine("---- LIMELIGHT (PostNut) ----");
 
                 telemetry.addLine("---- LIMELIGHT (AprilTag) ----");
                 telemetry.addData("Auto Strafe Power", "%.2f", limelight.getAutoStrafePower(gamepad1.x));
                 telemetry.addData("tx (AprilTag)", limelight.getTx());
 
                 telemetry.addData("Time", runtime.seconds());
+                telemetry.addData("Distance", limelight.getDistance());
                 telemetry.update();
             }
         }

@@ -31,9 +31,7 @@ public class AprilTagLimelight {
     public double getTy() {
         return limelight.getLatestResult().getTy();
     }
-    public long getDouble(){
 
-    }
     public double getDistance(){
         double targetOffsetAngle_Vertical = getTy();
 
@@ -44,13 +42,15 @@ public class AprilTagLimelight {
         double limelightLensHeightInches = 16.1;
 
         // distance from the target to the floor
-        double goalHeightInches = 60.0;
+        double goalHeightInches = 25.0;
 
         double angleToGoalDegrees = limelightMountAngleDegrees + targetOffsetAngle_Vertical;
         double angleToGoalRadians = angleToGoalDegrees * (3.14159 / 180.0);
 
         //calculate distance
         double distanceFromLimelightToGoalInches = (goalHeightInches - limelightLensHeightInches) / Math.tan(angleToGoalRadians);
+        return distanceFromLimelightToGoalInches;
+
     }
 
     // ---------------- AUTO STRAFE ----------------

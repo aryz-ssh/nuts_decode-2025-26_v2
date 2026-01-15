@@ -136,7 +136,7 @@ public class SorterLogicColor {
     private int dbgAbsError = 0;
     private String dbgCorrState = "IDLE";
     private boolean dbgHoming = false;
-    public boolean autoAdvanceEnabled = true;
+    public boolean autoAdvanceEnabled = false;
 
     // Debug signals (Dashboard graph-friendly if you choose to pipe them)
     public static double dbgVelCmd = 0;

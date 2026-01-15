@@ -13,6 +13,7 @@ import org.firstinspires.ftc.teamcode.SorterLogicColor;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import org.firstinspires.ftc.teamcode.AprilTagLimelight;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
@@ -34,7 +35,7 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
     private PathChain intake3;
     private PathChain shoot3;
     private PathChain end;
-
+    private AprilTagLimelight limelight;
     private Follower follower;
 
     enum AutoState {
@@ -108,6 +109,11 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         buildPaths();
 
         telemetry.addLine("Initialized (Mechanisms + Follower)");
+        telemetry.addData("Busy", follower.isBusy());
+        telemetry.addData("DriveStage", driveStage);
+        telemetry.addData("AutoState", autoState);
+        telemetry.addData("Pose", follower.getPose());
+
         telemetry.update();
 
         // --- PRE-START HOMING LOOP (like your 3-ball) ---
@@ -120,9 +126,10 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         }
 
         waitForStart();
+        follower.setPose(new Pose(32.194, 135.776, Math.toRadians(90)));
         if (!opModeIsActive()) return;
 
-        scanMotifWithLimelight();
+       // scanMotifWithLimelight();
 
         // safe defaults at start
         mechanisms.disengageOuttake();
@@ -137,7 +144,9 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            follower.update();
+            if (follower.isBusy()) {
+                follower.update();
+            }
             mechanisms.updateMechanisms();
 
             switch (autoState) {
@@ -349,49 +358,50 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         }
     }
 
-    private void scanMotifWithLimelight() {
-
-        telemetry.addLine("Scanning motif...");
-        telemetry.update();
-
-        mechanisms.limelight.pipelineSwitch(MOTIF_PIPELINE);
-
-        long start = System.currentTimeMillis();
-        boolean found = false;
-
-        while (opModeIsActive()
-                && !found
-                && System.currentTimeMillis() - start < MOTIF_SCAN_TIMEOUT_MS) {
-
-            LLResult result = mechanisms.limelight.getLatestResult();
-
-            if (result != null) {
-
-                // FTC-SAFE fiducial access
-                java.util.List<LLResultTypes.FiducialResult> fiducials =
-                        result.getFiducialResults();
-
-                if (fiducials != null && !fiducials.isEmpty()) {
-                    found = true;
-
-                    detectedMotifId = fiducials.get(0).getFiducialId();
-                    telemetry.addData("Motif detected", detectedMotifId);
-                }
-            }
-
-            telemetry.update();
-            sleep(20);
-        }
-
-
-        if (!found) {
-            detectedMotifId = -1; // NO MOTIF
-            telemetry.addData("Motif defaulted", detectedMotifId);
-        }
-
-        telemetry.update();
-        mechanisms.limelight.pipelineSwitch(BLUE_PIPELINE);
-    }
+//    private void scanMotifWithLimelight() {
+//
+//        telemetry.addLine("Scanning motif...");
+//        telemetry.update();
+//
+//        mechanisms.limelight.pipelineSwitch(MOTIF_PIPELINE);
+//
+//        long start = System.currentTimeMillis();
+//        boolean found = false;
+//
+//
+//       while (opModeIsActive()
+//                && !found
+//                && System.currentTimeMillis() - start < MOTIF_SCAN_TIMEOUT_MS) {
+//
+//            LLResult result = mechanisms.limelight.getLatestResult();
+//
+//            if (result != null) {
+//
+//                // FTC-SAFE fiducial access
+//                java.util.List<LLResultTypes.FiducialResult> fiducials =
+//                        result.getFiducialResults();
+//
+//                if (fiducials != null && !fiducials.isEmpty()) {
+//                    found = true;
+//
+//                    detectedMotifId = fiducials.get(0).getFiducialId();
+//                    telemetry.addData("Motif detected", detectedMotifId);
+//                }
+//            }
+//
+//            telemetry.update();
+//            sleep(20);
+//        }
+//
+//
+//        if (!found) {
+//            detectedMotifId = -1; // NO MOTIF
+//            telemetry.addData("Motif defaulted", detectedMotifId);
+//        }
+//
+//        telemetry.update();
+//       // mechanisms.limelight.pipelineSwitch(BLUE_PIPELINE);
+//    }
 
     private boolean shouldUseSorting() {
         return detectedMotifId == 21
@@ -575,121 +585,132 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
 
     private void buildPaths() {
 
+        // ================= SCAN MOTIF =================
         scanMotif = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(32.194, 135.776),
-                        new Pose(56.559, 113.380)
+                        new Pose(32.194, 135.776, Math.toRadians(90)),   // START = robot start
+                        new Pose(56.559, 113.380, Math.toRadians(60))    // -300° → 60°
                 ))
                 .setLinearHeadingInterpolation(
                         Math.toRadians(90),
-                        Math.toRadians(-300)
+                        Math.toRadians(60)
                 )
                 .build();
 
+        // ================= PRELOAD SHOOT =================
         first3 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(56.559, 113.380),
-                        new Pose(44.000, 105.000)
+                        new Pose(56.559, 113.380, Math.toRadians(60)),
+                        new Pose(44.000, 105.000, Math.toRadians(-135)) // -225°
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(-300),
-                        Math.toRadians(-225)
+                        Math.toRadians(60),
+                        Math.toRadians(-135)
                 )
                 .build();
 
+        // ================= INTAKE 1 =================
         intake1 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(44.000, 105.000),
+                        new Pose(44.000, 105.000, Math.toRadians(-135)),
                         new Pose(61.937, 79.043),
-                        new Pose(15.000, 84.000)
+                        new Pose(15.000, 84.000, Math.toRadians(-180))
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(-225),
+                        Math.toRadians(-135),
                         Math.toRadians(-180)
                 )
                 .build();
 
+        // ================= HIT GATE =================
         hitGate = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(15.000, 84.000),
+                        new Pose(15.000, 84.000, Math.toRadians(-180)),
                         new Pose(24.000, 72.000),
-                        new Pose(15.000, 72.000)
+                        new Pose(15.000, 72.000, Math.toRadians(90))     // -270° → 90°
                 ))
                 .setLinearHeadingInterpolation(
                         Math.toRadians(-180),
-                        Math.toRadians(-270)
+                        Math.toRadians(90)
                 )
                 .build();
 
+        // ================= SHOOT 1 =================
         shoot1 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(15.000, 72.000),
+                        new Pose(15.000, 72.000, Math.toRadians(90)),
                         new Pose(48.000, 96.000),
-                        new Pose(44.000, 105.000)
+                        new Pose(44.000, 105.000, Math.toRadians(-135))
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(-270),
-                        Math.toRadians(-225)
+                        Math.toRadians(90),
+                        Math.toRadians(-135)
                 )
                 .build();
 
+        // ================= INTAKE 2 =================
         intake2 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(44.000, 105.000),
+                        new Pose(44.000, 105.000, Math.toRadians(-135)),
                         new Pose(75.332, 51.219),
-                        new Pose(15.000, 60.000)
+                        new Pose(15.000, 60.000, Math.toRadians(-180))
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(-225),
+                        Math.toRadians(-135),
                         Math.toRadians(-180)
                 )
                 .build();
 
+        // ================= SHOOT 2 =================
         shoot2 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(15.000, 60.000),
+                        new Pose(15.000, 60.000, Math.toRadians(-180)),
                         new Pose(48.000, 72.000),
-                        new Pose(44.000, 105.000)
+                        new Pose(44.000, 105.000, Math.toRadians(-135))
                 ))
                 .setLinearHeadingInterpolation(
                         Math.toRadians(-180),
-                        Math.toRadians(-225)
+                        Math.toRadians(-135)
                 )
                 .build();
 
+        // ================= INTAKE 3 =================
         intake3 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(44.000, 105.000),
+                        new Pose(44.000, 105.000, Math.toRadians(-135)),
                         new Pose(89.940, 31.176),
-                        new Pose(15.000, 35.000)
+                        new Pose(15.000, 35.000, Math.toRadians(-180))
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(-225),
+                        Math.toRadians(-135),
                         Math.toRadians(-180)
                 )
                 .build();
 
+        // ================= SHOOT 3 =================
         shoot3 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(15.000, 35.000),
+                        new Pose(15.000, 35.000, Math.toRadians(-180)),
                         new Pose(28.500, 67.000),
-                        new Pose(44.000, 105.000)
+                        new Pose(44.000, 105.000, Math.toRadians(-135))
                 ))
                 .setLinearHeadingInterpolation(
                         Math.toRadians(-180),
-                        Math.toRadians(-225)
+                        Math.toRadians(-135)
                 )
                 .build();
 
+        // ================= PARK =================
         end = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(44.000, 105.000),
-                        new Pose(44.000, 135.776)
+                        new Pose(44.000, 105.000, Math.toRadians(-135)),
+                        new Pose(44.000, 135.776, Math.toRadians(-90))
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(-225),
+                        Math.toRadians(-135),
                         Math.toRadians(-90)
                 )
                 .build();
     }
+
 }

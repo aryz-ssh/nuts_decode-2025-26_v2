@@ -8,6 +8,8 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+
+import org.firstinspires.ftc.teamcode.AprilTagLimelight;
 import org.firstinspires.ftc.teamcode.Mechanisms;
 import org.firstinspires.ftc.teamcode.SorterLogicColor;
 import com.qualcomm.hardware.limelightvision.LLResult;
@@ -41,7 +43,7 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
     private PathChain end;
 
     private Follower follower;
-
+    private AprilTagLimelight limelight;
     enum AutoState {
         START_PATH,
         WAIT_PATH,
@@ -128,7 +130,7 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
         waitForStart();
         if (!opModeIsActive()) return;
 
-        scanMotifWithLimelight();
+//        scanMotifWithLimelight();
 
         // safe defaults at start
         mechanisms.disengageOuttake();
@@ -355,49 +357,49 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
         }
     }
 
-    private void scanMotifWithLimelight() {
-
-        telemetry.addLine("Scanning motif...");
-        telemetry.update();
-
-        mechanisms.limelight.pipelineSwitch(MOTIF_PIPELINE);
-
-        long start = System.currentTimeMillis();
-        boolean found = false;
-
-        while (opModeIsActive()
-                && !found
-                && System.currentTimeMillis() - start < MOTIF_SCAN_TIMEOUT_MS) {
-
-            LLResult result = mechanisms.limelight.getLatestResult();
-
-            if (result != null) {
-
-                // FTC-SAFE fiducial access
-                java.util.List<LLResultTypes.FiducialResult> fiducials =
-                        result.getFiducialResults();
-
-                if (fiducials != null && !fiducials.isEmpty()) {
-                    found = true;
-
-                    detectedMotifId = fiducials.get(0).getFiducialId();
-                    telemetry.addData("Motif detected", detectedMotifId);
-                }
-            }
-
-            telemetry.update();
-            sleep(20);
-        }
-
-
-        if (!found) {
-            detectedMotifId = -1; // NO MOTIF
-            telemetry.addData("Motif defaulted", detectedMotifId);
-        }
-
-        telemetry.update();
-        mechanisms.limelight.pipelineSwitch(RED_PIPELINE);
-    }
+//    private void scanMotifWithLimelight() {
+//
+//        telemetry.addLine("Scanning motif...");
+//        telemetry.update();
+//
+//        mechanisms.limelight.pipelineSwitch(MOTIF_PIPELINE);
+//
+//        long start = System.currentTimeMillis();
+//        boolean found = false;
+//
+//        while (opModeIsActive()
+//                && !found
+//                && System.currentTimeMillis() - start < MOTIF_SCAN_TIMEOUT_MS) {
+//
+//            LLResult result = mechanisms.limelight.getLatestResult();
+//
+//            if (result != null) {
+//
+//                // FTC-SAFE fiducial access
+//                java.util.List<LLResultTypes.FiducialResult> fiducials =
+//                        result.getFiducialResults();
+//
+//                if (fiducials != null && !fiducials.isEmpty()) {
+//                    found = true;
+//
+//                    detectedMotifId = fiducials.get(0).getFiducialId();
+//                    telemetry.addData("Motif detected", detectedMotifId);
+//                }
+//            }
+//
+//            telemetry.update();
+//            sleep(20);
+//        }
+//
+//
+//        if (!found) {
+//            detectedMotifId = -1; // NO MOTIF
+//            telemetry.addData("Motif defaulted", detectedMotifId);
+//        }
+//
+//        telemetry.update();
+//        mechanisms.limelight.pipelineSwitch(RED_PIPELINE);
+//    }
 
     private boolean shouldUseSorting() {
         return detectedMotifId == 21

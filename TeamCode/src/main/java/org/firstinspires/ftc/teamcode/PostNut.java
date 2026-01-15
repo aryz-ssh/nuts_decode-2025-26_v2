@@ -213,6 +213,10 @@ public class PostNut extends LinearOpMode {
             // =============================================================
             //                          TELEMETRY
             // =============================================================
+            telemetry.addLine("---- LIMELIGHT (AprilTag) ----");
+            telemetry.addData("Auto Strafe Power", "%.2f", limelight.getAutoStrafePower(gamepad1.x));
+            telemetry.addData("tx (AprilTag)", limelight.getTx());
+            telemetry.update();
             if (System.currentTimeMillis() - lastTelem > 100) {
                 lastTelem = System.currentTimeMillis();
 
@@ -242,9 +246,6 @@ public class PostNut extends LinearOpMode {
 
              //   telemetry.addLine("---- LIMELIGHT (PostNut) ----");
 
-                telemetry.addLine("---- LIMELIGHT (AprilTag) ----");
-                telemetry.addData("Auto Strafe Power", "%.2f", limelight.getAutoStrafePower(gamepad1.x));
-                telemetry.addData("tx (AprilTag)", limelight.getTx());
 
                 telemetry.addData("Time", runtime.seconds());
                 telemetry.addData("Distance", limelight.getDistance());

@@ -1,36 +1,24 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.dashboard.config.Config;
-
-
-import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
-import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-
 import com.qualcomm.robotcore.hardware.IMU;
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
-
-import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 @Config
 public class Mechanisms {
-    // --------- la la la limelight ---------
-    public Limelight3A limelight;
-    public static int MOTIF_PIPELINE = 3;
-    public static long MOTIF_SCAN_TIMEOUT_MS = 1500;
 
     // --------- SORTER ----------
     public SorterLogicColor sorterLogic;
-
     private ElapsedTime sorterRate = new ElapsedTime();
     private static final double SORTER_PERIOD_MS = 60;
 
@@ -47,11 +35,6 @@ public class Mechanisms {
     private static final double MAX_TICKS_PER_SEC_6000 = (TICKS_PER_REV_6000 * 6000) / 60.0;
 
     private double manualOuttakeSpeed = 0.7;
-
-    public static double FLYWHEEL_P = 0.01;
-    public static double FLYWHEEL_I = 0.0;
-    public static double FLYWHEEL_D = 0.0;
-    public static double FLYWHEEL_F = 13.9;
 
     public Servo rampAngleAdjust;
     public static double RAMP_ANGLE_MIN_POS = 0.3;
@@ -87,14 +70,9 @@ public class Mechanisms {
         initOuttake(hw);
         initIMU(hw);
 
-        limelight = hw.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(0);
-        limelight.start();
-
         sorterLogic = new SorterLogicColor();
         sorterLogic.init(hw, telemetry);
     }
-
 
     private void initIntake(HardwareMap hw) {
         intakeMotor = hw.get(DcMotorEx.class, "intakeMotor");
@@ -122,16 +100,6 @@ public class Mechanisms {
         outtakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         outtakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
-        outtakeMotor.setPIDFCoefficients(
-                DcMotor.RunMode.RUN_USING_ENCODER,
-                new PIDFCoefficients(
-                        FLYWHEEL_P,
-                        FLYWHEEL_I,
-                        FLYWHEEL_D,
-                        FLYWHEEL_F
-                )
-        );
-
         rampAngleAdjust.setDirection(Servo.Direction.FORWARD);
         rampAngleAdjust.setPosition(RAMP_ANGLE_MIN_POS);
 
@@ -139,9 +107,7 @@ public class Mechanisms {
         kickerServo.setPosition(KICKER_RESTING_POS);
     }
 
-
     private void initIMU(HardwareMap hw) {
-        // ---------------- IMU INIT ----------------
         imu = hw.get(IMU.class, "imu");
 
         IMU.Parameters parameters = new IMU.Parameters(
@@ -152,7 +118,7 @@ public class Mechanisms {
         );
 
         imu.initialize(parameters);
-        imu.resetYaw();   // start at zero heading
+        imu.resetYaw();
     }
 
     // ---------- INTAKE ----------
@@ -178,12 +144,10 @@ public class Mechanisms {
         return sorterLogic.isHomed();
     }
 
-    //    public void sorterHome() { sorterLogic.homeSorter(); }
-//    public boolean sorterIsHomed() { return sorterLogic.isHomed(); }
     public void sorterGoToIntake(int n) { sorterLogic.goToIntake(n); }
     public void sorterGoToOuttake(int n) { sorterLogic.goToOuttake(n); }
 
-    public int getSorterCurrentPosition() { return sorterLogic.getCurrentPos();}
+    public int getSorterCurrentPosition() { return sorterLogic.getCurrentPos(); }
     public int getSorterTargetPosition() { return sorterLogic.getTargetPos(); }
     public boolean sorterIsMoving() { return sorterLogic.moving; }
 
@@ -226,37 +190,11 @@ public class Mechanisms {
         manualOuttakeSpeed = Math.max(0.0, manualOuttakeSpeed - delta);
     }
 
-    public double getManualOuttakeSpeed() {
-        return manualOuttakeSpeed;
-    }
+    public double getManualOuttakeSpeed() { return manualOuttakeSpeed; }
+    public double getRampAngleTarget() { return rampAngleTarget; }
+    public double getRampAngleCurrent() { return rampAngleAdjust.getPosition(); }
 
-    public double getRampAngleTarget() {
-        return rampAngleTarget;
-    }
-
-    public double getRampAngleCurrent() {
-        return rampAngleAdjust.getPosition();
-    }
-
-    public void setShotPocket(int pocket) {
-        lastShotPocket = pocket;
-    }
-
-    public void autoAdvanceIntakePocketIfNeeded() {
-
-        // Only advance if:
-        // 1) Sorter just captured a ball
-        // 2) Sorter is not currently moving
-        if (!sorterLogic.consumeBallJustStored()) return;
-        if (sorterLogic.isMoving()) return;
-
-        int current = sorterLogic.getCurrentIntakePocket();
-
-        int nextPocket = current + 1;
-        if (nextPocket > 3) return;  // no wrap in auto
-
-        sorterLogic.goToIntake(nextPocket);
-    }
+    public void setShotPocket(int pocket) { lastShotPocket = pocket; }
 
     private double rampTo(double current, double target, double rate) {
         double delta = target - current;
@@ -270,74 +208,44 @@ public class Mechanisms {
         return angles.getYaw(AngleUnit.RADIANS);
     }
 
-    public boolean isSorterMoving() {
-        return sorterLogic.isMoving();
-    }
+    public boolean isSorterMoving() { return sorterLogic.isMoving(); }
 
     // ---------- RESET ----------
-    public void resetHeading() {
-        imu.resetYaw();
-    }
+    public void resetHeading() { imu.resetYaw(); }
 
     // ---------- MAIN UPDATE LOOP ----------
     public void updateMechanisms() {
 
-        // ========================
         // INTAKE
-        // ========================
         if (intakeActive) {
             double direction = intakeDirectionFlipRequested ? 1.0 : -1.0;
-
-            // double intakeServoPos = 0.5 + (direction * intakePowerRequested * 0.5);
-            // intakeServoPos = Math.max(0.0, Math.min(1.0, intakeServoPos));
-
-            // intakeServoFirst.setPosition(intakeServoPos);
-            // intakeServoSecond.setPosition(intakeServoPos);
-
             intakeMotor.setPower(direction * intakePowerRequested);
         } else {
             intakeMotor.setPower(0);
-            // intakeServoFirst.setPosition(0.5);
-            // intakeServoSecond.setPosition(0.5);
         }
 
-        // ========================
         // SORTER UPDATE
-        // ========================
         sorterLogic.update();
-
         if (!sorterLogic.isMoving() && sorterLogic.isAtIntakePosition()) {
             SorterLogicColor.BallColor detected = sorterLogic.detectBallColor();
-
             if (detected != SorterLogicColor.BallColor.UNKNOWN)
                 sorterLogic.storeColorForCurrentPocket(detected);
         }
 
-        if (sorterLogic.autoAdvanceEnabled) {
-            autoAdvanceIntakePocketIfNeeded();
-        }
-
-        // ========================
         // OUTTAKE
-        // ========================
         if (outtakeActive)
             outtakeMotor.setVelocity(manualOuttakeSpeed * MAX_TICKS_PER_SEC_6000);
         else
             outtakeMotor.setVelocity(0);
 
-        // ========================
         // RAMP ANGLE SERVO (smooth)
-        // ========================
         double currentRamp = rampAngleAdjust.getPosition();
         double smoothedRamp = rampTo(currentRamp, rampAngleTarget, 0.01);
         rampAngleAdjust.setPosition(smoothedRamp);
 
-        // ========================
         // KICKER
-        // ========================
         if (kickerActive) {
             kickerServo.setPosition(KICKER_EJECT_POS);
-
             if (kickerTimer.seconds() > KICK_DURATION) {
                 kickerServo.setPosition(KICKER_RESTING_POS);
                 kickerActive = false;

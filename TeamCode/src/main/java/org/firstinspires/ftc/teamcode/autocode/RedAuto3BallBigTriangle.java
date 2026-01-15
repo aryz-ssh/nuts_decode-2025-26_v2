@@ -19,7 +19,7 @@ import java.util.ArrayList;
 
 @Autonomous(name = "Close Red Auto - 3 ball", group = "Autonomous")
 @Configurable
-public class CloseRedAuto extends LinearOpMode {
+public class RedAuto3BallBigTriangle extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;

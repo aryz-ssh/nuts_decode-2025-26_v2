@@ -18,7 +18,7 @@ import java.util.ArrayList;
 
 @Autonomous(name = "Close Blue Auto - 3 ball", group = "Autonomous")
 @Configurable
-public class CloseBlueAuto extends LinearOpMode {
+public class BlueAuto3BallBigTriangle extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
@@ -60,7 +60,7 @@ public class CloseBlueAuto extends LinearOpMode {
 
     boolean outtakeStarted = false;
 
-    CloseBlueAuto.AutoState autoState = CloseBlueAuto.AutoState.WAIT_FOR_HOME;
+    BlueAuto3BallBigTriangle.AutoState autoState = BlueAuto3BallBigTriangle.AutoState.WAIT_FOR_HOME;
 
     int currentPocket = 1;
     boolean sorterCommanded = false;
@@ -109,10 +109,10 @@ public class CloseBlueAuto extends LinearOpMode {
 
         waitForStart();
 
-        autoState = CloseBlueAuto.AutoState.START_TO_SHOOT;
+        autoState = BlueAuto3BallBigTriangle.AutoState.START_TO_SHOOT;
 
         while (opModeIsActive()) {
-            if (autoState != CloseBlueAuto.AutoState.WAIT_FOR_HOME) {
+            if (autoState != BlueAuto3BallBigTriangle.AutoState.WAIT_FOR_HOME) {
                 follower.update();
             }
             mechanisms.updateMechanisms();
@@ -123,7 +123,7 @@ public class CloseBlueAuto extends LinearOpMode {
                         follower.followPath(paths.ToShoot);
                         toShootStarted = true;
                     }
-                    autoState = CloseBlueAuto.AutoState.WAIT_TO_SHOOT;
+                    autoState = BlueAuto3BallBigTriangle.AutoState.WAIT_TO_SHOOT;
                     break;
 
                 // ===============================
@@ -136,12 +136,12 @@ public class CloseBlueAuto extends LinearOpMode {
                         stateTimer.reset();
                         outtakeStarted = true;
                     }
-                    autoState = CloseBlueAuto.AutoState.RAMP_UP;
+                    autoState = BlueAuto3BallBigTriangle.AutoState.RAMP_UP;
                     break;
 
                 case WAIT_TO_SHOOT:
                     if (!follower.isBusy()) {
-                        autoState = CloseBlueAuto.AutoState.START_OUTTAKE;
+                        autoState = BlueAuto3BallBigTriangle.AutoState.START_OUTTAKE;
                     }
                     break;
 
@@ -151,7 +151,7 @@ public class CloseBlueAuto extends LinearOpMode {
                 case RAMP_UP:
                     if (stateTimer.seconds() >= RAMP_UP_TIME) {
                         sorterCommanded = false;
-                        autoState = CloseBlueAuto.AutoState.MOVE_SORTER;
+                        autoState = BlueAuto3BallBigTriangle.AutoState.MOVE_SORTER;
                     }
                     break;
 
@@ -163,19 +163,19 @@ public class CloseBlueAuto extends LinearOpMode {
                         mechanisms.sorterGoToOuttake(currentPocket);
                         sorterCommanded = true;
                     }
-                    autoState = CloseBlueAuto.AutoState.WAIT_SORTER;
+                    autoState = BlueAuto3BallBigTriangle.AutoState.WAIT_SORTER;
                     break;
 
                 case WAIT_SORTER:
                     if (!isSorterMoving()) {
                         stateTimer.reset();
-                        autoState = CloseBlueAuto.AutoState.SORTER_SETTLE;
+                        autoState = BlueAuto3BallBigTriangle.AutoState.SORTER_SETTLE;
                     }
                     break;
 
                 case SORTER_SETTLE:
                     if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {   // ← tune: 0.35–0.5
-                        autoState = CloseBlueAuto.AutoState.KICK_1;
+                        autoState = BlueAuto3BallBigTriangle.AutoState.KICK_1;
                     }
                     break;
 
@@ -186,7 +186,7 @@ public class CloseBlueAuto extends LinearOpMode {
                     mechanisms.setShotPocket(currentPocket);
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = CloseBlueAuto.AutoState.WAIT_1;
+                    autoState = BlueAuto3BallBigTriangle.AutoState.WAIT_1;
                     break;
 
                 // ===============================
@@ -194,7 +194,7 @@ public class CloseBlueAuto extends LinearOpMode {
                 // ===============================
                 case WAIT_1:
                     if (stateTimer.seconds() >= FIRST_KICK_DELAY) {
-                        autoState = CloseBlueAuto.AutoState.KICK_2;
+                        autoState = BlueAuto3BallBigTriangle.AutoState.KICK_2;
                     }
                     break;
 
@@ -204,7 +204,7 @@ public class CloseBlueAuto extends LinearOpMode {
                 case KICK_2:
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = CloseBlueAuto.AutoState.WAIT_2;
+                    autoState = BlueAuto3BallBigTriangle.AutoState.WAIT_2;
                     break;
 
                 // ===============================
@@ -212,7 +212,7 @@ public class CloseBlueAuto extends LinearOpMode {
                 // ===============================
                 case WAIT_2:
                     if (stateTimer.seconds() >= SECOND_KICK_DELAY) {
-                        autoState = CloseBlueAuto.AutoState.NEXT_POCKET;
+                        autoState = BlueAuto3BallBigTriangle.AutoState.NEXT_POCKET;
                     }
                     break;
 
@@ -225,9 +225,9 @@ public class CloseBlueAuto extends LinearOpMode {
 
                     if (currentPocket > 3) {
                         mechanisms.disengageOuttake();
-                        autoState = CloseBlueAuto.AutoState.START_MOVE_AWAY;
+                        autoState = BlueAuto3BallBigTriangle.AutoState.START_MOVE_AWAY;
                     } else {
-                        autoState = CloseBlueAuto.AutoState.MOVE_SORTER;
+                        autoState = BlueAuto3BallBigTriangle.AutoState.MOVE_SORTER;
                     }
                     break;
 
@@ -239,12 +239,12 @@ public class CloseBlueAuto extends LinearOpMode {
                         follower.followPath(paths.MoveAway);
                         moveAwayStarted = true;
                     }
-                    autoState = CloseBlueAuto.AutoState.WAIT_MOVE_AWAY;
+                    autoState = BlueAuto3BallBigTriangle.AutoState.WAIT_MOVE_AWAY;
                     break;
 
                 case WAIT_MOVE_AWAY:
                     if (!follower.isBusy()) {
-                        autoState = CloseBlueAuto.AutoState.RETURN_TO_INTAKE;
+                        autoState = BlueAuto3BallBigTriangle.AutoState.RETURN_TO_INTAKE;
                     }
                     break;
 
@@ -255,12 +255,12 @@ public class CloseBlueAuto extends LinearOpMode {
                         mechanisms.sorterGoToIntake(1);
                         returnCommanded = true;
                     }
-                    autoState = CloseBlueAuto.AutoState.WAIT_RETURN_TO_INTAKE;
+                    autoState = BlueAuto3BallBigTriangle.AutoState.WAIT_RETURN_TO_INTAKE;
                     break;
 
                 case WAIT_RETURN_TO_INTAKE:
                     if (!isSorterMoving()) {
-                        autoState = CloseBlueAuto.AutoState.DONE;
+                        autoState = BlueAuto3BallBigTriangle.AutoState.DONE;
                     }
                     break;
 

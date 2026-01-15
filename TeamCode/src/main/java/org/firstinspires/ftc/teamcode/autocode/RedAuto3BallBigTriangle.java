@@ -11,7 +11,6 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.Mechanisms;
-import org.firstinspires.ftc.teamcode.SorterLogicColor;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -20,7 +19,7 @@ import java.util.ArrayList;
 
 @Autonomous(name = "Close Red Auto - 3 ball", group = "Autonomous")
 @Configurable
-public class CloseRedAuto extends LinearOpMode {
+public class RedAuto3BallBigTriangle extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;

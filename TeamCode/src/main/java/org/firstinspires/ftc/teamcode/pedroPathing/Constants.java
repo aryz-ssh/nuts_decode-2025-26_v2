@@ -21,14 +21,15 @@ public class Constants {
             .forwardZeroPowerAcceleration(-27.976707401431)
             .lateralZeroPowerAcceleration(-58.838768513832)
             .translationalPIDFCoefficients(new PIDFCoefficients(0.06, 0, 0.006, 0.025))
-            .headingPIDFCoefficients(new PIDFCoefficients(0.7, 0, 0.04, 0.02));
-            // .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.03, 0,0.0001,0.3,0.025));
+            .headingPIDFCoefficients(new PIDFCoefficients(0.7, 0, 0.004, 0.02))
+            // .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(5,0, 0.06,0.05))
+            .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.035, 0,0.0001,0.3,0.025));
             // .centripetalScaling(0.0005);
 
     public static PathConstraints pathConstraints = new PathConstraints(0.99,
             100,
-            0.75,
-            1);
+            1.4,
+            0.2);
 
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(0.7)

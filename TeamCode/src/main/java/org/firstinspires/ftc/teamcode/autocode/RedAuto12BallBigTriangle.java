@@ -12,6 +12,8 @@ import org.firstinspires.ftc.teamcode.Mechanisms;
 import org.firstinspires.ftc.teamcode.SorterLogicColor;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
@@ -40,6 +42,55 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
 
     private Follower follower;
 
+    enum AutoState {
+        START_PATH,
+        WAIT_PATH,
+
+        START_INTAKE,
+        WAIT_INTAKE,
+        INTAKE_SETTLE,
+
+        START_SHOOT,
+        WAIT_RAMP,
+        MOVE_SORTER,
+        WAIT_SORTER,
+        SORTER_SETTLE,
+        KICK_1,
+        WAIT_1,
+        NEXT_POCKET,
+
+        DONE
+    }
+
+    private enum DriveStage {
+        SCAN_MOTIF,
+        TO_SHOOT_PRELOAD,
+        INTAKE_1,
+        HIT_GATE,
+        SHOOT_1,
+        INTAKE_2,
+        SHOOT_2,
+        INTAKE_3,
+        SHOOT_3,
+        END,
+        DONE
+    }
+
+
+    private DriveStage driveStage = DriveStage.SCAN_MOTIF;
+    public static double RAMP_UP_TIME = 0.1;        // seconds
+    public static double SORTER_SETTLE_TIME = 0.35;  // seconds
+    public static double FIRST_KICK_DELAY = 0.50;    // seconds
+
+    AutoState autoState = AutoState.START_PATH;
+
+    int currentPocket = 1;
+    int activeShotPocket = 1;
+    boolean sorterCommanded = false;
+    boolean intakeRunning = false;
+
+    ElapsedTime stateTimer = new ElapsedTime();
+
     public static long INTAKE_SETTLE_MS = 750; // dashboard-tunable
     public static double INTAKE_PATH_SPEED = 0.75;
     public static int MOTIF_PIPELINE = 2;
@@ -48,6 +99,7 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
     public static double OUTTAKE_POWER = 0.7;
     public static double RAMP_POSITION = 0.7;
     private boolean isPreloadPhase = true;
+    private boolean shooterSpinning = false;
 
     private int detectedMotifId = -1;
 
@@ -58,124 +110,249 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
         mechanisms.initMechanisms(hardwareMap, telemetry);
 
         follower = Constants.createFollower(hardwareMap);
+        follower.setStartingPose(new Pose(112.194, 135.776, Math.toRadians(90)));
         buildPaths();
 
         telemetry.addLine("Initialized (Mechanisms + Follower)");
         telemetry.update();
 
-        waitForStart();
+        // --- PRE-START HOMING LOOP (like your 3-ball) ---
+        while (!isStarted() && !isStopRequested()) {
+            mechanisms.sorterInitLoop();   // homing only
+            mechanisms.updateMechanisms();
+            telemetry.addLine("Homing...");
+            telemetry.update();
+            idle();
+        }
 
+        waitForStart();
         if (!opModeIsActive()) return;
 
-        // ---------- HOME ----------
-        homeAllMechanisms();
-        mechanisms.setRampAngle(RAMP_POSITION);
-
-        // ---------- LIMELIGHT ----------
         scanMotifWithLimelight();
 
-        // ---------- BEGINNING ----------
-        mechanisms.engageOuttake(OUTTAKE_POWER);
-        runPath(scanMotif, 1.0);
-
-        // ----- SHOOT PRELOAD -----
-        runPath(first3, 1.0);
-        // correctPoseFromLimelight();
-        shootAllPockets();
+        // safe defaults at start
         mechanisms.disengageOuttake();
-        isPreloadPhase = false;
-
-        // ----- INTAKE 1 -----
-        startIntake();
-        runPath(intake1, INTAKE_PATH_SPEED);
-
-        // settle AFTER intake path
-        long t0 = System.currentTimeMillis();
-        while (opModeIsActive() && System.currentTimeMillis() - t0 < INTAKE_SETTLE_MS) {
-            mechanisms.updateMechanisms();
-            sleep(10);
-        }
-
-        // stopIntake();
-
-        // ----- HIT GATE -----
-        runPath(hitGate, 1.0);
-
-        // ----- SHOOT SECOND SET -----
-        mechanisms.engageOuttake(OUTTAKE_POWER);
-        runPath(shoot1, 1.0);
-
-        stopIntake();
-
-        // correctPoseFromLimelight();
-        shootAllPockets();
-        mechanisms.disengageOuttake();
-
-        // ----- INTAKE 2 -----
-        startIntake();
-        runPath(intake2, INTAKE_PATH_SPEED);
-
-        // settle AFTER intake path
-        t0 = System.currentTimeMillis();
-        while (opModeIsActive() && System.currentTimeMillis() - t0 < INTAKE_SETTLE_MS) {
-            mechanisms.updateMechanisms();
-            sleep(10);
-        }
-
-        // stopIntake();
-
-        // ----- SHOOT THIRD SET -----
-        mechanisms.engageOuttake(OUTTAKE_POWER);
-        runPath(shoot2,1.0);
-
-        stopIntake();
-
-        // correctPoseFromLimelight();
-        shootAllPockets();
-        mechanisms.disengageOuttake();
-
-        // ----- INTAKE 3 -----
-        startIntake();
-        runPath(intake3, INTAKE_PATH_SPEED);
-
-        // settle AFTER intake path
-        t0 = System.currentTimeMillis();
-        while (opModeIsActive() && System.currentTimeMillis() - t0 < INTAKE_SETTLE_MS) {
-            mechanisms.updateMechanisms();
-            sleep(10);
-        }
-
-        //stopIntake();
-
-        // ----- SHOOT FOURTH SET -----
-        mechanisms.engageOuttake(OUTTAKE_POWER);
-        runPath(shoot3,1.0);
-
-        stopIntake();
-
-        // correctPoseFromLimelight();
-        shootAllPockets();
-        mechanisms.disengageOuttake();
-
-        mechanisms.sorterGoToIntake(1);
+        shooterSpinning = false;
+        mechanisms.disengageIntake();
         mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
-        runPath(end, 1.0);
-    }
 
-    private void homeAllMechanisms() {
+        autoState = AutoState.START_PATH;
+        driveStage = DriveStage.SCAN_MOTIF;     // see section #2 below
+        currentPocket = 1;
+        sorterCommanded = false;
 
-        telemetry.addLine("Homing sorter...");
-        telemetry.update();
+        while (opModeIsActive()) {
 
-        // Run sorter init loop until homed
-        while (opModeIsActive() && !mechanisms.isSorterHomed()) {
-            mechanisms.sorterInitLoop();
+            follower.update();
             mechanisms.updateMechanisms();
-            sleep(10);
-        }
 
-        telemetry.addLine("Sorter homed");
-        telemetry.update();
+            switch (autoState) {
+
+                // =============================
+                // DRIVE (start a path)
+                // =============================
+                case START_PATH: {
+                    PathChain p = getCurrentPath();
+                    double spd = getCurrentSpeedScale();
+
+                    // 🔥 PRE-SPIN ONLY when driving TO a shoot position
+                    if (isShootPath(driveStage) && !shooterSpinning) {
+                        mechanisms.engageOuttake(OUTTAKE_POWER);
+                        shooterSpinning = true;
+                    }
+
+                    follower.setMaxPower(spd);
+                    follower.followPath(p);
+
+                    autoState = AutoState.WAIT_PATH;
+                    break;
+                }
+
+                // =============================
+                // DRIVE (wait for path end)
+                // =============================
+                case WAIT_PATH: {
+                    if (!follower.isBusy()) {
+                        follower.setMaxPower(1.0);
+
+                        // After certain paths, we do intake settle or shooting.
+                        if (isIntakePathJustFinished()) {
+                            stateTimer.reset();
+                            autoState = AutoState.INTAKE_SETTLE;
+                        } else if (isShootPathJustFinished()) {
+                            autoState = AutoState.START_SHOOT;
+                        } else {
+                            // scanMotif, hitGate, end, first3 transitions
+                            advanceAfterNonIntakeNonShootPath();
+                        }
+                    }
+                    break;
+                }
+
+                // =============================
+                // INTAKE (start before intake path)
+                // =============================
+                case START_INTAKE: {
+                    // start intake + auto-advance BEFORE driving intake path
+                    mechanisms.sorterLogic.autoAdvanceEnabled = true;
+                    mechanisms.sorterGoToIntake(1);
+                    mechanisms.engageIntake(1.0, true);
+                    intakeRunning = true;
+
+                    autoState = AutoState.START_PATH; // will run the intake path next
+                    break;
+                }
+
+                // =============================
+                // INTAKE (settle after intake path)
+                // =============================
+                case INTAKE_SETTLE: {
+                    if (stateTimer.milliseconds() >= INTAKE_SETTLE_MS) {
+                        // stop intake after settle
+                        mechanisms.disengageIntake();
+                        mechanisms.sorterLogic.autoAdvanceEnabled = false;
+                        intakeRunning = false;
+
+                        // after intake1 -> run hitGate
+                        // after intake2/intake3 -> go straight to shoot path
+                        advanceAfterIntakeSettled();
+                    }
+                    break;
+                }
+
+                // =============================
+                // SHOOT (start spool/ramp)
+                // =============================
+                case START_SHOOT: {
+                    mechanisms.setRampAngle(RAMP_POSITION);
+                    stateTimer.reset();
+                    autoState = AutoState.WAIT_RAMP;
+                    break;
+                }
+
+
+                case WAIT_RAMP: {
+                    if (stateTimer.seconds() >= RAMP_UP_TIME) {
+                        currentPocket = 1;
+                        sorterCommanded = false;
+                        autoState = AutoState.MOVE_SORTER;
+                    }
+                    break;
+                }
+
+                case MOVE_SORTER: {
+                    if (!sorterCommanded) {
+
+                        // preload phase is deterministic
+                        if (isPreloadPhase) {
+                            activeShotPocket = currentPocket;   // preload is deterministic
+                            mechanisms.sorterGoToOuttake(activeShotPocket);
+                        } else {
+                            // ---------- NO MOTIF → NO SORTING ----------
+                            if (!shouldUseSorting()) {
+                                activeShotPocket = currentPocket;
+                                mechanisms.sorterGoToOuttake(activeShotPocket);
+                            }
+                            // ---------- MOTIF PRESENT → SORTING ----------
+                            else {
+                                SorterLogicColor.BallColor required =
+                                        getRequiredColorForStep(currentPocket - 1);
+
+                                Integer pocket =
+                                        mechanisms.sorterLogic.getPocketWithColor(required);
+
+                                if (pocket == null || required == SorterLogicColor.BallColor.UNKNOWN) {
+                                    currentPocket++;
+                                    sorterCommanded = false;
+
+                                    if (currentPocket > 3) {
+                                        mechanisms.disengageOuttake();
+                                        shooterSpinning = false;
+                                        advanceAfterShotSet();
+                                    }
+                                    break;
+                                }
+
+                                activeShotPocket = pocket;
+                                mechanisms.sorterGoToOuttake(pocket);
+                            }
+                        }
+
+                        sorterCommanded = true;
+                    }
+                    autoState = AutoState.WAIT_SORTER;
+                    break;
+                }
+
+                case WAIT_SORTER: {
+                    if (!mechanisms.isSorterMoving()) {
+                        stateTimer.reset();
+                        autoState = AutoState.SORTER_SETTLE;
+                    }
+                    break;
+                }
+
+                case SORTER_SETTLE: {
+                    if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {
+                        autoState = AutoState.KICK_1;
+                    }
+                    break;
+                }
+
+                case KICK_1: {
+                    // IMPORTANT: pocket to shoot must match what you commanded.
+                    // For preload it's currentPocket.
+                    // For sorted you used mechanisms.setShotPocket(pocket) in your old code,
+                    // but your Mechanisms likely tracks selected pocket internally.
+                    mechanisms.setShotPocket(activeShotPocket);
+                    mechanisms.ejectBall();
+                    stateTimer.reset();
+                    autoState = AutoState.WAIT_1;
+                    break;
+                }
+
+                case WAIT_1: {
+                    if (stateTimer.seconds() >= FIRST_KICK_DELAY) {
+                        autoState = AutoState.NEXT_POCKET;
+                    }
+                    break;
+                }
+
+                case NEXT_POCKET: {
+                    currentPocket++;
+                    sorterCommanded = false;
+
+                    if (currentPocket > 3) {
+                        mechanisms.disengageOuttake();
+                        shooterSpinning = false;
+
+                        // after preload shot, switch to sorted phase
+                        if (isPreloadPhase) isPreloadPhase = false;
+
+                        advanceAfterShotSet(); // decides next drive stage (intake1/2/3/end)
+                    } else {
+                        autoState = AutoState.MOVE_SORTER;
+                    }
+                    break;
+                }
+
+                case DONE: {
+                    // park safe
+                    mechanisms.disengageIntake();
+                    mechanisms.disengageOuttake();
+                    shooterSpinning = false;
+                    mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
+                    break;
+                }
+            }
+
+            telemetry.addData("State", autoState);
+            telemetry.addData("DriveStage", driveStage);
+            telemetry.addData("Pocket", currentPocket);
+            telemetry.addData("Motif", detectedMotifId == -1 ? "NONE" : getMotifName(detectedMotifId));
+            telemetry.addData("Sorting", shouldUseSorting());
+            telemetry.update();
+        }
     }
 
     private void scanMotifWithLimelight() {
@@ -214,7 +391,7 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
 
 
         if (!found) {
-            detectedMotifId = 21; // default GPP (or whatever your safe default is)
+            detectedMotifId = -1; // NO MOTIF
             telemetry.addData("Motif defaulted", detectedMotifId);
         }
 
@@ -222,107 +399,148 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
         mechanisms.limelight.pipelineSwitch(RED_PIPELINE);
     }
 
-    private void correctPoseFromLimelight() {
-
-        LLResult result = mechanisms.limelight.getLatestResult();
-        if (result == null || !result.isValid()) return;
-        if (result.getBotposeTagCount() < 1) return;
-
-        Pose3D pose3d = result.getBotpose_MT2();
-        if (pose3d == null) return;
-
-        Position pos = pose3d.getPosition();
-        YawPitchRollAngles rot = pose3d.getOrientation();
-
-        // Limelight botpose is METERS (per SDK)
-        double xInches = pos.x * 39.3701;
-        double yInches = pos.y * 39.3701;
-
-        // SDK uses yaw = firstAngle (degrees)
-        double headingRad = Math.toRadians(rot.getYaw(AngleUnit.DEGREES));
-        // double headingRad = Math.toRadians(rot.getYaw(AngleUnit.DEGREES)) + Math.PI;
-
-        Pose correctedPose = new Pose(xInches, yInches, headingRad);
-
-        follower.setPose(correctedPose);
+    private boolean shouldUseSorting() {
+        return detectedMotifId == 21
+                || detectedMotifId == 22
+                || detectedMotifId == 23;
     }
 
-
-
-    private void shootAllPockets() {
-        for (int step = 0; step < 3; step++) {
-
-            int pocket;
-
-            // ---------- PRELOAD ----------
-            if (isPreloadPhase) {
-                pocket = step + 1;
-            }
-            // ---------- SORTED PHASE ----------
-            else {
-                SorterLogicColor.BallColor required =
-                        getRequiredColorForStep(step);
-
-                if (required == SorterLogicColor.BallColor.UNKNOWN)
-                    continue;
-
-                Integer foundPocket =
-                        mechanisms.sorterLogic.getPocketWithColor(required);
-
-                if (foundPocket == null)
-                    continue; // required color not present
-
-                pocket = foundPocket;
-            }
-
-            // 1) Rotate sorter to selected pocket
-            mechanisms.sorterGoToOuttake(pocket);
-
-            // 2) Wait until sorter reaches target
-            while (opModeIsActive() && mechanisms.isSorterMoving()) {
-                mechanisms.updateMechanisms();
-                sleep(10);
-            }
-
-            // Small settle delay
-            sleep(50);
-
-            // 3) Fire exactly once (THIS clears the pocket)
-            mechanisms.setShotPocket(pocket);
-            mechanisms.ejectBall();
-
-            // 4) Allow kicker + spacing time
-            long kickStart = System.currentTimeMillis();
-            while (opModeIsActive()
-                    && System.currentTimeMillis() - kickStart < 500) {
-
-                mechanisms.updateMechanisms();
-                sleep(10);
-            }
+    private PathChain getCurrentPath() {
+        switch (driveStage) {
+            case SCAN_MOTIF:         return scanMotif;
+            case TO_SHOOT_PRELOAD:   return first3;
+            case INTAKE_1:           return intake1;
+            case HIT_GATE:           return hitGate;
+            case SHOOT_1:            return shoot1;
+            case INTAKE_2:           return intake2;
+            case SHOOT_2:            return shoot2;
+            case INTAKE_3:           return intake3;
+            case SHOOT_3:            return shoot3;
+            case END:                return end;
+            default:                 return end;
         }
     }
 
-    private void startIntake() {
-        mechanisms.sorterLogic.autoAdvanceEnabled = true;
+    private boolean isShootPath(DriveStage stage) {
+        return stage == DriveStage.TO_SHOOT_PRELOAD
+                || stage == DriveStage.SHOOT_1
+                || stage == DriveStage.SHOOT_2
+                || stage == DriveStage.SHOOT_3;
+    }
 
-        // reset intake sequence to pocket 1 so detection/storage is deterministic
-        mechanisms.sorterGoToIntake(1);
+    private double getCurrentSpeedScale() {
+        // only slow intake paths
+        switch (driveStage) {
+            case INTAKE_1:
+            case INTAKE_2:
+            case INTAKE_3:
+                return INTAKE_PATH_SPEED;
+            default:
+                return 1.0;
+        }
+    }
 
-        // wait briefly for the sorter to get there (or at least stop moving)
-        long t0 = System.currentTimeMillis();
-        while (opModeIsActive()
-                && mechanisms.isSorterMoving()
-                && System.currentTimeMillis() - t0 < 500) {
-            mechanisms.updateMechanisms();
-            sleep(10);
+    private boolean isIntakePathJustFinished() {
+        return driveStage == DriveStage.INTAKE_1
+                || driveStage == DriveStage.INTAKE_2
+                || driveStage == DriveStage.INTAKE_3;
+    }
+
+    private boolean isShootPathJustFinished() {
+        return driveStage == DriveStage.TO_SHOOT_PRELOAD
+                || driveStage == DriveStage.SHOOT_1
+                || driveStage == DriveStage.SHOOT_2
+                || driveStage == DriveStage.SHOOT_3;
+    }
+
+    private void advanceAfterNonIntakeNonShootPath() {
+        switch (driveStage) {
+            case SCAN_MOTIF:
+                // you can scan here, then drive to preload shoot
+                // (scanMotifWithLimelight can be called before running SCAN_MOTIF if you want)
+                driveStage = DriveStage.TO_SHOOT_PRELOAD;
+                autoState = AutoState.START_PATH;
+                break;
+
+            case TO_SHOOT_PRELOAD:
+                autoState = AutoState.START_SHOOT;
+                break;
+
+            case HIT_GATE:
+                driveStage = DriveStage.SHOOT_1;
+                autoState = AutoState.START_PATH;
+                break;
+
+            case END:
+                driveStage = DriveStage.DONE;
+                autoState = AutoState.DONE;
+                break;
+
+            default:
+                // should not happen
+                autoState = AutoState.DONE;
+                break;
+        }
+    }
+
+    private void advanceAfterIntakeSettled() {
+        switch (driveStage) {
+            case INTAKE_1:
+                // go to hit gate after intake1
+                driveStage = DriveStage.HIT_GATE;
+                autoState = AutoState.START_PATH;
+                break;
+
+            case INTAKE_2:
+                driveStage = DriveStage.SHOOT_2; // shoot2 path returns to shoot pos
+                autoState = AutoState.START_PATH;
+                break;
+
+            case INTAKE_3:
+                driveStage = DriveStage.SHOOT_3;
+                autoState = AutoState.START_PATH;
+                break;
+
+            default:
+                autoState = AutoState.DONE;
+                break;
+        }
+    }
+
+    private void advanceAfterShotSet() {
+        // decides what we do after finishing 3 shots at shoot position
+        if (driveStage == DriveStage.TO_SHOOT_PRELOAD) {
+            // after preload shots, start first intake cycle
+            driveStage = DriveStage.INTAKE_1;
+            autoState = AutoState.START_INTAKE;
+            return;
         }
 
-        mechanisms.engageIntake(1.0, true);
+        if (driveStage == DriveStage.SHOOT_1) {
+            driveStage = DriveStage.INTAKE_2;
+            autoState = AutoState.START_INTAKE;
+            return;
+        }
+
+        if (driveStage == DriveStage.SHOOT_2) {
+            driveStage = DriveStage.INTAKE_3;
+            autoState = AutoState.START_INTAKE;
+            return;
+        }
+
+        if (driveStage == DriveStage.SHOOT_3) {
+            // park
+            mechanisms.sorterGoToIntake(1);
+            mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
+            driveStage = DriveStage.END;
+            autoState = AutoState.START_PATH;
+            return;
+        }
+
+        // fallback
+        autoState = AutoState.DONE;
     }
 
-    private void stopIntake() {
-        mechanisms.disengageIntake();
-    }
 
 
     private SorterLogicColor.BallColor getRequiredColorForStep(int step) {
@@ -357,20 +575,6 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
             case 23: return "PPG";
             default: return "UNKNOWN";
         }
-    }
-
-    /* ===================== PATH EXEC ===================== */
-
-    private void runPath(PathChain path, double speedScale) {
-        follower.setMaxPower(speedScale);
-        follower.followPath(path);
-
-        while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
-            mechanisms.updateMechanisms();
-        }
-
-        follower.setMaxPower(1.0); // restore default
     }
 
     /* ===================== PATH BUILD ===================== */

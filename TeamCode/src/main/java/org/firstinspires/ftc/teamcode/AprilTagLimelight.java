@@ -2,12 +2,15 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.IMU;
 
 
 public class AprilTagLimelight {
 
     private Limelight3A limelight;
+    private IMU imu;
 
     // ---- TUNING CONSTANTS ----
     private static final double STRAFE_KP = 0.035;
@@ -18,6 +21,11 @@ public class AprilTagLimelight {
     public AprilTagLimelight(HardwareMap hw) {
         limelight = hw.get(Limelight3A.class, "limelight");
         limelight.pipelineSwitch(8); // AprilTag pipeline
+        limelight.start();
+        imu = hw.get(IMU.class, "imu");
+        RevHubOrientationOnRobot revHubOrientationOnRobot = new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD);
+        imu.initialize(new IMU.Parameters(revHubOrientationOnRobot));
     }
 
     // ---------------- BASIC METHODS ----------------

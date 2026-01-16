@@ -20,12 +20,12 @@ public class AprilTagLimelight {
     // Constructor
     public AprilTagLimelight(HardwareMap hw) {
         limelight = hw.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(8); // AprilTag pipeline
-        limelight.start();
+        limelight.pipelineSwitch(9); // AprilTag pipeline
         imu = hw.get(IMU.class, "imu");
         RevHubOrientationOnRobot revHubOrientationOnRobot = new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.UP,
                 RevHubOrientationOnRobot.UsbFacingDirection.FORWARD);
         imu.initialize(new IMU.Parameters(revHubOrientationOnRobot));
+        limelight.start();
     }
 
     // ---------------- BASIC METHODS ----------------

@@ -123,12 +123,13 @@ public class PostNut extends LinearOpMode {
             boolean autoStrafeEnabled = gamepad1.x;
             boolean brake = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
 
-            if (autoStrafeEnabled) {
-                double autoStrafe = limelight.getAutoStrafePower(true);
-                drivetrain.driveRobotCentric(autoStrafe, y, rx, brake);
+            if (gamepad1.x) {
+                double autoTurn = limelight.getAutoAlignTurn(true, rx);
+                drivetrain.driveRobotCentric(x, y, autoTurn, brake);
             } else {
                 drivetrain.driveRobotCentric(x, y, rx, brake);
             }
+
 
             // ---------- Intake toggle ----------
             boolean intakeTriggerNow = gamepad1.right_trigger > GAMEPAD_TRIGGER_THRESHOLD;

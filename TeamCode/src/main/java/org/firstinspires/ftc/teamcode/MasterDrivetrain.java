@@ -30,27 +30,16 @@ public class MasterDrivetrain {
     public static double BL_SCALE = 1.0;
     public static double BR_SCALE = 1.0;
 
-    // ---------------- Heading Hold ----------------
-    private double lockedHeadingDeg = 0.0;
-
-    public static double HEADING_KP = 0.04;
-    public static double MAX_HEADING_CORR = 0.35;
-    public static double TURN_DEADBAND = 0.08;
-    public static long TURN_SETTLE_MS = 150;
-
-    private long lastTurnTimeMs = 0;
-
     // ---------------- Ramp State ----------------
     private double curFL = 0, curFR = 0, curBL = 0, curBR = 0;
 
     private boolean wasMoving = false;
     private long kickStartTime = 0;
 
-    // -------- Continuous heading --------
+    // -------- Continuous heading (still needed for field-centric) --------
     private double lastImuYawDeg = 0.0;
     private double continuousHeadingDeg = 0.0;
     private boolean imuInitialized = false;
-    private boolean wasTranslating = false;
 
     public MasterDrivetrain() {}
 
@@ -86,7 +75,7 @@ public class MasterDrivetrain {
     }
 
     // ----------------------------------------------------------
-    // ROBOT-CENTRIC DRIVE (WITH HEADING HOLD + BRAKE)
+    // ROBOT-CENTRIC DRIVE (NO HEADING HOLD)
     // ----------------------------------------------------------
     public void driveRobotCentric(double x, double y, double turn, boolean brake) {
         updateContinuousHeading();
@@ -97,52 +86,12 @@ public class MasterDrivetrain {
             turn *= BRAKE_MULT;
         }
 
-        double currentHeadingDeg = continuousHeadingDeg;
-
-        boolean translating = Math.abs(x) > 1e-3 || Math.abs(y) > 1e-3;
-        boolean driverTurning = Math.abs(turn) > TURN_DEADBAND;
-
-        // Lock heading when translation begins and driver isn't turning
-        if (translating && !wasTranslating && !driverTurning) {
-            lockedHeadingDeg = currentHeadingDeg;
-        }
-
-        // Track translation state
-        wasTranslating = translating;
-
-        // Track last time driver turned
-        if (driverTurning) {
-            lastTurnTimeMs = System.currentTimeMillis();
-        }
-
-        boolean inTurnSettle =
-                (System.currentTimeMillis() - lastTurnTimeMs) < TURN_SETTLE_MS;
-
-        double finalTurn;
-
-        if (driverTurning) {
-            // Driver controls rotation
-            finalTurn = turn;
-            lockedHeadingDeg = currentHeadingDeg;
-
-        } else if (!inTurnSettle) {
-            // Heading hold active
-            double errorDeg = wrapDegrees(lockedHeadingDeg - currentHeadingDeg);
-
-            finalTurn = -HEADING_KP * errorDeg;
-            finalTurn = clamp(finalTurn, -MAX_HEADING_CORR, MAX_HEADING_CORR);
-
-        } else {
-            // Settling period
-            finalTurn = 0.0;
-            lockedHeadingDeg = currentHeadingDeg;
-        }
-
-        driveMecanum(x, y, finalTurn);
+        // No heading hold — driver or auto-turn always controls rotation
+        driveMecanum(x, y, turn);
     }
 
     // ----------------------------------------------------------
-    // FIELD-CENTRIC DRIVE (CORRECTED)
+    // FIELD-CENTRIC DRIVE (still works)
     // ----------------------------------------------------------
     public void driveFieldCentric(double x, double y, double turn) {
         updateContinuousHeading();
@@ -273,18 +222,11 @@ public class MasterDrivetrain {
         lastImuYawDeg = rawYaw;
     }
 
-    private double wrapDegrees(double deg) {
-        while (deg > 180)  deg -= 360;
-        while (deg < -180) deg += 360;
-        return deg;
-    }
-
     public void resetImuYaw() {
         imu.resetYaw();
         imuInitialized = false;
         lastImuYawDeg = 0.0;
         continuousHeadingDeg = 0.0;
-        lockedHeadingDeg = 0.0;
     }
 
     // ----------------------------------------------------------

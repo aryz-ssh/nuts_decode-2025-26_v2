@@ -4,7 +4,6 @@ import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
-import org.firstinspires.ftc.teamcode.AprilTagLimelight;
 
 @Config
 @TeleOp(name = "PostNut")
@@ -51,8 +50,8 @@ public class PostNut extends LinearOpMode {
     private boolean lastDpadDown = false;
 
     // ---------- Drive / Limelight ----------
-    boolean allianceChosen = false;
-    boolean pipelineSet = false;
+    private boolean allianceChosen = false;
+    private boolean pipelineSet = false;
     private boolean isRedAlliance = false;
 
     @Override
@@ -64,7 +63,6 @@ public class PostNut extends LinearOpMode {
         drivetrain = new MasterDrivetrain();
         drivetrain.init(hardwareMap);
 
-
         limelight = new AprilTagLimelight(hardwareMap);
 
         telemetry.addData("Status", "Initialized");
@@ -74,8 +72,8 @@ public class PostNut extends LinearOpMode {
         while (!isStarted() && !isStopRequested()) {
             telemetry.addLine("=== ROBOT-CENTRIC MODE ===");
             telemetry.addLine("Select Alliance for Limelight:");
-            telemetry.addLine("X = BLUE  (Pipeline 1)");
-            telemetry.addLine("B = RED   (Pipeline 0)");
+            telemetry.addLine("X = BLUE  (Pipeline 9)");
+            telemetry.addLine("B = RED   (Pipeline 8)");
 
             if (!allianceChosen) {
                 if (gamepad1.x) {
@@ -90,7 +88,7 @@ public class PostNut extends LinearOpMode {
 
             // Set limelight pipeline once
             if (allianceChosen && !pipelineSet) {
-                int pipeline = isRedAlliance ? 0 : 1;
+                int pipeline = isRedAlliance ? 8 : 9;
                 limelight.setPipeline(pipeline);
                 pipelineSet = true;
             }
@@ -98,7 +96,7 @@ public class PostNut extends LinearOpMode {
             telemetry.addData("Alliance",
                     allianceChosen ? (isRedAlliance ? "RED" : "BLUE") : "CHOOSE");
             telemetry.addData("Limelight Pipeline",
-                    pipelineSet ? (isRedAlliance ? "0 (RED)" : "1 (BLUE)") : "WAITING");
+                    pipelineSet ? (isRedAlliance ? "8 (RED)" : "9 (BLUE)") : "WAITING");
 
             mechanisms.sorterInitLoop();
             telemetry.update();
@@ -114,7 +112,6 @@ public class PostNut extends LinearOpMode {
             //                GAMEPAD 1 — DRIVE AND INTAKE
             // =============================================================
 
-
             if (gamepad1.back) drivetrain.resetImuYaw();
 
             // Stick input
@@ -122,15 +119,14 @@ public class PostNut extends LinearOpMode {
             double x  = applyDeadband(gamepad1.left_stick_x);
             double rx = applyDeadband(gamepad1.right_stick_x);
 
-
-
             // ----- Auto-strafe (AprilTag) overrides x-axis -----
             boolean autoStrafeEnabled = gamepad1.x;
+            boolean brake = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
+
             if (autoStrafeEnabled) {
                 double autoStrafe = limelight.getAutoStrafePower(true);
-                drivetrain.driveRobotCentric(autoStrafe, y, rx, gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD);
+                drivetrain.driveRobotCentric(autoStrafe, y, rx, brake);
             } else {
-                boolean brake = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
                 drivetrain.driveRobotCentric(x, y, rx, brake);
             }
 
@@ -216,7 +212,8 @@ public class PostNut extends LinearOpMode {
             telemetry.addLine("---- LIMELIGHT (AprilTag) ----");
             telemetry.addData("Auto Strafe Power", "%.2f", limelight.getAutoStrafePower(gamepad1.x));
             telemetry.addData("tx (AprilTag)", limelight.getTx());
-            telemetry.update();
+            telemetry.addData("Distance (in)", limelight.getDistance());
+
             if (System.currentTimeMillis() - lastTelem > 100) {
                 lastTelem = System.currentTimeMillis();
 
@@ -224,31 +221,25 @@ public class PostNut extends LinearOpMode {
 
                 int curPos = mechanisms.getSorterCurrentPosition();
                 int tgtPos = mechanisms.getSorterTargetPosition();
-             //   telemetry.addData("Sorter Pos", curPos);
-               // telemetry.addData("Target Pos", tgtPos);
-                //telemetry.addData("Error", tgtPos - curPos);
+                // telemetry.addData("Sorter Pos", curPos);
+                // telemetry.addData("Target Pos", tgtPos);
+                // telemetry.addData("Error", tgtPos - curPos);
 
-              //  telemetry.addData("Selected Pocket", selectedPocket);
+                // telemetry.addData("Selected Pocket", selectedPocket);
 
                 SorterLogicColor.BallColor[] pc = mechanisms.sorterLogic.getPocketColors();
-               // telemetry.addData("P1", pc[0]);
-               // telemetry.addData("P2", pc[1]);
-              //  telemetry.addData("P3", pc[2]);
+                // telemetry.addData("P1", pc[0]);
+                // telemetry.addData("P2", pc[1]);
+                // telemetry.addData("P3", pc[2]);
 
                 telemetry.addData("Outtake Power", mechanisms.getManualOuttakeSpeed());
                 telemetry.addData("Current Outtake Velocity", "%.0f t/s", mechanisms.outtakeMotor.getVelocity());
-                telemetry.addData("Ramp Angle", "%.2f / %.2f", mechanisms.getRampAngleCurrent(), mechanisms.getRampAngleTarget());
-
-              //  telemetry.addLine("---- IMU ----");
-             //   telemetry.addData("Heading (deg)", "%.2f", drivetrain.getHeadingDeg());
-              //  telemetry.addData("Locked (deg)", "%.2f", drivetrain.getLockedHeadingDeg());
-             //   telemetry.addData("Error (deg)", "%.2f", drivetrain.getHeadingErrorDeg());
-
-             //   telemetry.addLine("---- LIMELIGHT (PostNut) ----");
-
+                telemetry.addData("Ramp Angle", "%.2f / %.2f",
+                        mechanisms.getRampAngleCurrent(), mechanisms.getRampAngleTarget());
 
                 telemetry.addData("Time", runtime.seconds());
-                telemetry.addData("Distance", limelight.getDistance());
+                telemetry.update();
+            } else {
                 telemetry.update();
             }
         }
@@ -257,9 +248,14 @@ public class PostNut extends LinearOpMode {
     // ---------- Helpers ----------
     private void applySorterModeToPocket() {
         switch (sorterMode) {
-            case INTAKE: mechanisms.sorterGoToIntake(selectedPocket); break;
-            case OUTTAKE: mechanisms.sorterGoToOuttake(selectedPocket); break;
-            case NONE: break;
+            case INTAKE:
+                mechanisms.sorterGoToIntake(selectedPocket);
+                break;
+            case OUTTAKE:
+                mechanisms.sorterGoToOuttake(selectedPocket);
+                break;
+            case NONE:
+                break;
         }
     }
 

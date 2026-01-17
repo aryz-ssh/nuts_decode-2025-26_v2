@@ -18,7 +18,7 @@ import java.util.ArrayList;
 
 @Autonomous(name = "Far Blue Auto - 3 ball", group = "Autonomous")
 @Configurable
-public class AutoFar3BallLeft extends LinearOpMode {
+public class NEXTAutoFar3BallLeft extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
@@ -60,7 +60,7 @@ public class AutoFar3BallLeft extends LinearOpMode {
 
     boolean outtakeStarted = false;
 
-    AutoFar3BallLeft.AutoState autoState = AutoFar3BallLeft.AutoState.WAIT_FOR_HOME;
+    NEXTAutoFar3BallLeft.AutoState autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_FOR_HOME;
 
     int currentPocket = 1;
     boolean sorterCommanded = false;
@@ -109,10 +109,10 @@ public class AutoFar3BallLeft extends LinearOpMode {
 
         waitForStart();
 
-        autoState = AutoFar3BallLeft.AutoState.START_TO_SHOOT;
+        autoState = NEXTAutoFar3BallLeft.AutoState.START_TO_SHOOT;
 
         while (opModeIsActive()) {
-            if (autoState != AutoFar3BallLeft.AutoState.WAIT_FOR_HOME) {
+            if (autoState != NEXTAutoFar3BallLeft.AutoState.WAIT_FOR_HOME) {
                 follower.update();
             }
             mechanisms.updateMechanisms();
@@ -123,7 +123,7 @@ public class AutoFar3BallLeft extends LinearOpMode {
                         follower.followPath(paths.ToShoot);
                         toShootStarted = true;
                     }
-                    autoState = AutoFar3BallLeft.AutoState.WAIT_TO_SHOOT;
+                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_TO_SHOOT;
                     break;
 
                 // ===============================
@@ -136,12 +136,12 @@ public class AutoFar3BallLeft extends LinearOpMode {
                         stateTimer.reset();
                         outtakeStarted = true;
                     }
-                    autoState = AutoFar3BallLeft.AutoState.RAMP_UP;
+                    autoState = NEXTAutoFar3BallLeft.AutoState.RAMP_UP;
                     break;
 
                 case WAIT_TO_SHOOT:
                     if (!follower.isBusy()) {
-                        autoState = AutoFar3BallLeft.AutoState.START_OUTTAKE;
+                        autoState = NEXTAutoFar3BallLeft.AutoState.START_OUTTAKE;
                     }
                     break;
 
@@ -151,7 +151,7 @@ public class AutoFar3BallLeft extends LinearOpMode {
                 case RAMP_UP:
                     if (stateTimer.seconds() >= RAMP_UP_TIME) {
                         sorterCommanded = false;
-                        autoState = AutoFar3BallLeft.AutoState.MOVE_SORTER;
+                        autoState = NEXTAutoFar3BallLeft.AutoState.MOVE_SORTER;
                     }
                     break;
 
@@ -163,19 +163,19 @@ public class AutoFar3BallLeft extends LinearOpMode {
                         mechanisms.sorterGoToOuttake(currentPocket);
                         sorterCommanded = true;
                     }
-                    autoState = AutoFar3BallLeft.AutoState.WAIT_SORTER;
+                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_SORTER;
                     break;
 
                 case WAIT_SORTER:
                     if (!isSorterMoving()) {
                         stateTimer.reset();
-                        autoState = AutoFar3BallLeft.AutoState.SORTER_SETTLE;
+                        autoState = NEXTAutoFar3BallLeft.AutoState.SORTER_SETTLE;
                     }
                     break;
 
                 case SORTER_SETTLE:
                     if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {   // ← tune: 0.35–0.5
-                        autoState = AutoFar3BallLeft.AutoState.KICK_1;
+                        autoState = NEXTAutoFar3BallLeft.AutoState.KICK_1;
                     }
                     break;
 
@@ -186,7 +186,7 @@ public class AutoFar3BallLeft extends LinearOpMode {
                     mechanisms.setShotPocket(currentPocket);
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = AutoFar3BallLeft.AutoState.WAIT_1;
+                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_1;
                     break;
 
                 // ===============================
@@ -194,7 +194,7 @@ public class AutoFar3BallLeft extends LinearOpMode {
                 // ===============================
                 case WAIT_1:
                     if (stateTimer.seconds() >= FIRST_KICK_DELAY) {
-                        autoState = AutoFar3BallLeft.AutoState.KICK_2;
+                        autoState = NEXTAutoFar3BallLeft.AutoState.KICK_2;
                     }
                     break;
 
@@ -204,7 +204,7 @@ public class AutoFar3BallLeft extends LinearOpMode {
                 case KICK_2:
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = AutoFar3BallLeft.AutoState.WAIT_2;
+                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_2;
                     break;
 
                 // ===============================
@@ -212,7 +212,7 @@ public class AutoFar3BallLeft extends LinearOpMode {
                 // ===============================
                 case WAIT_2:
                     if (stateTimer.seconds() >= SECOND_KICK_DELAY) {
-                        autoState = AutoFar3BallLeft.AutoState.NEXT_POCKET;
+                        autoState = NEXTAutoFar3BallLeft.AutoState.NEXT_POCKET;
                     }
                     break;
 
@@ -225,9 +225,9 @@ public class AutoFar3BallLeft extends LinearOpMode {
 
                     if (currentPocket > 3) {
                         mechanisms.disengageOuttake();
-                        autoState = AutoFar3BallLeft.AutoState.START_MOVE_AWAY;
+                        autoState = NEXTAutoFar3BallLeft.AutoState.START_MOVE_AWAY;
                     } else {
-                        autoState = AutoFar3BallLeft.AutoState.MOVE_SORTER;
+                        autoState = NEXTAutoFar3BallLeft.AutoState.MOVE_SORTER;
                     }
                     break;
 
@@ -239,12 +239,12 @@ public class AutoFar3BallLeft extends LinearOpMode {
                         follower.followPath(paths.MoveAway);
                         moveAwayStarted = true;
                     }
-                    autoState = AutoFar3BallLeft.AutoState.WAIT_MOVE_AWAY;
+                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_MOVE_AWAY;
                     break;
 
                 case WAIT_MOVE_AWAY:
                     if (!follower.isBusy()) {
-                        autoState = AutoFar3BallLeft.AutoState.RETURN_TO_INTAKE;
+                        autoState = NEXTAutoFar3BallLeft.AutoState.RETURN_TO_INTAKE;
                     }
                     break;
 
@@ -255,12 +255,12 @@ public class AutoFar3BallLeft extends LinearOpMode {
                         mechanisms.sorterGoToIntake(1);
                         returnCommanded = true;
                     }
-                    autoState = AutoFar3BallLeft.AutoState.WAIT_RETURN_TO_INTAKE;
+                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_RETURN_TO_INTAKE;
                     break;
 
                 case WAIT_RETURN_TO_INTAKE:
                     if (!isSorterMoving()) {
-                        autoState = AutoFar3BallLeft.AutoState.DONE;
+                        autoState = NEXTAutoFar3BallLeft.AutoState.DONE;
                     }
                     break;
 

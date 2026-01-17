@@ -21,7 +21,7 @@ public class FINALREDLEAVE extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
-    private Paths paths;
+    private RobotPaths paths;
     private Mechanisms mechanisms;
 
     private ArrayList<String> intakeOrder = new ArrayList<>();
@@ -39,7 +39,7 @@ public class FINALREDLEAVE extends LinearOpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(new Pose(88, 8, Math.toRadians(90)));
 
-        paths = new Paths(follower);
+        paths = new RobotPaths(follower);
 
         mechanisms = new Mechanisms();
         mechanisms.initMechanisms(hardwareMap, telemetry, true);
@@ -57,7 +57,7 @@ public class FINALREDLEAVE extends LinearOpMode {
             switch (state) {
 
                 case 0:
-                    follower.followPath(paths.Path1);
+                    follower.followPath(paths.path1);
                     state = 1;
                     break;
             }
@@ -71,20 +71,17 @@ public class FINALREDLEAVE extends LinearOpMode {
 
     // ---------------- PATH LIST ----------------
 
-    public static class Paths {
-        public PathChain Path1;
+    public static class RobotPaths {
+        public PathChain path1;
 
-        public Paths(Follower follower) {
-            Path1 = follower.pathBuilder().addPath(
-                            new BezierLine(
-                                    new Pose(86.031, 9.218),
-
-                                    new Pose(108.438, 10.191)
-                            )
-                    ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(90))
-
+        public RobotPaths(Follower follower) {
+            path1 = follower.pathBuilder()
+                    .addPath(new BezierLine(
+                            new Pose(86.031, 9.218),
+                            new Pose(108.438, 10.191)
+                    ))
+                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(90))
                     .build();
         }
     }
-
 }

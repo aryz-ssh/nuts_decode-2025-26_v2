@@ -30,17 +30,6 @@ public class MasterDrivetrain {
     public static double BL_SCALE = 1.0;
     public static double BR_SCALE = 1.0;
 
-    // ---------------- Heading Hold ----------------
-    private double lockedHeadingDeg = 0.0;
-
-    public static double HEADING_KP = 0.04;      // turn per degree
-    public static double MAX_HEADING_CORR = 0.35;
-    public static double TURN_DEADBAND = 0.08;
-    public static double TURN_CORRECT_SPEED_FLOOR = 0.2;
-    private long lastTurnTimeMs = 0;
-    public static long TURN_SETTLE_MS = 150; // 100–200ms sweet spot
-
-
     // ---------------- Ramp State ----------------
     private double curFL = 0, curFR = 0, curBL = 0, curBR = 0;
 

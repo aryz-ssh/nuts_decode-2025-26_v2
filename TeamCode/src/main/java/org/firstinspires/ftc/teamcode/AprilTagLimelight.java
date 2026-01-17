@@ -68,7 +68,7 @@ public class AprilTagLimelight {
      * Positive = strafe right
      * Negative = strafe left
      */
-    public double getAutoStrafePower(boolean enable) {
+    public double getAutoStrafePower(boolean enable, double rx) {
 
         double tx = getTx();
 

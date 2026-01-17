@@ -83,6 +83,22 @@ public class AprilTagLimelight {
         return power;
     }
 
+        //making the motif grabber
+    public double getMotifNumber() {
+        return limelight.getLatestResult().getFiducialResults().get(0).getFiducialId();
+    }
+    public String getMotif() {
+        double MN = getMotifNumber();
+        if (MN == 21){
+            return "GPP";
+        } else if (MN == 22) {
+            return "PGP";
+        } else if (MN == 23) {
+            return "PPG";
+        }
+        return "GPP";
+
+    }
     // ---------------- OPTIONAL TURN ALIGN ----------------
 
     public double getAutoAlignTurn(boolean enable, double driverTurn) {

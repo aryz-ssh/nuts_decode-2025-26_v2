@@ -18,7 +18,7 @@ import java.util.ArrayList;
 
 @Autonomous(name = "New Red 3 ball Auto - 3 ball", group = "Autonomous")
 @Configurable
-public class NewRedAuto3BallBigTriangle extends LinearOpMode {
+public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
@@ -60,8 +60,8 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
 
     boolean outtakeStarted = false;
 
-    NewRedAuto3BallBigTriangle.AutoState autoState =
-            NewRedAuto3BallBigTriangle.AutoState.WAIT_FOR_HOME;
+    BUNSRedAuto3BallBigTriangle.AutoState autoState =
+            BUNSRedAuto3BallBigTriangle.AutoState.WAIT_FOR_HOME;
 
     int currentPocket = 1;
     boolean sorterCommanded = false;
@@ -106,10 +106,10 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
 
         waitForStart();
 
-        autoState = NewRedAuto3BallBigTriangle.AutoState.START_TO_SHOOT;
+        autoState = BUNSRedAuto3BallBigTriangle.AutoState.START_TO_SHOOT;
 
         while (opModeIsActive()) {
-            if (autoState != NewRedAuto3BallBigTriangle.AutoState.WAIT_FOR_HOME) {
+            if (autoState != BUNSRedAuto3BallBigTriangle.AutoState.WAIT_FOR_HOME) {
                 follower.update();
             }
             mechanisms.updateMechanisms();
@@ -120,7 +120,7 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                         follower.followPath(paths.ToShoot);
                         toShootStarted = true;
                     }
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_TO_SHOOT;
+                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_TO_SHOOT;
                     break;
 
                 case START_OUTTAKE:
@@ -130,19 +130,19 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                         stateTimer.reset();
                         outtakeStarted = true;
                     }
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.RAMP_UP;
+                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.RAMP_UP;
                     break;
 
                 case WAIT_TO_SHOOT:
                     if (!follower.isBusy()) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.START_OUTTAKE;
+                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.START_OUTTAKE;
                     }
                     break;
 
                 case RAMP_UP:
                     if (stateTimer.seconds() >= RAMP_UP_TIME) {
                         sorterCommanded = false;
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.MOVE_SORTER;
+                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.MOVE_SORTER;
                     }
                     break;
 
@@ -151,19 +151,19 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                         mechanisms.sorterGoToOuttake(currentPocket);
                         sorterCommanded = true;
                     }
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_SORTER;
+                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_SORTER;
                     break;
 
                 case WAIT_SORTER:
                     if (!isSorterMoving()) {
                         stateTimer.reset();
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.SORTER_SETTLE;
+                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.SORTER_SETTLE;
                     }
                     break;
 
                 case SORTER_SETTLE:
                     if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.KICK_1;
+                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.KICK_1;
                     }
                     break;
 
@@ -171,24 +171,24 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                     mechanisms.setShotPocket(currentPocket);
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_1;
+                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_1;
                     break;
 
                 case WAIT_1:
                     if (stateTimer.seconds() >= FIRST_KICK_DELAY) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.KICK_2;
+                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.KICK_2;
                     }
                     break;
 
                 case KICK_2:
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_2;
+                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_2;
                     break;
 
                 case WAIT_2:
                     if (stateTimer.seconds() >= SECOND_KICK_DELAY) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.NEXT_POCKET;
+                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.NEXT_POCKET;
                     }
                     break;
 
@@ -198,9 +198,9 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
 
                     if (currentPocket > 3) {
                         mechanisms.disengageOuttake();
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.START_MOVE_AWAY;
+                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.START_MOVE_AWAY;
                     } else {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.MOVE_SORTER;
+                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.MOVE_SORTER;
                     }
                     break;
 
@@ -209,12 +209,12 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                         follower.followPath(paths.MoveAway);
                         moveAwayStarted = true;
                     }
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_MOVE_AWAY;
+                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_MOVE_AWAY;
                     break;
 
                 case WAIT_MOVE_AWAY:
                     if (!follower.isBusy()) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.RETURN_TO_INTAKE;
+                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.RETURN_TO_INTAKE;
                     }
                     break;
 
@@ -225,12 +225,12 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                         mechanisms.sorterGoToIntake(1);
                         returnCommanded = true;
                     }
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_RETURN_TO_INTAKE;
+                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_RETURN_TO_INTAKE;
                     break;
 
                 case WAIT_RETURN_TO_INTAKE:
                     if (!isSorterMoving()) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.DONE;
+                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.DONE;
                     }
                     break;
 

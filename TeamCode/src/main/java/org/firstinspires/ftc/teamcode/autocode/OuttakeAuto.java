@@ -20,7 +20,7 @@ public class OuttakeAuto {
     Mechanisms newMechanisms = new Mechanisms();
 
     public void initOuttakeAuto(HardwareMap hardwareMap, Telemetry telemetry) {
-        newMechanisms.initMechanisms(hardwareMap, telemetry);
+        newMechanisms.initMechanisms(hardwareMap, telemetry, true);
     }
 
     private enum OuttakeAutoState {

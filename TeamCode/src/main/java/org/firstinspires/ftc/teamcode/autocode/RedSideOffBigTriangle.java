@@ -43,7 +43,7 @@ public class RedSideOffBigTriangle extends LinearOpMode {
         paths = new Paths(follower);
 
         mechanisms = new Mechanisms();
-        mechanisms.initMechanisms(hardwareMap, telemetry);
+        mechanisms.initMechanisms(hardwareMap, telemetry, true);
 
         panelsTelemetry.debug("Status", "Initialized");
         panelsTelemetry.update(telemetry);

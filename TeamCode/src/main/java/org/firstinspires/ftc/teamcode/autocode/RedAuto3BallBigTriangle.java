@@ -75,12 +75,12 @@ public class RedAuto3BallBigTriangle extends LinearOpMode {
     // ================= DASHBOARD TUNABLES =================
 
     // Shooter / outtake
-    public static double OUTTAKE_POWER = 0.55;
+    public static double OUTTAKE_POWER = 0.7;
     public static double RAMP_ANGLE_TARGET = 0.99;
     public static double RAMP_UP_TIME = 1.5;
 
     // Sorter timing
-    public static double SORTER_SETTLE_TIME = 0.4;
+    public static double SORTER_SETTLE_TIME = 0.6;
 
     // Kicker timing
     public static double FIRST_KICK_DELAY = 0.30;
@@ -97,7 +97,7 @@ public class RedAuto3BallBigTriangle extends LinearOpMode {
         follower.setStartingPose(new Pose(117, 131.5, Math.toRadians(36)));
 
         mechanisms = new Mechanisms();
-        mechanisms.initMechanisms(hardwareMap, telemetry);
+        mechanisms.initMechanisms(hardwareMap, telemetry, true);
 
         paths = new Paths(follower);
 

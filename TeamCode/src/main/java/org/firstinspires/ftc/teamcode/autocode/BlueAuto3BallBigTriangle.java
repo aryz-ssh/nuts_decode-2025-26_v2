@@ -97,7 +97,7 @@ public class BlueAuto3BallBigTriangle extends LinearOpMode {
         paths = new Paths(follower);
 
         mechanisms = new Mechanisms();
-        mechanisms.initMechanisms(hardwareMap, telemetry);
+        mechanisms.initMechanisms(hardwareMap, telemetry, true);
 
         panelsTelemetry.debug("Status", "Initialized");
         panelsTelemetry.update(telemetry);
@@ -295,7 +295,7 @@ public class BlueAuto3BallBigTriangle extends LinearOpMode {
             ToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(26.250, 132.000), new Pose(45.89376443418014, 115.56581986143188))
+                            new BezierLine(new Pose(26.250, 132.000), new Pose(132.000, 115.56581986143188))
                     )
                     .setTangentHeadingInterpolation()
                     .setReversed()

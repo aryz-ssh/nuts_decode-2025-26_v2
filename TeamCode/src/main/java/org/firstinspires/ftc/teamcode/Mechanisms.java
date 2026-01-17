@@ -5,6 +5,7 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -31,12 +32,17 @@ public class Mechanisms {
 
     // ---------- OUTTAKE SYSTEM ----------
     public DcMotorEx outtakeMotor;
+
     private static final double TICKS_PER_REV_6000 = 28.0;
     private static final double MAX_TICKS_PER_SEC_6000 = (TICKS_PER_REV_6000 * 6000) / 60.0;
 
     private double manualOuttakeSpeed = 0.7;
 
+    private DigitalChannel outtakeBeamBreak;
+    private boolean lastBeamBroken = false;
+
     public Servo rampAngleAdjust;
+
     public static double RAMP_ANGLE_MIN_POS = 0.3;
     private static final double RAMP_ANGLE_MAX_POS = 1;
     private double rampAngleTarget = RAMP_ANGLE_MIN_POS;
@@ -64,11 +70,13 @@ public class Mechanisms {
     public IMU imu;
 
     // ---------- INIT ----------
-    public void initMechanisms(HardwareMap hw, Telemetry telemetry) {
+    public void initMechanisms(HardwareMap hw, Telemetry telemetry, boolean isAuto) {
         this.telemetry = telemetry;
         initIntake(hw);
         initOuttake(hw);
-        initIMU(hw);
+        if (!isAuto) {
+            initIMU(hw);
+        }
 
         sorterLogic = new SorterLogicColor();
         sorterLogic.init(hw, telemetry);
@@ -94,6 +102,7 @@ public class Mechanisms {
         outtakeMotor = hw.get(DcMotorEx.class, "outtakeMotor");
         rampAngleAdjust = hw.get(Servo.class, "rampAngle");
         kickerServo = hw.get(Servo.class, "kickerServo");
+        outtakeBeamBreak = hw.get(DigitalChannel.class, "outtakeBeamBreak");
 
         outtakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         outtakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -105,6 +114,8 @@ public class Mechanisms {
 
         kickerServo.setDirection(Servo.Direction.FORWARD);
         kickerServo.setPosition(KICKER_RESTING_POS);
+
+        outtakeBeamBreak.setMode(DigitalChannel.Mode.INPUT);
     }
 
     private void initIMU(HardwareMap hw) {
@@ -178,7 +189,7 @@ public class Mechanisms {
         if (!kickerActive) {
             kickerActive = true;
             kickerTimer.reset();
-            sorterLogic.clearPocket(lastShotPocket);
+            sorterLogic.beginOuttakeVerification(lastShotPocket);
         }
     }
 
@@ -201,6 +212,10 @@ public class Mechanisms {
         if (Math.abs(delta) > rate)
             return current + Math.signum(delta) * rate;
         return target;
+    }
+
+    private boolean isBeamBroken() {
+        return outtakeBeamBreak.getState();
     }
 
     public double getHeadingRadians() {

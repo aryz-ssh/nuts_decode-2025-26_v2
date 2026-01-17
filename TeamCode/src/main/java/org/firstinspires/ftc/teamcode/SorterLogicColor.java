@@ -7,6 +7,8 @@ import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
+import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
@@ -110,6 +112,48 @@ public class SorterLogicColor {
 
     public enum BallColor { PURPLE, GREEN, UNKNOWN }
 
+    // ---------- OUTTAKE BEAM BREAK ----------
+    private DigitalChannel outtakeBeamBreak;
+
+    // Edge detect
+    private boolean lastBeamBroken = false;
+    private boolean ballExitEvent = false;     // one-shot event for TeleOp
+    private long lastBeamBrokenMs = 0;
+
+    // Which pocket are we currently trying to outtake?
+    private int currentOuttakePocket = 0;
+    private BallColor currentOuttakeColor = BallColor.UNKNOWN;
+
+    // ---------- RGB STATUS LED (GoBILDA PWM Indicator) ----------
+    private Servo statusLEDServo;
+    private StatusLED_RGB statusLED;
+
+    // These are *servo positions* (0..1) that your GoBILDA PWM LED interprets as colors.
+    // You MUST tune these based on your LED (because the mapping can vary).
+    public static double LED_OFF     = 0.00;
+    public static double LED_RED     = 0.10;
+    public static double LED_ORANGE  = 0.20;
+    public static double LED_YELLOW  = 0.30;
+    public static double LED_GREEN   = 0.50;
+    public static double LED_BLUE    = 0.56;
+    public static double LED_PURPLE  = 0.72;
+    public static double LED_WHITE   = 1.00;
+
+    // Blink timing
+    public static int BLINK_PERIOD_MS_FAST = 150;   // for attention states (moving)
+    public static int BLINK_PERIOD_MS_SLOW = 300;   // for outtake flashing
+    public static int BLINK_PERIOD_MS_HOMING = 500;   // for homing
+    private boolean shotConfirmed = false;   // latch RED
+    private boolean shotAttempted = false;   // kicker pressed
+
+    // Priority “flash red” when beam break confirms ball left
+    public static int RED_FLASH_MS = 180;
+    private long redFlashUntilMs = 0;
+
+    private boolean outtakeWindowActive = false;
+    private ElapsedTime outtakeWindowTimer = new ElapsedTime();
+    public static double OUTTAKE_WINDOW_SEC = 0.75;
+
     // ---------- COLOR TUNABLES / STATE ----------
     private BallColor latchedColor = BallColor.UNKNOWN;
     private boolean colorLatched = false;
@@ -149,11 +193,17 @@ public class SorterLogicColor {
         sorterMotor = hwMap.get(DcMotorEx.class, "sorterMotor");
         opticalSorterHoming = hwMap.get(ColorSensor.class, "opticalSorterHoming");
         sorterColorSensor = hwMap.get(ColorSensor.class, "sorterColorSensor");
+        outtakeBeamBreak = hwMap.get(DigitalChannel.class, "outtakeBeamBreak");
+        statusLEDServo = hwMap.get(Servo.class, "statusLED");
+        statusLED = new StatusLED_RGB(statusLEDServo);
 
         sorterMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
 
         sorterMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         sorterMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+        outtakeBeamBreak.setMode(DigitalChannel.Mode.INPUT);
+
+        statusLED.setState(StatusLED_RGB.LEDState.WHITE);
 
         targetPos = B1_INTAKE;
         moving = false;
@@ -269,6 +319,12 @@ public class SorterLogicColor {
     }
 
     public void goToIntake(int n) {
+        shotConfirmed = false;
+        shotAttempted = false;
+
+        currentOuttakePocket = 0;
+        currentOuttakeColor = BallColor.UNKNOWN;
+
         currentIntakePocket = n;
         if (n == 1) goToPosition(B1_INTAKE);
         else if (n == 2) goToPosition(B2_INTAKE);
@@ -276,6 +332,12 @@ public class SorterLogicColor {
     }
 
     public void goToOuttake(int n) {
+        shotConfirmed = false;
+        shotAttempted = false;
+
+        currentOuttakePocket = n;
+        currentOuttakeColor = pocketColors[n - 1];
+
         if (n == 1) goToPosition(B1_OUTTAKE);
         else if (n == 2) goToPosition(B2_OUTTAKE);
         else if (n == 3) goToPosition(B3_OUTTAKE);
@@ -308,6 +370,7 @@ public class SorterLogicColor {
     public BallColor[] getPocketColors() { return pocketColors; }
     public void setCurrentIntakePocket(int n) { currentIntakePocket = n; }
     public int getCurrentIntakePocket() { return currentIntakePocket; }
+    private boolean readBeamBroken() { return outtakeBeamBreak.getState(); } // ACTIVE HIGH
 
     public void markPocketReady(int pocket) {
         pocketReady[pocket - 1] = true;
@@ -334,7 +397,7 @@ public class SorterLogicColor {
 
         if (a < 0.15f) return BallColor.UNKNOWN;
 
-        float margin = 0.002f;
+        float margin = 0.001f;
 
         if (b > g + margin && b > r + margin) {
             latchedColor = BallColor.PURPLE;
@@ -367,6 +430,20 @@ public class SorterLogicColor {
         latchedColor = BallColor.UNKNOWN;
     }
 
+    public void onBallExitedOuttake() {
+
+        if (currentOuttakePocket >= 1 && currentOuttakePocket <= 3) {
+            clearPocket(currentOuttakePocket);
+        }
+
+        shotConfirmed = true;
+        shotAttempted = false;
+        outtakeWindowActive = false;
+
+        currentOuttakePocket = 0;
+        currentOuttakeColor = BallColor.UNKNOWN;
+    }
+
     public boolean consumeBallJustStored() {
         if (ballJustStored) {
             ballJustStored = false;
@@ -388,10 +465,86 @@ public class SorterLogicColor {
         pocketReady[idx] = true;
     }
 
+    public void beginOuttakeVerification(int pocket) {
+        currentOuttakePocket = pocket;
+        currentOuttakeColor = pocketColors[pocket - 1];
+
+        shotAttempted = true;
+        shotConfirmed = false;
+
+        lastBeamBroken = readBeamBroken();
+        outtakeWindowActive = true;
+        outtakeWindowTimer.reset();
+    }
+
+    private void setRuntimeLED() {
+        // 1) Shot confirmed → RED (latched)
+        if (shotConfirmed) {
+            statusLED.setState(StatusLED_RGB.LEDState.RED);
+            return;
+        }
+
+        // 2) Shot attempt (kicker active)
+        if (shotAttempted) {
+            statusLED.setState(StatusLED_RGB.LEDState.YELLOW);
+            return;
+        }
+
+        // 3) Show selected pocket color
+        BallColor color = BallColor.UNKNOWN;
+
+        if (currentOuttakePocket != 0) {
+            color = pocketColors[currentOuttakePocket - 1];
+        } else if (currentIntakePocket != 0) {
+            color = pocketColors[currentIntakePocket - 1];
+        }
+
+        if (color == BallColor.GREEN) {
+            statusLED.setState(StatusLED_RGB.LEDState.GREEN);
+        }
+        else if (color == BallColor.PURPLE) {
+            statusLED.setState(StatusLED_RGB.LEDState.PURPLE);
+        }
+        else {
+            statusLED.setState(StatusLED_RGB.LEDState.WHITE);
+        }
+    }
+
+    public void assumePreloadColors() {
+        pocketColors[0] = BallColor.GREEN;   // Pocket 1
+        pocketColors[1] = BallColor.PURPLE;  // Pocket 2
+        pocketColors[2] = BallColor.PURPLE;  // Pocket 3
+
+        pocketReady[0] = false;
+        pocketReady[1] = false;
+        pocketReady[2] = false;
+    }
+
     // ================= NON-BLOCKING UPDATE =================
     public void update() {
+
         if (updateRate.milliseconds() < UPDATE_PERIOD_MS) return;
         updateRate.reset();
+
+        long now = System.currentTimeMillis();
+
+        // --- 1) Beam break window ALWAYS runs ---
+        boolean beamBroken = readBeamBroken(); // ACTIVE HIGH per your statement
+
+        if (outtakeWindowActive) {
+            if (lastBeamBroken && !beamBroken) {
+                onBallExitedOuttake();
+            }
+            else if (outtakeWindowTimer.seconds() > OUTTAKE_WINDOW_SEC) {
+                // Shot failed → revert
+                outtakeWindowActive = false;
+                shotAttempted = false;   // <-- revert to pocket color
+            }
+        }
+        lastBeamBroken = beamBroken;
+
+        // --- 2) LEDs (runtime) can update even if not moving ---
+        setRuntimeLED();
 
         if (homingFault) {
             sorterMotor.setVelocity(0);
@@ -501,20 +654,27 @@ public class SorterLogicColor {
 
     // ================= INIT LOOP =================
     public void init_loop() {
+
+        long now = System.currentTimeMillis();
+
+        // HARD FAULT
         if (homingFault) {
-            dbgHoming = false;
+            statusLED.setState(StatusLED_RGB.LEDState.RED);
             return;
         }
 
+        // NOT HOMED YET → FLASH ORANGE
         if (!sorterHomed) {
+            statusLED.setState(StatusLED_RGB.LEDState.ORANGE);
             homeSorter();
             dbgHoming = true;
             return;
         }
 
+        // HOMED → SOLID BLUE
+        statusLED.setState(StatusLED_RGB.LEDState.CYAN);
         if (!tuned) tuned = true;
 
-        update();
         dbgHoming = false;
     }
 

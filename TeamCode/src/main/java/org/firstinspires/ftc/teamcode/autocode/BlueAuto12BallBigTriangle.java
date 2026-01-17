@@ -96,13 +96,14 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
     public static double RAMP_POSITION = 0.7;
     private boolean isPreloadPhase = true;
     private boolean shooterSpinning = false;
+    private boolean pathStarted = false;
 
     private int detectedMotifId = -1;
     @Override
     public void runOpMode() {
 
         mechanisms = new Mechanisms();
-        mechanisms.initMechanisms(hardwareMap, telemetry);
+        mechanisms.initMechanisms(hardwareMap, telemetry, true);
 
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(new Pose(32.194, 135.776, Math.toRadians(90)));
@@ -130,6 +131,7 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         if (!opModeIsActive()) return;
 
        // scanMotifWithLimelight();
+//        scanMotifWithLimelight();
 
         // safe defaults at start
         mechanisms.disengageOuttake();
@@ -144,9 +146,8 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            if (follower.isBusy()) {
-                follower.update();
-            }
+            follower.update();
+
             mechanisms.updateMechanisms();
 
             switch (autoState) {
@@ -154,39 +155,52 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
                 // =============================
                 // DRIVE (start a path)
                 // =============================
+
                 case START_PATH: {
                     PathChain p = getCurrentPath();
                     double spd = getCurrentSpeedScale();
 
-                    // 🔥 PRE-SPIN ONLY when driving TO a shoot position
-                    if (isShootPath(driveStage) && !shooterSpinning) {
-                        mechanisms.engageOuttake(OUTTAKE_POWER);
-                        shooterSpinning = true;
+                    if (!pathStarted) {
+                        follower.setMaxPower(spd);
+                        follower.followPath(p);
+                        pathStarted = true;
                     }
 
-                    follower.setMaxPower(spd);
-                    follower.followPath(p);
-
-                    autoState = BlueAuto12BallBigTriangle.AutoState.WAIT_PATH;
+                    autoState = AutoState.WAIT_PATH;
                     break;
                 }
 
-                // =============================
-                // DRIVE (wait for path end)
-                // =============================
                 case WAIT_PATH: {
                     if (!follower.isBusy()) {
                         follower.setMaxPower(1.0);
+                        pathStarted = false;
 
-                        // After certain paths, we do intake settle or shooting.
                         if (isIntakePathJustFinished()) {
                             stateTimer.reset();
-                            autoState = BlueAuto12BallBigTriangle.AutoState.INTAKE_SETTLE;
+                            autoState = AutoState.INTAKE_SETTLE;
+
                         } else if (isShootPathJustFinished()) {
-                            autoState = BlueAuto12BallBigTriangle.AutoState.START_SHOOT;
+                            autoState = AutoState.START_SHOOT;
+
                         } else {
-                            // scanMotif, hitGate, end, first3 transitions
-                            advanceAfterNonIntakeNonShootPath();
+                            // move to the next drive stage
+                            advanceDriveStage();
+
+                            // decide what state should run next based on the NEW driveStage
+                            if (driveStage == DriveStage.INTAKE_1
+                                    || driveStage == DriveStage.INTAKE_2
+                                    || driveStage == DriveStage.INTAKE_3) {
+                                autoState = AutoState.START_INTAKE;
+                            } else if (driveStage == DriveStage.TO_SHOOT_PRELOAD
+                                    || driveStage == DriveStage.SHOOT_1
+                                    || driveStage == DriveStage.SHOOT_2
+                                    || driveStage == DriveStage.SHOOT_3) {
+                                autoState = AutoState.START_PATH;
+                            } else if (driveStage == DriveStage.END) {
+                                autoState = AutoState.START_PATH;
+                            } else {
+                                autoState = AutoState.DONE;
+                            }
                         }
                     }
                     break;
@@ -232,7 +246,6 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
                     autoState = BlueAuto12BallBigTriangle.AutoState.WAIT_RAMP;
                     break;
                 }
-
 
                 case WAIT_RAMP: {
                     if (stateTimer.seconds() >= RAMP_UP_TIME) {
@@ -402,6 +415,49 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
 //        telemetry.update();
 //       // mechanisms.limelight.pipelineSwitch(BLUE_PIPELINE);
 //    }
+//    private void scanMotifWithLimelight() {
+//
+//        telemetry.addLine("Scanning motif...");
+//        telemetry.update();
+//
+//        mechanisms.limelight.pipelineSwitch(MOTIF_PIPELINE);
+//
+//        long start = System.currentTimeMillis();
+//        boolean found = false;
+//
+//        while (opModeIsActive()
+//                && !found
+//                && System.currentTimeMillis() - start < MOTIF_SCAN_TIMEOUT_MS) {
+//
+//            LLResult result = mechanisms.limelight.getLatestResult();
+//
+//            if (result != null) {
+//
+//                // FTC-SAFE fiducial access
+//                java.util.List<LLResultTypes.FiducialResult> fiducials =
+//                        result.getFiducialResults();
+//
+//                if (fiducials != null && !fiducials.isEmpty()) {
+//                    found = true;
+//
+//                    detectedMotifId = fiducials.get(0).getFiducialId();
+//                    telemetry.addData("Motif detected", detectedMotifId);
+//                }
+//            }
+//
+//            telemetry.update();
+//            sleep(20);
+//        }
+//
+//
+//        if (!found) {
+//            detectedMotifId = -1; // NO MOTIF
+//            telemetry.addData("Motif defaulted", detectedMotifId);
+//        }
+//
+//        telemetry.update();
+//        mechanisms.limelight.pipelineSwitch(BLUE_PIPELINE);
+//    }
 
     private boolean shouldUseSorting() {
         return detectedMotifId == 21
@@ -455,6 +511,26 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
                 || driveStage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_1
                 || driveStage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_2
                 || driveStage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_3;
+    }
+
+    private void advanceDriveStage() {
+        switch (driveStage) {
+            case SCAN_MOTIF:       driveStage = DriveStage.TO_SHOOT_PRELOAD; break;
+            case TO_SHOOT_PRELOAD: driveStage = DriveStage.INTAKE_1; break;
+
+            case INTAKE_1:         driveStage = DriveStage.HIT_GATE; break;
+            case HIT_GATE:         driveStage = DriveStage.SHOOT_1; break;
+
+            case INTAKE_2:         driveStage = DriveStage.SHOOT_2; break;
+            case INTAKE_3:         driveStage = DriveStage.SHOOT_3; break;
+
+            case SHOOT_1:          driveStage = DriveStage.INTAKE_2; break;
+            case SHOOT_2:          driveStage = DriveStage.INTAKE_3; break;
+            case SHOOT_3:          driveStage = DriveStage.END; break;
+
+            case END:              driveStage = DriveStage.DONE; break;
+            default:               driveStage = DriveStage.DONE; break;
+        }
     }
 
     private void advanceAfterNonIntakeNonShootPath() {
@@ -588,36 +664,36 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         // ================= SCAN MOTIF =================
         scanMotif = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(32.194, 135.776, Math.toRadians(90)),   // START = robot start
-                        new Pose(56.559, 113.380, Math.toRadians(60))    // -300° → 60°
+                        new Pose(32.194, 135.776),
+                        new Pose(56.559, 113.380)
                 ))
                 .setLinearHeadingInterpolation(
                         Math.toRadians(90),
-                        Math.toRadians(60)
+                        Math.toRadians(-300)
                 )
                 .build();
 
         // ================= PRELOAD SHOOT =================
         first3 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(56.559, 113.380, Math.toRadians(60)),
-                        new Pose(44.000, 105.000, Math.toRadians(-135)) // -225°
+                        new Pose(56.559, 113.380),
+                        new Pose(44.000, 105.000)
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(60),
-                        Math.toRadians(-135)
+                        Math.toRadians(-300),
+                        Math.toRadians(-225)
                 )
                 .build();
 
         // ================= INTAKE 1 =================
         intake1 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(44.000, 105.000, Math.toRadians(-135)),
+                        new Pose(44.000, 105.000),
                         new Pose(61.937, 79.043),
-                        new Pose(15.000, 84.000, Math.toRadians(-180))
+                        new Pose(15.000, 84.000)
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(-135),
+                        Math.toRadians(-225),
                         Math.toRadians(-180)
                 )
                 .build();
@@ -625,38 +701,38 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         // ================= HIT GATE =================
         hitGate = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(15.000, 84.000, Math.toRadians(-180)),
+                        new Pose(15.000, 84.000),
                         new Pose(24.000, 72.000),
-                        new Pose(15.000, 72.000, Math.toRadians(90))     // -270° → 90°
+                        new Pose(15.000, 72.000)
                 ))
                 .setLinearHeadingInterpolation(
                         Math.toRadians(-180),
-                        Math.toRadians(90)
+                        Math.toRadians(-270)
                 )
                 .build();
 
         // ================= SHOOT 1 =================
         shoot1 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(15.000, 72.000, Math.toRadians(90)),
+                        new Pose(15.000, 72.000),
                         new Pose(48.000, 96.000),
-                        new Pose(44.000, 105.000, Math.toRadians(-135))
+                        new Pose(44.000, 105.000)
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(90),
-                        Math.toRadians(-135)
+                        Math.toRadians(-270),
+                        Math.toRadians(-225)
                 )
                 .build();
 
         // ================= INTAKE 2 =================
         intake2 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(44.000, 105.000, Math.toRadians(-135)),
+                        new Pose(44.000, 105.000),
                         new Pose(75.332, 51.219),
-                        new Pose(15.000, 60.000, Math.toRadians(-180))
+                        new Pose(15.000, 60.000)
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(-135),
+                        Math.toRadians(-225),
                         Math.toRadians(-180)
                 )
                 .build();
@@ -664,25 +740,25 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         // ================= SHOOT 2 =================
         shoot2 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(15.000, 60.000, Math.toRadians(-180)),
+                        new Pose(15.000, 60.000),
                         new Pose(48.000, 72.000),
-                        new Pose(44.000, 105.000, Math.toRadians(-135))
+                        new Pose(44.000, 105.000)
                 ))
                 .setLinearHeadingInterpolation(
                         Math.toRadians(-180),
-                        Math.toRadians(-135)
+                        Math.toRadians(-225)
                 )
                 .build();
 
         // ================= INTAKE 3 =================
         intake3 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(44.000, 105.000, Math.toRadians(-135)),
+                        new Pose(44.000, 105.000),
                         new Pose(89.940, 31.176),
-                        new Pose(15.000, 35.000, Math.toRadians(-180))
+                        new Pose(15.000, 35.000)
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(-135),
+                        Math.toRadians(-225),
                         Math.toRadians(-180)
                 )
                 .build();
@@ -690,24 +766,24 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         // ================= SHOOT 3 =================
         shoot3 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(15.000, 35.000, Math.toRadians(-180)),
+                        new Pose(15.000, 35.000),
                         new Pose(28.500, 67.000),
-                        new Pose(44.000, 105.000, Math.toRadians(-135))
+                        new Pose(44.000, 105.000)
                 ))
                 .setLinearHeadingInterpolation(
                         Math.toRadians(-180),
-                        Math.toRadians(-135)
+                        Math.toRadians(-225)
                 )
                 .build();
 
         // ================= PARK =================
         end = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(44.000, 105.000, Math.toRadians(-135)),
-                        new Pose(44.000, 135.776, Math.toRadians(-90))
+                        new Pose(44.000, 105.000),
+                        new Pose(44.000, 135.776)
                 ))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(-135),
+                        Math.toRadians(-225),
                         Math.toRadians(-90)
                 )
                 .build();

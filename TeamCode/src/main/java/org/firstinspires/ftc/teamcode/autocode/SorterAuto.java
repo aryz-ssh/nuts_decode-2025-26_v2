@@ -33,7 +33,7 @@ public class SorterAuto {
     private SorterAutoState sorterAutoState;
 
     public void initOuttakeAuto(HardwareMap hardwareMap, Telemetry telemetry) {
-        newMechanisms.initMechanisms(hardwareMap, telemetry);
+        newMechanisms.initMechanisms(hardwareMap, telemetry, true);
         sorterAutoState = SorterAutoState.IDLE;
        // newMechanisms.sorterLogic
     }
@@ -45,11 +45,5 @@ public class SorterAuto {
 * For motif PGP: just rotate to bottom left slot (purple2), then keep rotating right and shoot
 * For motif PPG: just rotate to bottom right slot (purple1), then keep rotating right and shoot
 * */
-
-
-
-
-
-
 
 }

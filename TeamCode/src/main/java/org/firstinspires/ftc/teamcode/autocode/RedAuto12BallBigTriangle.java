@@ -11,6 +11,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.AprilTagLimelight;
 import org.firstinspires.ftc.teamcode.Mechanisms;
+import org.firstinspires.ftc.teamcode.AprilTagLimelight;
 import org.firstinspires.ftc.teamcode.SorterLogicColor;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
@@ -28,6 +29,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 public class RedAuto12BallBigTriangle extends LinearOpMode {
 
     private Mechanisms mechanisms;
+    private AprilTagLimelight aprilTagLimelight;
 
     /* ===================== PATHS ===================== */
 
@@ -109,7 +111,9 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
     public void runOpMode() {
 
         mechanisms = new Mechanisms();
-        mechanisms.initMechanisms(hardwareMap, telemetry);
+        mechanisms.initMechanisms(hardwareMap, telemetry, true);
+
+        AprilTagLimelight aprilTagLimelight = new AprilTagLimelight(hardwareMap);
 
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(new Pose(112.194, 135.776, Math.toRadians(90)));
@@ -357,6 +361,49 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
         }
     }
 
+//    private void scanMotifWithLimelight() {
+//
+//        telemetry.addLine("Scanning motif...");
+//        telemetry.update();
+//
+//        aprilTagLimelight.limelight.pipelineSwitch(MOTIF_PIPELINE);
+//
+//        long start = System.currentTimeMillis();
+//        boolean found = false;
+//
+//        while (opModeIsActive()
+//                && !found
+//                && System.currentTimeMillis() - start < MOTIF_SCAN_TIMEOUT_MS) {
+//
+//            LLResult result = mechanisms.limelight.getLatestResult();
+//
+//            if (result != null) {
+//
+//                // FTC-SAFE fiducial access
+//                java.util.List<LLResultTypes.FiducialResult> fiducials =
+//                        result.getFiducialResults();
+//
+//                if (fiducials != null && !fiducials.isEmpty()) {
+//                    found = true;
+//
+//                    detectedMotifId = fiducials.get(0).getFiducialId();
+//                    telemetry.addData("Motif detected", detectedMotifId);
+//                }
+//            }
+//
+//            telemetry.update();
+//            sleep(20);
+//        }
+//
+//
+//        if (!found) {
+//            detectedMotifId = -1; // NO MOTIF
+//            telemetry.addData("Motif defaulted", detectedMotifId);
+//        }
+//
+//        telemetry.update();
+//        mechanisms.limelight.pipelineSwitch(RED_PIPELINE);
+//    }
 //    private void scanMotifWithLimelight() {
 //
 //        telemetry.addLine("Scanning motif...");

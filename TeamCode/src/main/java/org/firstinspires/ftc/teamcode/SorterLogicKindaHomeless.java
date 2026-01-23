@@ -14,32 +14,51 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 @Config
-public class SorterLogic_OpenLoop {
+public class SorterLogicKindaHomeless {
 
     // ================= HARD CONSTANTS =================
-    public static int TICKS_PER_REV = 384;
+    public static double TICKS_PER_REV = 384.5;
 
-    public static int STEP_60 = TICKS_PER_REV / 6;
-
+    // public static int STEP_60 = (int) Math.round(TICKS_PER_REV / 6.0);
     public static double SORTER_POWER = 0.4;
 
     // ================= PIDF ======================
+    // TODO: TUNE PIDF VALUES!!
     public static double SORTER_P = 2.5;
-    public static double SORTER_I = 0.1;
+    public static double SORTER_I = 0.0;
     public static double SORTER_D = 0.2;
-    public static double SORTER_F = 0.5;
+    public static double SORTER_F = 11;
 
     // ================= HARDWARE =================
     private DcMotorEx motor;
+    private DigitalChannel beamBreak;   // true = no ball, false = ball present
+    ColorSensor sorterColorSensor;
+    private Servo statusLEDServo;
+    private StatusLED_RGB statusLED;
     private Telemetry telemetry;
     private final ElapsedTime loopTimer = new ElapsedTime();
 
     // ================= STATE =================
     private int targetPosition = 0;
     private boolean isBusy = false;
+    private int slot = 0;   // 0..5, assumes correct alignment at start
+    public enum BallColor {
+        GREEN,
+        PURPLE,
+        UNKNOWN
+    }
+    private BallColor currentBallColor = BallColor.UNKNOWN;
+
+    private boolean lastBeamState = true;   // beam initially unbroken
+    private boolean ballJustEjected = false;
+
+    private int greenBallCount = 0;
+    private int purpleBallCount = 0;
+
 
     // ================= INIT =================
     public void init(HardwareMap hw, Telemetry telemetry) {
+        // ========= SORTER MOTOR =========
         this.telemetry = telemetry;
         motor = hw.get(DcMotorEx.class, "sorterMotor");
 
@@ -49,22 +68,38 @@ public class SorterLogic_OpenLoop {
         PIDFCoefficients pidfNew = new PIDFCoefficients(SORTER_P, SORTER_I, SORTER_D, SORTER_F);
         motor.setPIDFCoefficients(DcMotorEx.RunMode.RUN_USING_ENCODER, pidfNew);
 
+        // ========= BEAM BREAK =========
+        beamBreak = hw.get(DigitalChannel.class, "outtakeBeamBreak");
+        beamBreak.setMode(DigitalChannel.Mode.INPUT);
+
+        lastBeamState = beamBreak.getState();
+
+        // ========= COLOR SENSOR =========
+        sorterColorSensor = hw.get(ColorSensor.class, "sorterColorSensor");
+
+        // ========= STATUS RGB =========
+        statusLEDServo = hw.get(Servo.class, "statusLED");
+        statusLED = new StatusLED_RGB(statusLEDServo);
+        statusLED.setState(StatusLED_RGB.LEDState.WHITE);
+
         loopTimer.reset();
     }
 
     // ================= COMMAND =================
     public void moveForward60() {
-        commandMove(+STEP_60);
+        gotoSlot(slot + 1);
     }
 
     public void moveBack60() {
-        commandMove(-STEP_60);
+        gotoSlot(slot - 1);
     }
 
-    private void commandMove(int deltaTicks) {
-        if (isBusy) return; // prevent overlapping commands
+    private void gotoSlot(int newSlot) {
+        if (isBusy) return;
 
-        targetPosition = motor.getCurrentPosition() + deltaTicks;
+        slot = (newSlot % 6 + 6) % 6;
+
+        targetPosition = (int) Math.round(slot * (TICKS_PER_REV / 6.0));
 
         motor.setTargetPosition(targetPosition);
         motor.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
@@ -73,10 +108,34 @@ public class SorterLogic_OpenLoop {
         isBusy = true;
     }
 
+    private void updateBeamBreak() {
+        boolean beamClear = beamBreak.getState(); // true = clear, false = blocked
+        ballJustEjected = false;
+
+        // Detect falling edge: clear -> blocked
+        if (lastBeamState && !beamClear) {
+            ballJustEjected = true;
+            onBallEjected();
+        }
+
+        lastBeamState = beamClear;
+    }
+
+    private void onBallEjected() {
+        switch (currentBallColor) {
+            case GREEN:  greenBallCount++;  break;
+            case PURPLE: purpleBallCount++; break;
+            default: break;
+        }
+
+        currentBallColor = BallColor.UNKNOWN;
+    }
+
     // ================= UPDATE LOOP =================
-// ================= UPDATE LOOP =================
     public void update() {
         TelemetryPacket packet = new TelemetryPacket();
+
+        updateBeamBreak();
 
         int currentPos = motor.getCurrentPosition();
         int error = targetPosition - currentPos;
@@ -91,7 +150,6 @@ public class SorterLogic_OpenLoop {
 
         if (!isBusy) return;
 
-        // Motor finished moving
         if (!motor.isBusy()) {
             motor.setPower(0);
             motor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);

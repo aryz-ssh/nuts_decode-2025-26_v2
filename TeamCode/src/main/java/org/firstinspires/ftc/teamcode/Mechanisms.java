@@ -19,7 +19,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 public class Mechanisms {
 
     // --------- SORTER ----------
-    public SorterLogic_OpenLoop sorterLogic;
+    public SorterLogicKindaHomeless sorterLogic;
     private ElapsedTime sorterRate = new ElapsedTime();
     private static final double SORTER_PERIOD_MS = 60;
 
@@ -78,7 +78,7 @@ public class Mechanisms {
             initIMU(hw);
         }
 
-        sorterLogic = new SorterLogic_OpenLoop();
+        sorterLogic = new SorterLogicKindaHomeless();
         sorterLogic.init(hw, telemetry);
     }
 

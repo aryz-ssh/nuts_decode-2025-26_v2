@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
+import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -80,7 +82,7 @@ public class PostNut extends LinearOpMode {
                     allianceChosen ? (isRedAlliance ? "RED" : "BLUE") : "CHOOSE");
             telemetry.addData("Limelight Pipeline",
                     pipelineSet ? (isRedAlliance ? "8 (RED)" : "9 (BLUE)") : "WAITING");
-            mechanisms.sorterInitLoop();
+//            mechanisms.sorterInitLoop();
             telemetry.update();
             sleep(20);
         }
@@ -119,7 +121,7 @@ public class PostNut extends LinearOpMode {
                 if (intakeToggle) {
                     // ---------- NEW: Force sorter to intake mode when intake is on ----------
                     sorterMode = SorterMode.INTAKE;
-                    mechanisms.sorterGoToIntake(selectedPocket);
+//                    mechanisms.sorterGoToIntake(selectedPocket);
 
                     mechanisms.engageIntake(1.0, reversePressed);
                 } else {
@@ -139,32 +141,28 @@ public class PostNut extends LinearOpMode {
 
             // Pocket select
             if (gamepad2.dpad_right && !lastDpadRight) {
-                selectedPocket++;
-                if (selectedPocket > 3) selectedPocket = 1;
-                applySorterModeToPocket();
+                mechanisms.sorterStepForward();
             }
             if (gamepad2.dpad_left && !lastDpadLeft) {
-                selectedPocket--;
-                if (selectedPocket < 1) selectedPocket = 3;
-                applySorterModeToPocket();
+                mechanisms.sorterStepBack();
             }
             lastDpadRight = gamepad2.dpad_right;
             lastDpadLeft = gamepad2.dpad_left;
 
             // Color requests
-            handleColorRequest(SorterLogicColor.BallColor.GREEN, gamepad2.left_trigger > GAMEPAD_TRIGGER_THRESHOLD);
-            handleColorRequest(SorterLogicColor.BallColor.PURPLE, gamepad2.right_trigger > GAMEPAD_TRIGGER_THRESHOLD);
+//            handleColorRequest(SorterLogicColor.BallColor.GREEN, gamepad2.left_trigger > GAMEPAD_TRIGGER_THRESHOLD);
+//            handleColorRequest(SorterLogicColor.BallColor.PURPLE, gamepad2.right_trigger > GAMEPAD_TRIGGER_THRESHOLD);
 
             // A/X/B/Y buttons
             if (gamepad2.a && !lastA) {
-                mechanisms.sorterLogic.markPocketReady(selectedPocket);
-                mechanisms.sorterGoToIntake(selectedPocket);
+//                mechanisms.sorterLogic.markPocketReady(selectedPocket);
+//                mechanisms.sorterGoToIntake(selectedPocket);
                 sorterMode = SorterMode.INTAKE;
             }
             lastA = gamepad2.a;
 
             if (gamepad2.x && !lastX) {
-                mechanisms.sorterGoToOuttake(selectedPocket);
+//                mechanisms.sorterGoToOuttake(selectedPocket);
                 sorterMode = SorterMode.OUTTAKE;
             }
             lastX = gamepad2.x;
@@ -207,8 +205,8 @@ public class PostNut extends LinearOpMode {
             if (System.currentTimeMillis() - lastTelem > 100) {
                 lastTelem = System.currentTimeMillis();
                 telemetry.addData("Mode", sorterMode);
-                int curPos = mechanisms.getSorterCurrentPosition();
-                int tgtPos = mechanisms.getSorterTargetPosition();
+//                int curPos = mechanisms.getSorterCurrentPosition();
+//                int tgtPos = mechanisms.getSorterTargetPosition();
                 telemetry.addData("Outtake Power", mechanisms.getManualOuttakeSpeed());
                 telemetry.addData("Current Outtake Velocity", "%.0f t/s", mechanisms.outtakeMotor.getVelocity());
                 telemetry.addData("Ramp Angle", "%.2f / %.2f",
@@ -218,39 +216,53 @@ public class PostNut extends LinearOpMode {
             } else {
                 telemetry.update();
             }
+
+            // ================= SORTER DASHBOARD TELEMETRY =================
+            TelemetryPacket packet = new TelemetryPacket();
+
+            packet.put("sorter/error_ticks",
+                    mechanisms.sorterLogic.getErrorTicks());
+            packet.put("sorter/current_pos",
+                    mechanisms.sorterLogic.getCurrentPosition());
+            packet.put("sorter/target_pos",
+                    mechanisms.sorterLogic.getTargetPosition());
+            packet.put("sorter/isBusy",
+                    mechanisms.sorterLogic.isBusy());
+
+            FtcDashboard.getInstance().sendTelemetryPacket(packet);
         }
     }
 
     // ---------- Helpers ----------
-    private void applySorterModeToPocket() {
-        switch (sorterMode) {
-            case INTAKE:
-                mechanisms.sorterGoToIntake(selectedPocket);
-                break;
-            case OUTTAKE:
-                mechanisms.sorterGoToOuttake(selectedPocket);
-                break;
-            case NONE:
-                break;
-        }
-    }
+//    private void applySorterModeToPocket() {
+//        switch (sorterMode) {
+//            case INTAKE:
+//                mechanisms.sorterGoToIntake(selectedPocket);
+//                break;
+//            case OUTTAKE:
+//                mechanisms.sorterGoToOuttake(selectedPocket);
+//                break;
+//            case NONE:
+//                break;
+//        }
+//    }
 
     private double applyDeadband(double value) {
         return Math.abs(value) > DEADZONE ? value : 0;
     }
 
-    private void handleColorRequest(SorterLogicColor.BallColor color, boolean pressed) {
-        boolean lastRequest = (color == SorterLogicColor.BallColor.GREEN) ? lastGreenRequest : lastPurpleRequest;
-        if (pressed && !lastRequest) {
-            Integer pocket = mechanisms.sorterLogic.getPocketWithColor(color);
-            if (pocket != null) {
-                selectedPocket = pocket;
-                sorterMode = SorterMode.OUTTAKE;
-                mechanisms.sorterLogic.setCurrentIntakePocket(pocket);
-                mechanisms.sorterGoToOuttake(selectedPocket);
-            }
-        }
-        if (color == SorterLogicColor.BallColor.GREEN) lastGreenRequest = pressed;
-        else lastPurpleRequest = pressed;
-    }
+//    private void handleColorRequest(SorterLogicColor.BallColor color, boolean pressed) {
+//        boolean lastRequest = (color == SorterLogicColor.BallColor.GREEN) ? lastGreenRequest : lastPurpleRequest;
+//        if (pressed && !lastRequest) {
+//            Integer pocket = mechanisms.sorterLogic.getPocketWithColor(color);
+//            if (pocket != null) {
+//                selectedPocket = pocket;
+//                sorterMode = SorterMode.OUTTAKE;
+//                mechanisms.sorterLogic.setCurrentIntakePocket(pocket);
+//                mechanisms.sorterGoToOuttake(selectedPocket);
+//            }
+//        }
+//        if (color == SorterLogicColor.BallColor.GREEN) lastGreenRequest = pressed;
+//        else lastPurpleRequest = pressed;
+//    }
 }

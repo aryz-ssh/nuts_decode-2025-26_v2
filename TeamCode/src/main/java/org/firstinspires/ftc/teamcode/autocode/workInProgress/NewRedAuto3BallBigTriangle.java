@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.workInProgress;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
@@ -15,6 +15,8 @@ import org.firstinspires.ftc.teamcode.Mechanisms;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
+
+// TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE!
 
 @Autonomous(name = "BLEH", group = "Autonomous")
 @Configurable
@@ -60,8 +62,8 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
 
     boolean outtakeStarted = false;
 
-    NewRedAuto3BallBigTriangle.AutoState autoState =
-            NewRedAuto3BallBigTriangle.AutoState.WAIT_FOR_HOME;
+    AutoState autoState =
+            AutoState.WAIT_FOR_HOME;
 
     int currentPocket = 1;
     boolean sorterCommanded = false;
@@ -100,16 +102,16 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
         panelsTelemetry.update(telemetry);
 
         while (!isStarted() && !isStopRequested()) {
-            mechanisms.sorterInitLoop();
+            // TODO: REPLACE SORTER CODE!     mechanisms.sorterInitLoop();
             idle();
         }
 
         waitForStart();
 
-        autoState = NewRedAuto3BallBigTriangle.AutoState.START_TO_SHOOT;
+        autoState = AutoState.START_TO_SHOOT;
 
         while (opModeIsActive()) {
-            if (autoState != NewRedAuto3BallBigTriangle.AutoState.WAIT_FOR_HOME) {
+            if (autoState != AutoState.WAIT_FOR_HOME) {
                 follower.update();
             }
             mechanisms.updateMechanisms();
@@ -120,7 +122,7 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                         follower.followPath(paths.ToShoot);
                         toShootStarted = true;
                     }
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_TO_SHOOT;
+                    autoState = AutoState.WAIT_TO_SHOOT;
                     break;
 
                 case START_OUTTAKE:
@@ -130,40 +132,40 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                         stateTimer.reset();
                         outtakeStarted = true;
                     }
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.RAMP_UP;
+                    autoState = AutoState.RAMP_UP;
                     break;
 
                 case WAIT_TO_SHOOT:
                     if (!follower.isBusy()) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.START_OUTTAKE;
+                        autoState = AutoState.START_OUTTAKE;
                     }
                     break;
 
                 case RAMP_UP:
                     if (stateTimer.seconds() >= RAMP_UP_TIME) {
                         sorterCommanded = false;
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.MOVE_SORTER;
+                        autoState = AutoState.MOVE_SORTER;
                     }
                     break;
 
                 case MOVE_SORTER:
                     if (!sorterCommanded) {
-                        mechanisms.sorterGoToOuttake(currentPocket);
+                        // TODO: REPLACE SORTER CODE!     mechanisms.sorterGoToOuttake(currentPocket);
                         sorterCommanded = true;
                     }
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_SORTER;
+                    autoState = AutoState.WAIT_SORTER;
                     break;
 
                 case WAIT_SORTER:
                     if (!isSorterMoving()) {
                         stateTimer.reset();
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.SORTER_SETTLE;
+                        autoState = AutoState.SORTER_SETTLE;
                     }
                     break;
 
                 case SORTER_SETTLE:
                     if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.KICK_1;
+                        autoState = AutoState.KICK_1;
                     }
                     break;
 
@@ -171,24 +173,24 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                     mechanisms.setShotPocket(currentPocket);
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_1;
+                    autoState = AutoState.WAIT_1;
                     break;
 
                 case WAIT_1:
                     if (stateTimer.seconds() >= FIRST_KICK_DELAY) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.KICK_2;
+                        autoState = AutoState.KICK_2;
                     }
                     break;
 
                 case KICK_2:
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_2;
+                    autoState = AutoState.WAIT_2;
                     break;
 
                 case WAIT_2:
                     if (stateTimer.seconds() >= SECOND_KICK_DELAY) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.NEXT_POCKET;
+                        autoState = AutoState.NEXT_POCKET;
                     }
                     break;
 
@@ -198,9 +200,9 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
 
                     if (currentPocket > 3) {
                         mechanisms.disengageOuttake();
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.START_MOVE_AWAY;
+                        autoState = AutoState.START_MOVE_AWAY;
                     } else {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.MOVE_SORTER;
+                        autoState = AutoState.MOVE_SORTER;
                     }
                     break;
 
@@ -209,12 +211,12 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                         follower.followPath(paths.MoveAway);
                         moveAwayStarted = true;
                     }
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_MOVE_AWAY;
+                    autoState = AutoState.WAIT_MOVE_AWAY;
                     break;
 
                 case WAIT_MOVE_AWAY:
                     if (!follower.isBusy()) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.RETURN_TO_INTAKE;
+                        autoState = AutoState.RETURN_TO_INTAKE;
                     }
                     break;
 
@@ -222,15 +224,15 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
                     if (!returnCommanded) {
                         mechanisms.disengageOuttake();
                         mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
-                        mechanisms.sorterGoToIntake(1);
+                        // TODO: REPLACE SORTER CODE!     mechanisms.sorterGoToIntake(1);
                         returnCommanded = true;
                     }
-                    autoState = NewRedAuto3BallBigTriangle.AutoState.WAIT_RETURN_TO_INTAKE;
+                    autoState = AutoState.WAIT_RETURN_TO_INTAKE;
                     break;
 
                 case WAIT_RETURN_TO_INTAKE:
                     if (!isSorterMoving()) {
-                        autoState = NewRedAuto3BallBigTriangle.AutoState.DONE;
+                        autoState = AutoState.DONE;
                     }
                     break;
 
@@ -247,7 +249,7 @@ public class NewRedAuto3BallBigTriangle extends LinearOpMode {
     }
 
     public boolean isSorterMoving() {
-        return mechanisms.isSorterMoving();
+        return false; // TODO: REPLACE SORTER CODE!     mechanisms.isSorterMoving();
     }
 
     public static class Paths {

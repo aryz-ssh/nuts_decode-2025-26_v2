@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.workInProgress;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
@@ -107,9 +107,9 @@ public class BlueAuto9BallBigTriangle extends LinearOpMode {
 
         // -------- PRE-START HOMING --------
         while (!isStarted() && !isStopRequested()) {
-            mechanisms.sorterInitLoop();
+            // TODO: REPLACE SORTER CODE!     mechanisms.sorterInitLoop();
             mechanisms.updateMechanisms();
-            telemetry.addData("Sorter Homed", mechanisms.isSorterHomed());
+            // TODO: REPLACE SORTER CODE!     telemetry.addData("Sorter Homed", mechanisms.isSorterHomed());
             telemetry.update();
             idle();
         }
@@ -134,13 +134,13 @@ public class BlueAuto9BallBigTriangle extends LinearOpMode {
 
     // ================= PRELOAD ASSUMPTION =================
     private void applyPreloadPocketAssumption() {
-        mechanisms.sorterLogic.pocketColors[0] = SorterLogicColor.BallColor.GREEN;
-        mechanisms.sorterLogic.pocketColors[1] = SorterLogicColor.BallColor.PURPLE;
-        mechanisms.sorterLogic.pocketColors[2] = SorterLogicColor.BallColor.PURPLE;
+        // TODO: REPLACE SORTER CODE!     mechanisms.sorterLogic.pocketColors[0] = SorterLogicColor.BallColor.GREEN;
+        // TODO: REPLACE SORTER CODE!     mechanisms.sorterLogic.pocketColors[1] = SorterLogicColor.BallColor.PURPLE;
+        // TODO: REPLACE SORTER CODE!     mechanisms.sorterLogic.pocketColors[2] = SorterLogicColor.BallColor.PURPLE;
 
-        mechanisms.sorterLogic.pocketReady[0] = false;
-        mechanisms.sorterLogic.pocketReady[1] = false;
-        mechanisms.sorterLogic.pocketReady[2] = false;
+        // TODO: REPLACE SORTER CODE!     mechanisms.sorterLogic.pocketReady[0] = false;
+        // TODO: REPLACE SORTER CODE!     mechanisms.sorterLogic.pocketReady[1] = false;
+        // TODO: REPLACE SORTER CODE!     mechanisms.sorterLogic.pocketReady[2] = false;
     }
 
     // ================= AUTO STATE MACHINE =================

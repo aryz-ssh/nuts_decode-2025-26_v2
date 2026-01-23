@@ -13,8 +13,6 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.teamcode.MecanumDrive;
-
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
             .mass(13.1538)

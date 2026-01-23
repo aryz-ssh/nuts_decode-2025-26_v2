@@ -19,7 +19,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 public class Mechanisms {
 
     // --------- SORTER ----------
-    public SorterLogicColor sorterLogic;
+    public SorterLogic_OpenLoop sorterLogic;
     private ElapsedTime sorterRate = new ElapsedTime();
     private static final double SORTER_PERIOD_MS = 60;
 
@@ -43,8 +43,8 @@ public class Mechanisms {
 
     public Servo rampAngleAdjust;
 
-    public static double RAMP_ANGLE_MIN_POS = 0.3;
-    private static final double RAMP_ANGLE_MAX_POS = 1;
+    public static double RAMP_ANGLE_MIN_POS = 0.24;
+    private static final double RAMP_ANGLE_MAX_POS = 0.99;
     private double rampAngleTarget = RAMP_ANGLE_MIN_POS;
     private static final double RAMP_STEP = 0.1;
 
@@ -78,7 +78,7 @@ public class Mechanisms {
             initIMU(hw);
         }
 
-        sorterLogic = new SorterLogicColor();
+        sorterLogic = new SorterLogic_OpenLoop();
         sorterLogic.init(hw, telemetry);
     }
 
@@ -144,23 +144,36 @@ public class Mechanisms {
     }
 
     // ---------- SORTER WRAPPERS ----------
-    public void sorterInitLoop() {
-        if (sorterRate.milliseconds() >= SORTER_PERIOD_MS) {
-            sorterLogic.init_loop();
-            sorterRate.reset();
-        }
+//    public void sorterInitLoop() {
+//        if (sorterRate.milliseconds() >= SORTER_PERIOD_MS) {
+//            sorterLogic.init_loop();
+//            sorterRate.reset();
+//        }
+//    }
+
+//    public boolean isSorterHomed() {
+//        return sorterLogic.isHomed();
+//    }
+
+//    public void sorterGoToIntake(int n) { sorterLogic.goToIntake(n); }
+//    public void sorterGoToOuttake(int n) { sorterLogic.goToOuttake(n); }
+//
+//    public int getSorterCurrentPosition() { return sorterLogic.getCurrentPos(); }
+//    public int getSorterTargetPosition() { return sorterLogic.getTargetPos(); }
+//    public boolean sorterIsMoving() { return sorterLogic.moving; }
+
+    // ---------- SORTER COMMANDS ----------
+    public void sorterStepForward() {
+        sorterLogic.moveForward60();
     }
 
-    public boolean isSorterHomed() {
-        return sorterLogic.isHomed();
+    public void sorterStepBack() {
+        sorterLogic.moveBack60();
     }
 
-    public void sorterGoToIntake(int n) { sorterLogic.goToIntake(n); }
-    public void sorterGoToOuttake(int n) { sorterLogic.goToOuttake(n); }
-
-    public int getSorterCurrentPosition() { return sorterLogic.getCurrentPos(); }
-    public int getSorterTargetPosition() { return sorterLogic.getTargetPos(); }
-    public boolean sorterIsMoving() { return sorterLogic.moving; }
+    public boolean isSorterBusy() {
+        return sorterLogic.isBusy();
+    }
 
     // ---------- OUTTAKE ----------
     public void engageOuttake(double speed) {
@@ -189,7 +202,7 @@ public class Mechanisms {
         if (!kickerActive) {
             kickerActive = true;
             kickerTimer.reset();
-            sorterLogic.beginOuttakeVerification(lastShotPocket);
+//            sorterLogic.beginOuttakeVerification(lastShotPocket);
         }
     }
 
@@ -223,7 +236,7 @@ public class Mechanisms {
         return angles.getYaw(AngleUnit.RADIANS);
     }
 
-    public boolean isSorterMoving() { return sorterLogic.isMoving(); }
+//    public boolean isSorterMoving() { return sorterLogic.isMoving(); }
 
     // ---------- RESET ----------
     public void resetHeading() { imu.resetYaw(); }
@@ -241,11 +254,11 @@ public class Mechanisms {
 
         // SORTER UPDATE
         sorterLogic.update();
-        if (!sorterLogic.isMoving() && sorterLogic.isAtIntakePosition()) {
-            SorterLogicColor.BallColor detected = sorterLogic.detectBallColor();
-            if (detected != SorterLogicColor.BallColor.UNKNOWN)
-                sorterLogic.storeColorForCurrentPocket(detected);
-        }
+//        if (!sorterLogic.isMoving() && sorterLogic.isAtIntakePosition()) {
+//            SorterLogicColor.BallColor detected = sorterLogic.detectBallColor();
+//            if (detected != SorterLogicColor.BallColor.UNKNOWN)
+//                sorterLogic.storeColorForCurrentPocket(detected);
+//        }
 
         // OUTTAKE
         if (outtakeActive)

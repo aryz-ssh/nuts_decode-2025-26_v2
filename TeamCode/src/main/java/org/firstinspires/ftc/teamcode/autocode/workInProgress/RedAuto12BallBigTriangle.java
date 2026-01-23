@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.workInProgress;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.follower.Follower;
@@ -11,18 +11,13 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.AprilTagLimelight;
 import org.firstinspires.ftc.teamcode.Mechanisms;
-import org.firstinspires.ftc.teamcode.AprilTagLimelight;
 import org.firstinspires.ftc.teamcode.SorterLogicColor;
-import com.qualcomm.hardware.limelightvision.LLResult;
-import com.qualcomm.hardware.limelightvision.LLResultTypes;
+
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
-import org.firstinspires.ftc.robotcore.external.navigation.Position;
-import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+
+// TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE!
 
 @Autonomous(name = "Red Big Triangle Auto - 12 Ball", group = "Autonomous")
 @Configurable
@@ -124,7 +119,7 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
 
         // --- PRE-START HOMING LOOP (like your 3-ball) ---
         while (!isStarted() && !isStopRequested()) {
-            mechanisms.sorterInitLoop();   // homing only
+            // TODO: REPLACE SORTER CODE!     mechanisms.sorterInitLoop();   // homing only
             mechanisms.updateMechanisms();
             telemetry.addLine("Homing...");
             telemetry.update();
@@ -200,8 +195,8 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
                 // =============================
                 case START_INTAKE: {
                     // start intake + auto-advance BEFORE driving intake path
-                    mechanisms.sorterLogic.autoAdvanceEnabled = true;
-                    mechanisms.sorterGoToIntake(1);
+                    // TODO: REPLACE SORTER CODE!     mechanisms.sorterLogic.autoAdvanceEnabled = true;
+                    // TODO: REPLACE SORTER CODE!     mechanisms.sorterGoToIntake(1);
                     mechanisms.engageIntake(1.0, true);
                     intakeRunning = true;
 
@@ -216,7 +211,7 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
                     if (stateTimer.milliseconds() >= INTAKE_SETTLE_MS) {
                         // stop intake after settle
                         mechanisms.disengageIntake();
-                        mechanisms.sorterLogic.autoAdvanceEnabled = false;
+                        // TODO: REPLACE SORTER CODE!     mechanisms.sorterLogic.autoAdvanceEnabled = false;
                         intakeRunning = false;
 
                         // after intake1 -> run hitGate
@@ -246,7 +241,7 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
                     break;
                 }
 
-                case MOVE_SORTER: {
+                /* case MOVE_SORTER: {
                     if (!sorterCommanded) {
 
                         // preload phase is deterministic
@@ -288,13 +283,13 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
                     }
                     autoState = AutoState.WAIT_SORTER;
                     break;
-                }
+                } */
 
                 case WAIT_SORTER: {
-                    if (!mechanisms.isSorterMoving()) {
+                    /* if (!mechanisms.isSorterMoving()) {
                         stateTimer.reset();
                         autoState = AutoState.SORTER_SETTLE;
-                    }
+                    } */
                     break;
                 }
 
@@ -579,7 +574,7 @@ public class RedAuto12BallBigTriangle extends LinearOpMode {
 
         if (driveStage == DriveStage.SHOOT_3) {
             // park
-            mechanisms.sorterGoToIntake(1);
+            // TODO: REPLACE SORTER CODE!     mechanisms.sorterGoToIntake(1);
             mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
             driveStage = DriveStage.END;
             autoState = AutoState.START_PATH;

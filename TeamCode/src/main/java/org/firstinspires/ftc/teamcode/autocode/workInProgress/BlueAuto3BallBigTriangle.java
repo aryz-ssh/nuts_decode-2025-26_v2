@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.workInProgress;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
@@ -16,9 +16,11 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-@Autonomous(name = "New Red 3 ball Auto - 3 ball", group = "Autonomous")
+// TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE!
+
+@Autonomous(name = "Close Blue Auto - 3 ball", group = "Autonomous")
 @Configurable
-public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
+public class BlueAuto3BallBigTriangle extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
@@ -60,8 +62,7 @@ public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
 
     boolean outtakeStarted = false;
 
-    BUNSRedAuto3BallBigTriangle.AutoState autoState =
-            BUNSRedAuto3BallBigTriangle.AutoState.WAIT_FOR_HOME;
+    AutoState autoState = AutoState.WAIT_FOR_HOME;
 
     int currentPocket = 1;
     boolean sorterCommanded = false;
@@ -70,14 +71,18 @@ public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
     boolean moveAwayStarted = false;
     boolean returnCommanded = false;
 
+
     // ================= DASHBOARD TUNABLES =================
 
+    // Shooter / outtake
     public static double OUTTAKE_POWER = 0.55;
     public static double RAMP_ANGLE_TARGET = 0.99;
     public static double RAMP_UP_TIME = 1.5;
 
+    // Sorter timing
     public static double SORTER_SETTLE_TIME = 0.4;
 
+    // Kicker timing
     public static double FIRST_KICK_DELAY = 0.30;
     public static double SECOND_KICK_DELAY = 0.45;
 
@@ -89,7 +94,7 @@ public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(117, 131.5, Math.toRadians(36)));
+        follower.setStartingPose(new Pose(26.25, 132, Math.toRadians(141)));
 
         paths = new Paths(follower);
 
@@ -100,16 +105,16 @@ public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
         panelsTelemetry.update(telemetry);
 
         while (!isStarted() && !isStopRequested()) {
-            mechanisms.sorterInitLoop();
+            // TODO: REPLACE SORTER CODE!     mechanisms.sorterInitLoop();   // homing ONLY
             idle();
         }
 
         waitForStart();
 
-        autoState = BUNSRedAuto3BallBigTriangle.AutoState.START_TO_SHOOT;
+        autoState = AutoState.START_TO_SHOOT;
 
         while (opModeIsActive()) {
-            if (autoState != BUNSRedAuto3BallBigTriangle.AutoState.WAIT_FOR_HOME) {
+            if (autoState != AutoState.WAIT_FOR_HOME) {
                 follower.update();
             }
             mechanisms.updateMechanisms();
@@ -120,9 +125,12 @@ public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
                         follower.followPath(paths.ToShoot);
                         toShootStarted = true;
                     }
-                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_TO_SHOOT;
+                    autoState = AutoState.WAIT_TO_SHOOT;
                     break;
 
+                // ===============================
+                // DRIVE TO SHOOT POSITION
+                // ===============================
                 case START_OUTTAKE:
                     if (!outtakeStarted) {
                         mechanisms.engageOuttake(OUTTAKE_POWER);
@@ -130,91 +138,115 @@ public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
                         stateTimer.reset();
                         outtakeStarted = true;
                     }
-                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.RAMP_UP;
+                    autoState = AutoState.RAMP_UP;
                     break;
 
                 case WAIT_TO_SHOOT:
                     if (!follower.isBusy()) {
-                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.START_OUTTAKE;
+                        autoState = AutoState.START_OUTTAKE;
                     }
                     break;
 
+                // ===============================
+                // WAIT FOR FULL RPM + RAMP
+                // ===============================
                 case RAMP_UP:
                     if (stateTimer.seconds() >= RAMP_UP_TIME) {
                         sorterCommanded = false;
-                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.MOVE_SORTER;
+                        autoState = AutoState.MOVE_SORTER;
                     }
                     break;
 
+                // ===============================
+                // MOVE SORTER TO POCKET
+                // ===============================
                 case MOVE_SORTER:
                     if (!sorterCommanded) {
-                        mechanisms.sorterGoToOuttake(currentPocket);
+                        // TODO: REPLACE SORTER CODE!     mechanisms.sorterGoToOuttake(currentPocket);
                         sorterCommanded = true;
                     }
-                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_SORTER;
+                    autoState = AutoState.WAIT_SORTER;
                     break;
 
                 case WAIT_SORTER:
                     if (!isSorterMoving()) {
                         stateTimer.reset();
-                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.SORTER_SETTLE;
+                        autoState = AutoState.SORTER_SETTLE;
                     }
                     break;
 
                 case SORTER_SETTLE:
-                    if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {
-                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.KICK_1;
+                    if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {   // ← tune: 0.35–0.5
+                        autoState = AutoState.KICK_1;
                     }
                     break;
 
+                // ===============================
+                // FIRST KICK
+                // ===============================
                 case KICK_1:
                     mechanisms.setShotPocket(currentPocket);
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_1;
+                    autoState = AutoState.WAIT_1;
                     break;
 
+                // ===============================
+                // WAIT AFTER FIRST KICK
+                // ===============================
                 case WAIT_1:
                     if (stateTimer.seconds() >= FIRST_KICK_DELAY) {
-                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.KICK_2;
+                        autoState = AutoState.KICK_2;
                     }
                     break;
 
+                // ===============================
+                // SECOND FAILSAFE KICK
+                // ===============================
                 case KICK_2:
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_2;
+                    autoState = AutoState.WAIT_2;
                     break;
 
+                // ===============================
+                // WAIT AFTER SECOND KICK
+                // ===============================
                 case WAIT_2:
                     if (stateTimer.seconds() >= SECOND_KICK_DELAY) {
-                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.NEXT_POCKET;
+                        autoState = AutoState.NEXT_POCKET;
                     }
                     break;
 
+                // ===============================
+                // ADVANCE TO NEXT POCKET
+                // ===============================
                 case NEXT_POCKET:
                     currentPocket++;
                     sorterCommanded = false;
 
                     if (currentPocket > 3) {
                         mechanisms.disengageOuttake();
-                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.START_MOVE_AWAY;
+                        autoState = AutoState.START_MOVE_AWAY;
                     } else {
-                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.MOVE_SORTER;
+                        autoState = AutoState.MOVE_SORTER;
                     }
                     break;
 
+                // ===============================
+                // DRIVE AWAY
+                // ===============================
                 case START_MOVE_AWAY:
                     if (!moveAwayStarted) {
                         follower.followPath(paths.MoveAway);
                         moveAwayStarted = true;
                     }
-                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_MOVE_AWAY;
+                    autoState = AutoState.WAIT_MOVE_AWAY;
                     break;
 
                 case WAIT_MOVE_AWAY:
                     if (!follower.isBusy()) {
-                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.RETURN_TO_INTAKE;
+                        autoState = AutoState.RETURN_TO_INTAKE;
                     }
                     break;
 
@@ -222,19 +254,24 @@ public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
                     if (!returnCommanded) {
                         mechanisms.disengageOuttake();
                         mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
-                        mechanisms.sorterGoToIntake(1);
+                        // TODO: REPLACE SORTER CODE!     mechanisms.sorterGoToIntake(1);
                         returnCommanded = true;
                     }
-                    autoState = BUNSRedAuto3BallBigTriangle.AutoState.WAIT_RETURN_TO_INTAKE;
+                    autoState = AutoState.WAIT_RETURN_TO_INTAKE;
                     break;
 
                 case WAIT_RETURN_TO_INTAKE:
                     if (!isSorterMoving()) {
-                        autoState = BUNSRedAuto3BallBigTriangle.AutoState.DONE;
+                        autoState = AutoState.DONE;
                     }
                     break;
 
+
+                // ===============================
+                // FINISHED
+                // ===============================
                 case DONE:
+                    // Robot parked. Mechanisms are safe. Do nothing.
                     break;
             }
 
@@ -244,12 +281,13 @@ public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
             panelsTelemetry.debug("Y", follower.getPose().getY());
             panelsTelemetry.update(telemetry);
         }
+
     }
 
     public boolean isSorterMoving() {
-        return mechanisms.isSorterMoving();
+        return false; // TODO: REPLACE SORTER CODE!     mechanisms.isSorterMoving();
     }
-
+    // ---------------- PATH LIST ----------------
     public static class Paths {
 
         public PathChain ToShoot;
@@ -259,24 +297,17 @@ public class BUNSRedAuto3BallBigTriangle extends LinearOpMode {
             ToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(
-                                    new Pose(117, 131.500),
-                                    new Pose(103.39568748502913, 103.44840303168627)
-                            )
+                            new BezierLine(new Pose(26.250, 132.000), new Pose(132.000, 115.56581986143188))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(36), Math.toRadians(36))
+                    .setTangentHeadingInterpolation()
                     .setReversed()
                     .build();
-
             MoveAway = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(
-                                    new Pose(103.44840303168627, 103.44840303168627),
-                                    new Pose(104.20516505726476, 72.08176831028842)
-                            )
+                            new BezierLine(new Pose(45.89376443418014, 115.56581986143188), new Pose(46.9452459, 133.1688525))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(36), Math.toRadians(270))
+                    .setLinearHeadingInterpolation(Math.toRadians(141), Math.toRadians(270))
                     .build();
         }
     }

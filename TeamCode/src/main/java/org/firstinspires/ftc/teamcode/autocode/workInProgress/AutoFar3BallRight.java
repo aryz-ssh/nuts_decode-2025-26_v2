@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.workInProgress;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
@@ -15,10 +15,10 @@ import org.firstinspires.ftc.teamcode.Mechanisms;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
-
+// TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE!
 @Autonomous(name = "Far Blue Auto - 3 ball", group = "Autonomous")
 @Configurable
-public class NEXTAutoFar3BallLeft extends LinearOpMode {
+public class AutoFar3BallRight extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
@@ -60,7 +60,7 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
 
     boolean outtakeStarted = false;
 
-    NEXTAutoFar3BallLeft.AutoState autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_FOR_HOME;
+    AutoState autoState = AutoState.WAIT_FOR_HOME;
 
     int currentPocket = 1;
     boolean sorterCommanded = false;
@@ -73,8 +73,8 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
     // ================= DASHBOARD TUNABLES =================
 
     // Shooter / outtake
-    public static double OUTTAKE_POWER = 1.00;
-    public static double RAMP_ANGLE_TARGET = Mechanisms.RAMP_ANGLE_MIN_POS;
+    public static double OUTTAKE_POWER = 0.55;
+    public static double RAMP_ANGLE_TARGET = 0.99;
     public static double RAMP_UP_TIME = 1.5;
 
     // Sorter timing
@@ -92,7 +92,7 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(88, 8, Math.toRadians(90)));
+        follower.setStartingPose(new Pose(56, 8, Math.toRadians(90)));
 
         paths = new Paths(follower);
 
@@ -103,16 +103,16 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
         panelsTelemetry.update(telemetry);
 
         while (!isStarted() && !isStopRequested()) {
-            mechanisms.sorterInitLoop();   // homing ONLY
+        // TODO: REPLACE SORTER CODE!    mechanisms.sorterInitLoop();   // homing ONLY
             idle();
         }
 
         waitForStart();
 
-        autoState = NEXTAutoFar3BallLeft.AutoState.START_TO_SHOOT;
+        autoState = AutoState.START_TO_SHOOT;
 
         while (opModeIsActive()) {
-            if (autoState != NEXTAutoFar3BallLeft.AutoState.WAIT_FOR_HOME) {
+            if (autoState != AutoState.WAIT_FOR_HOME) {
                 follower.update();
             }
             mechanisms.updateMechanisms();
@@ -123,7 +123,7 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
                         follower.followPath(paths.ToShoot);
                         toShootStarted = true;
                     }
-                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_TO_SHOOT;
+                    autoState = AutoState.WAIT_TO_SHOOT;
                     break;
 
                 // ===============================
@@ -136,12 +136,12 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
                         stateTimer.reset();
                         outtakeStarted = true;
                     }
-                    autoState = NEXTAutoFar3BallLeft.AutoState.RAMP_UP;
+                    autoState = AutoState.RAMP_UP;
                     break;
 
                 case WAIT_TO_SHOOT:
                     if (!follower.isBusy()) {
-                        autoState = NEXTAutoFar3BallLeft.AutoState.START_OUTTAKE;
+                        autoState = AutoState.START_OUTTAKE;
                     }
                     break;
 
@@ -151,7 +151,7 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
                 case RAMP_UP:
                     if (stateTimer.seconds() >= RAMP_UP_TIME) {
                         sorterCommanded = false;
-                        autoState = NEXTAutoFar3BallLeft.AutoState.MOVE_SORTER;
+                        autoState = AutoState.MOVE_SORTER;
                     }
                     break;
 
@@ -160,22 +160,22 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
                 // ===============================
                 case MOVE_SORTER:
                     if (!sorterCommanded) {
-                        mechanisms.sorterGoToOuttake(currentPocket);
+                        // TODO: REPLACE SORTER CODE!     mechanisms.sorterGoToOuttake(currentPocket);
                         sorterCommanded = true;
                     }
-                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_SORTER;
+                    autoState = AutoState.WAIT_SORTER;
                     break;
 
                 case WAIT_SORTER:
                     if (!isSorterMoving()) {
                         stateTimer.reset();
-                        autoState = NEXTAutoFar3BallLeft.AutoState.SORTER_SETTLE;
+                        autoState = AutoState.SORTER_SETTLE;
                     }
                     break;
 
                 case SORTER_SETTLE:
                     if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {   // ← tune: 0.35–0.5
-                        autoState = NEXTAutoFar3BallLeft.AutoState.KICK_1;
+                        autoState = AutoState.KICK_1;
                     }
                     break;
 
@@ -186,7 +186,7 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
                     mechanisms.setShotPocket(currentPocket);
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_1;
+                    autoState = AutoState.WAIT_1;
                     break;
 
                 // ===============================
@@ -194,7 +194,7 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
                 // ===============================
                 case WAIT_1:
                     if (stateTimer.seconds() >= FIRST_KICK_DELAY) {
-                        autoState = NEXTAutoFar3BallLeft.AutoState.KICK_2;
+                        autoState = AutoState.KICK_2;
                     }
                     break;
 
@@ -204,7 +204,7 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
                 case KICK_2:
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_2;
+                    autoState = AutoState.WAIT_2;
                     break;
 
                 // ===============================
@@ -212,7 +212,7 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
                 // ===============================
                 case WAIT_2:
                     if (stateTimer.seconds() >= SECOND_KICK_DELAY) {
-                        autoState = NEXTAutoFar3BallLeft.AutoState.NEXT_POCKET;
+                        autoState = AutoState.NEXT_POCKET;
                     }
                     break;
 
@@ -225,9 +225,9 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
 
                     if (currentPocket > 3) {
                         mechanisms.disengageOuttake();
-                        autoState = NEXTAutoFar3BallLeft.AutoState.START_MOVE_AWAY;
+                        autoState = AutoState.START_MOVE_AWAY;
                     } else {
-                        autoState = NEXTAutoFar3BallLeft.AutoState.MOVE_SORTER;
+                        autoState = AutoState.MOVE_SORTER;
                     }
                     break;
 
@@ -239,12 +239,12 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
                         follower.followPath(paths.MoveAway);
                         moveAwayStarted = true;
                     }
-                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_MOVE_AWAY;
+                    autoState = AutoState.WAIT_MOVE_AWAY;
                     break;
 
                 case WAIT_MOVE_AWAY:
                     if (!follower.isBusy()) {
-                        autoState = NEXTAutoFar3BallLeft.AutoState.RETURN_TO_INTAKE;
+                        autoState = AutoState.RETURN_TO_INTAKE;
                     }
                     break;
 
@@ -252,15 +252,15 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
                     if (!returnCommanded) {
                         mechanisms.disengageOuttake();
                         mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
-                        mechanisms.sorterGoToIntake(1);
+                        // TODO: REPLACE SORTER CODE!     mechanisms.sorterGoToIntake(1);
                         returnCommanded = true;
                     }
-                    autoState = NEXTAutoFar3BallLeft.AutoState.WAIT_RETURN_TO_INTAKE;
+                    autoState = AutoState.WAIT_RETURN_TO_INTAKE;
                     break;
 
                 case WAIT_RETURN_TO_INTAKE:
                     if (!isSorterMoving()) {
-                        autoState = NEXTAutoFar3BallLeft.AutoState.DONE;
+                        autoState = AutoState.DONE;
                     }
                     break;
 
@@ -283,7 +283,7 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
     }
 
     public boolean isSorterMoving() {
-        return mechanisms.isSorterMoving();
+        return false; // TODO: REPLACE SORTER CODE!     mechanisms.isSorterMoving();
     }
     // ---------------- PATH LIST ----------------
     public static class Paths {
@@ -292,26 +292,27 @@ public class NEXTAutoFar3BallLeft extends LinearOpMode {
         public PathChain MoveAway;
 
         public Paths(Follower follower) {
-            ToShoot = follower
+            ToShoot  = follower
                     .pathBuilder()
                     .addPath(
                             new BezierLine(
-                                    new Pose(56.000, 8.000),
+                                    new Pose(88.000, 8.000),
 
-                                    new Pose(63.000, 15.000)
+                                    new Pose(81.000, 15.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(114))
+                    )
+                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(61))
                     .build();
-
             MoveAway = follower
                     .pathBuilder()
                     .addPath(
                             new BezierLine(
-                                    new Pose(63.000, 15.000),
+                                    new Pose(81.000, 15.000),
 
-                                    new Pose(37.000, 10.000)
+                                    new Pose(107.000, 10.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(114), Math.toRadians(90))
+                    )
+                    .setLinearHeadingInterpolation(Math.toRadians(61), Math.toRadians(90))
                     .build();
         }
     }

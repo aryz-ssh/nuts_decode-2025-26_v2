@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.workInProgress;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.follower.Follower;
@@ -10,12 +10,13 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import org.firstinspires.ftc.teamcode.Mechanisms;
 import org.firstinspires.ftc.teamcode.SorterLogicColor;
-import com.qualcomm.hardware.limelightvision.LLResult;
-import com.qualcomm.hardware.limelightvision.LLResultTypes;
+
 import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.teamcode.AprilTagLimelight;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+
+// TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE! // TODO: REPLACE SORTER CODE!
 
 @Autonomous(name = "Blue Big Triangle Auto - 12 Ball", group = "Autonomous")
 @Configurable
@@ -73,12 +74,12 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
     }
 
 
-    private BlueAuto12BallBigTriangle.DriveStage driveStage = BlueAuto12BallBigTriangle.DriveStage.SCAN_MOTIF;
+    private DriveStage driveStage = DriveStage.SCAN_MOTIF;
     public static double RAMP_UP_TIME = 0.1;        // seconds
     public static double SORTER_SETTLE_TIME = 0.35;  // seconds
     public static double FIRST_KICK_DELAY = 0.50;    // seconds
 
-    BlueAuto12BallBigTriangle.AutoState autoState = BlueAuto12BallBigTriangle.AutoState.START_PATH;
+    AutoState autoState = AutoState.START_PATH;
 
     int currentPocket = 1;
     int activeShotPocket = 1;
@@ -119,7 +120,7 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
 
         // --- PRE-START HOMING LOOP (like your 3-ball) ---
         while (!isStarted() && !isStopRequested()) {
-            mechanisms.sorterInitLoop();   // homing only
+            // TODO: REPLACE SORTER CODE!     mechanisms.sorterInitLoop();   // homing only
             mechanisms.updateMechanisms();
             telemetry.addLine("Homing...");
             telemetry.update();
@@ -139,8 +140,8 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         mechanisms.disengageIntake();
         mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
 
-        autoState = BlueAuto12BallBigTriangle.AutoState.START_PATH;
-        driveStage = BlueAuto12BallBigTriangle.DriveStage.SCAN_MOTIF;     // see section #2 below
+        autoState = AutoState.START_PATH;
+        driveStage = DriveStage.SCAN_MOTIF;     // see section #2 below
         currentPocket = 1;
         sorterCommanded = false;
 
@@ -211,12 +212,12 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
                 // =============================
                 case START_INTAKE: {
                     // start intake + auto-advance BEFORE driving intake path
-                    mechanisms.sorterLogic.autoAdvanceEnabled = true;
-                    mechanisms.sorterGoToIntake(1);
+                    // TODO: REPLACE SORTER CODE!     mechanisms.sorterLogic.autoAdvanceEnabled = true;
+                    // TODO: REPLACE SORTER CODE!     mechanisms.sorterGoToIntake(1);
                     mechanisms.engageIntake(1.0, true);
                     intakeRunning = true;
 
-                    autoState = BlueAuto12BallBigTriangle.AutoState.START_PATH; // will run the intake path next
+                    autoState = AutoState.START_PATH; // will run the intake path next
                     break;
                 }
 
@@ -227,7 +228,7 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
                     if (stateTimer.milliseconds() >= INTAKE_SETTLE_MS) {
                         // stop intake after settle
                         mechanisms.disengageIntake();
-                        mechanisms.sorterLogic.autoAdvanceEnabled = false;
+                        // TODO: REPLACE SORTER CODE!     mechanisms.sorterLogic.autoAdvanceEnabled = false;
                         intakeRunning = false;
 
                         // after intake1 -> run hitGate
@@ -243,7 +244,7 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
                 case START_SHOOT: {
                     mechanisms.setRampAngle(RAMP_POSITION);
                     stateTimer.reset();
-                    autoState = BlueAuto12BallBigTriangle.AutoState.WAIT_RAMP;
+                    autoState = AutoState.WAIT_RAMP;
                     break;
                 }
 
@@ -251,13 +252,13 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
                     if (stateTimer.seconds() >= RAMP_UP_TIME) {
                         currentPocket = 1;
                         sorterCommanded = false;
-                        autoState = BlueAuto12BallBigTriangle.AutoState.MOVE_SORTER;
+                        autoState = AutoState.MOVE_SORTER;
                     }
                     break;
                 }
 
                 case MOVE_SORTER: {
-                    if (!sorterCommanded) {
+                    /* if (!sorterCommanded) {
 
                         // preload phase is deterministic
                         if (isPreloadPhase) {
@@ -295,22 +296,22 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
                         }
 
                         sorterCommanded = true;
-                    }
-                    autoState = BlueAuto12BallBigTriangle.AutoState.WAIT_SORTER;
+                    }*/
+                    autoState = AutoState.WAIT_SORTER;
                     break;
                 }
 
                 case WAIT_SORTER: {
-                    if (!mechanisms.isSorterMoving()) {
+                    /* if (!mechanisms.isSorterMoving()) {
                         stateTimer.reset();
-                        autoState = BlueAuto12BallBigTriangle.AutoState.SORTER_SETTLE;
-                    }
+                        autoState = AutoState.SORTER_SETTLE;
+                    } */
                     break;
                 }
 
                 case SORTER_SETTLE: {
                     if (stateTimer.seconds() >= SORTER_SETTLE_TIME) {
-                        autoState = BlueAuto12BallBigTriangle.AutoState.KICK_1;
+                        autoState = AutoState.KICK_1;
                     }
                     break;
                 }
@@ -323,13 +324,13 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
                     mechanisms.setShotPocket(activeShotPocket);
                     mechanisms.ejectBall();
                     stateTimer.reset();
-                    autoState = BlueAuto12BallBigTriangle.AutoState.WAIT_1;
+                    autoState = AutoState.WAIT_1;
                     break;
                 }
 
                 case WAIT_1: {
                     if (stateTimer.seconds() >= FIRST_KICK_DELAY) {
-                        autoState = BlueAuto12BallBigTriangle.AutoState.NEXT_POCKET;
+                        autoState = AutoState.NEXT_POCKET;
                     }
                     break;
                 }
@@ -347,7 +348,7 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
 
                         advanceAfterShotSet(); // decides next drive stage (intake1/2/3/end)
                     } else {
-                        autoState = BlueAuto12BallBigTriangle.AutoState.MOVE_SORTER;
+                        autoState = AutoState.MOVE_SORTER;
                     }
                     break;
                 }
@@ -481,11 +482,11 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         }
     }
 
-    private boolean isShootPath(BlueAuto12BallBigTriangle.DriveStage stage) {
-        return stage == BlueAuto12BallBigTriangle.DriveStage.TO_SHOOT_PRELOAD
-                || stage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_1
-                || stage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_2
-                || stage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_3;
+    private boolean isShootPath(DriveStage stage) {
+        return stage == DriveStage.TO_SHOOT_PRELOAD
+                || stage == DriveStage.SHOOT_1
+                || stage == DriveStage.SHOOT_2
+                || stage == DriveStage.SHOOT_3;
     }
 
     private double getCurrentSpeedScale() {
@@ -501,16 +502,16 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
     }
 
     private boolean isIntakePathJustFinished() {
-        return driveStage == BlueAuto12BallBigTriangle.DriveStage.INTAKE_1
-                || driveStage == BlueAuto12BallBigTriangle.DriveStage.INTAKE_2
-                || driveStage == BlueAuto12BallBigTriangle.DriveStage.INTAKE_3;
+        return driveStage == DriveStage.INTAKE_1
+                || driveStage == DriveStage.INTAKE_2
+                || driveStage == DriveStage.INTAKE_3;
     }
 
     private boolean isShootPathJustFinished() {
-        return driveStage == BlueAuto12BallBigTriangle.DriveStage.TO_SHOOT_PRELOAD
-                || driveStage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_1
-                || driveStage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_2
-                || driveStage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_3;
+        return driveStage == DriveStage.TO_SHOOT_PRELOAD
+                || driveStage == DriveStage.SHOOT_1
+                || driveStage == DriveStage.SHOOT_2
+                || driveStage == DriveStage.SHOOT_3;
     }
 
     private void advanceDriveStage() {
@@ -538,27 +539,27 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
             case SCAN_MOTIF:
                 // you can scan here, then drive to preload shoot
                 // (scanMotifWithLimelight can be called before running SCAN_MOTIF if you want)
-                driveStage = BlueAuto12BallBigTriangle.DriveStage.TO_SHOOT_PRELOAD;
-                autoState = BlueAuto12BallBigTriangle.AutoState.START_PATH;
+                driveStage = DriveStage.TO_SHOOT_PRELOAD;
+                autoState = AutoState.START_PATH;
                 break;
 
             case TO_SHOOT_PRELOAD:
-                autoState = BlueAuto12BallBigTriangle.AutoState.START_SHOOT;
+                autoState = AutoState.START_SHOOT;
                 break;
 
             case HIT_GATE:
-                driveStage = BlueAuto12BallBigTriangle.DriveStage.SHOOT_1;
-                autoState = BlueAuto12BallBigTriangle.AutoState.START_PATH;
+                driveStage = DriveStage.SHOOT_1;
+                autoState = AutoState.START_PATH;
                 break;
 
             case END:
-                driveStage = BlueAuto12BallBigTriangle.DriveStage.DONE;
-                autoState = BlueAuto12BallBigTriangle.AutoState.DONE;
+                driveStage = DriveStage.DONE;
+                autoState = AutoState.DONE;
                 break;
 
             default:
                 // should not happen
-                autoState = BlueAuto12BallBigTriangle.AutoState.DONE;
+                autoState = AutoState.DONE;
                 break;
         }
     }
@@ -567,58 +568,58 @@ public class BlueAuto12BallBigTriangle extends LinearOpMode {
         switch (driveStage) {
             case INTAKE_1:
                 // go to hit gate after intake1
-                driveStage = BlueAuto12BallBigTriangle.DriveStage.HIT_GATE;
-                autoState = BlueAuto12BallBigTriangle.AutoState.START_PATH;
+                driveStage = DriveStage.HIT_GATE;
+                autoState = AutoState.START_PATH;
                 break;
 
             case INTAKE_2:
-                driveStage = BlueAuto12BallBigTriangle.DriveStage.SHOOT_2; // shoot2 path returns to shoot pos
-                autoState = BlueAuto12BallBigTriangle.AutoState.START_PATH;
+                driveStage = DriveStage.SHOOT_2; // shoot2 path returns to shoot pos
+                autoState = AutoState.START_PATH;
                 break;
 
             case INTAKE_3:
-                driveStage = BlueAuto12BallBigTriangle.DriveStage.SHOOT_3;
-                autoState = BlueAuto12BallBigTriangle.AutoState.START_PATH;
+                driveStage = DriveStage.SHOOT_3;
+                autoState = AutoState.START_PATH;
                 break;
 
             default:
-                autoState = BlueAuto12BallBigTriangle.AutoState.DONE;
+                autoState = AutoState.DONE;
                 break;
         }
     }
 
     private void advanceAfterShotSet() {
         // decides what we do after finishing 3 shots at shoot position
-        if (driveStage == BlueAuto12BallBigTriangle.DriveStage.TO_SHOOT_PRELOAD) {
+        if (driveStage == DriveStage.TO_SHOOT_PRELOAD) {
             // after preload shots, start first intake cycle
-            driveStage = BlueAuto12BallBigTriangle.DriveStage.INTAKE_1;
-            autoState = BlueAuto12BallBigTriangle.AutoState.START_INTAKE;
+            driveStage = DriveStage.INTAKE_1;
+            autoState = AutoState.START_INTAKE;
             return;
         }
 
-        if (driveStage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_1) {
-            driveStage = BlueAuto12BallBigTriangle.DriveStage.INTAKE_2;
-            autoState = BlueAuto12BallBigTriangle.AutoState.START_INTAKE;
+        if (driveStage == DriveStage.SHOOT_1) {
+            driveStage = DriveStage.INTAKE_2;
+            autoState = AutoState.START_INTAKE;
             return;
         }
 
-        if (driveStage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_2) {
-            driveStage = BlueAuto12BallBigTriangle.DriveStage.INTAKE_3;
-            autoState = BlueAuto12BallBigTriangle.AutoState.START_INTAKE;
+        if (driveStage == DriveStage.SHOOT_2) {
+            driveStage = DriveStage.INTAKE_3;
+            autoState = AutoState.START_INTAKE;
             return;
         }
 
-        if (driveStage == BlueAuto12BallBigTriangle.DriveStage.SHOOT_3) {
+        if (driveStage == DriveStage.SHOOT_3) {
             // park
-            mechanisms.sorterGoToIntake(1);
+            // TODO: REPLACE SORTER CODE! mechanisms.sorterGoToIntake(1);
             mechanisms.setRampAngle(Mechanisms.RAMP_ANGLE_MIN_POS);
-            driveStage = BlueAuto12BallBigTriangle.DriveStage.END;
-            autoState = BlueAuto12BallBigTriangle.AutoState.START_PATH;
+            driveStage = DriveStage.END;
+            autoState = AutoState.START_PATH;
             return;
         }
 
         // fallback
-        autoState = BlueAuto12BallBigTriangle.AutoState.DONE;
+        autoState = AutoState.DONE;
     }
 
 

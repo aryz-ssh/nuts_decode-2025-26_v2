@@ -1,10 +1,9 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.finalAutos;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
@@ -16,9 +15,9 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-@Autonomous(name = "RedSideOffBigTriangle", group = "Autonomous")
+@Autonomous(name = "BlueSmallTriangleOff", group = "Autonomous")
 @Configurable
-public class RedSideOffBigTriangle extends LinearOpMode {
+public class BlueSmallTriangle extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
@@ -38,7 +37,7 @@ public class RedSideOffBigTriangle extends LinearOpMode {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(122.28196721311475, 123.6983606557377, Math.toRadians(217)));
+        follower.setStartingPose(new Pose(56, 8, Math.toRadians(90)));
 
         paths = new Paths(follower);
 
@@ -79,13 +78,9 @@ public class RedSideOffBigTriangle extends LinearOpMode {
             Path1 = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierCurve(
-                                    new Pose(121.102, 125.351),
-                                    new Pose(91.357, 101.744),
-                                    new Pose(89.233, 126.531)
-                            )
+                            new BezierLine(new Pose(56.000, 8.000), new Pose(56.000, 35.000))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(217), Math.toRadians(-90))
+                    .setTangentHeadingInterpolation()
                     .build();
         }
     }

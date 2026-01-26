@@ -1,10 +1,10 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.finalAutos;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierCurve;
+import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
@@ -15,9 +15,9 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-@Autonomous(name = "BlueSideOffBigTriangle", group = "Autonomous")
+@Autonomous(name = "RedSmallTriangleOff", group = "Autonomous")
 @Configurable
-public class BlueSideOffBigTriangle extends LinearOpMode {
+public class RedSmallTriangle extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
@@ -37,7 +37,7 @@ public class BlueSideOffBigTriangle extends LinearOpMode {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(21.481967213114757, 123.93442622950819, Math.toRadians(-37)));
+        follower.setStartingPose(new Pose(88, 8, Math.toRadians(90)));
 
         paths = new Paths(follower);
 
@@ -78,13 +78,9 @@ public class BlueSideOffBigTriangle extends LinearOpMode {
             Path1 = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierCurve(
-                                    new Pose(21.482, 123.934),
-                                    new Pose(37.534, 100.800),
-                                    new Pose(56.892, 114.492)
-                            )
+                            new BezierLine(new Pose(88.000, 8.000), new Pose(88.000, 35.000))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(-37), Math.toRadians(-219))
+                    .setTangentHeadingInterpolation()
                     .build();
         }
     }

@@ -51,6 +51,10 @@ public class PostNut extends LinearOpMode {
     private boolean lastX = false;
     private boolean lastY = false;
 
+    // ---------- Auto Align ----------
+    private boolean autoAlignEnabled = false;
+    private boolean lastX1 = false;
+
     @Override
     public void runOpMode() throws InterruptedException {
         // ----- Init -----
@@ -109,12 +113,27 @@ public class PostNut extends LinearOpMode {
             double rx = applyDeadband(gamepad1.right_stick_x);
 
             boolean brake = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
-            if (gamepad1.x) {
-                double autoTurn = limelight.getAutoStrafePower(true, rx);
-                drivetrain.driveRobotCentric(x, y, autoTurn, brake);
-            } else {
-                drivetrain.driveRobotCentric(x, y, rx, brake);
+            // ---------- Auto Align Toggle (GP1 X) ----------
+                if (gamepad1.x && !lastX1) {
+                    autoAlignEnabled = !autoAlignEnabled;
+
+                    if (autoAlignEnabled) {
+                        limelight.enableAutoAlign(); // switches to pipeline 3
+                    }
+                }
+                lastX1 = gamepad1.x;
+
+            // ---------- DRIVE (Robot-Centric + HEADING ALIGN ONLY) ----------
+            double driveX = x;
+            double driveY = y;
+            double driveTurn = rx;
+
+            if (autoAlignEnabled) {
+                // ONLY rotate — no strafe, no forward correction
+                driveTurn += limelight.getTurnCorrection(true);
             }
+
+            drivetrain.driveRobotCentric(driveX, driveY, driveTurn, brake);
 
             boolean intakeTriggerNow = gamepad1.right_trigger > GAMEPAD_TRIGGER_THRESHOLD;
             boolean reversePressed = gamepad1.left_bumper;
@@ -175,10 +194,14 @@ public class PostNut extends LinearOpMode {
             // =============================================================
             // TELEMETRY
             // =============================================================
-            telemetry.addLine("---- LIMELIGHT (AprilTag) ----");
-            telemetry.addData("Auto Strafe Power", "%.2f", limelight.getAutoStrafePower(gamepad1.x, rx));
-            telemetry.addData("tx (AprilTag)", limelight.getTx());
-            telemetry.addData("Distance (in)", limelight.getDistance());
+            telemetry.addLine("---- LIMELIGHT AUTO ALIGN ----");
+            telemetry.addData("Auto Align", autoAlignEnabled ? "ON" : "OFF");
+            telemetry.addData("Pipeline", limelight.getCurrentPipeline());
+            telemetry.addData("Lateral Err (m)", limelight.getLateralErrorMeters());
+            telemetry.addData("Heading Err (deg)", limelight.getHeadingErrorDeg());
+            telemetry.addData("Forward Dist (m)", limelight.getForwardDistanceMeters());
+            telemetry.addData("Distance", limelight.getDistance());
+
 
             if (System.currentTimeMillis() - lastTelem > 100) {
                 lastTelem = System.currentTimeMillis();

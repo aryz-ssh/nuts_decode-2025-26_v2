@@ -17,17 +17,17 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 public class SorterLogicKindaHomeless {
 
     // ================= HARD CONSTANTS =================
-    public static double TICKS_PER_REV = 384.5;
+    public static double TICKS_PER_REV = 537;
 
     // public static int STEP_60 = (int) Math.round(TICKS_PER_REV / 6.0);
-    public static double SORTER_POWER = 0.4;
+    public static double SORTER_VELOCITY = 1000;
 
     // ================= PIDF ======================
     // TODO: TUNE PIDF VALUES!!
-    public static double SORTER_P = 2.5;
+    public static double SORTER_P = 16;
     public static double SORTER_I = 0.0;
-    public static double SORTER_D = 0.2;
-    public static double SORTER_F = 11;
+    public static double SORTER_D = 0.02;
+    public static double SORTER_F = 19;
 
     // ================= HARDWARE =================
     private DcMotorEx motor;
@@ -103,7 +103,7 @@ public class SorterLogicKindaHomeless {
 
         motor.setTargetPosition(targetPosition);
         motor.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
-        motor.setPower(SORTER_POWER);
+        motor.setVelocity(SORTER_VELOCITY);
 
         isBusy = true;
     }

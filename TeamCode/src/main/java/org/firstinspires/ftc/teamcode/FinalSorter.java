@@ -17,17 +17,30 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 public class FinalSorter {
 
     // ================= CONSTANTS =================
-    public static double TICKS_PER_REV = 537;
-    public static double SORTER_VELOCITY = 600;
-
-    public static double SORTER_P = 16;
-    public static double SORTER_I = 0.0;
-    public static double SORTER_D = 0.02;
-    public static double SORTER_F = 19;
-
+    public static final double TICKS_PER_REV = 537.4;
     private static final int SLOT_COUNT = 3;
-    private static final int TICKS_PER_120 =
-            (int)Math.round(TICKS_PER_REV / 3.0);
+
+    public static double POS_P = 0.01;     // power per tick of error
+    public static double POS_I = 0.0;
+    public static double POS_D = 0.006;
+    public static double POS_F = 0.08;      // 0..1 constant push toward target
+
+    private double posIntegral = 0;
+    private double lastPosError = 0;
+
+    // encoder ticks for each pocket at INTAKE plane
+    public static int[] INTAKE_TICKS = {
+            0, // pocket 0
+            176, // pocket 1
+            373 // pocket 2
+    };
+
+    // encoder ticks for each pocket at OUTTAKE plane
+    public static int[] OUTTAKE_TICKS = {
+            -259, // pocket 0
+            -80, // pocket 1
+            114 // pocket 2
+    };
 
     // ================= COLOR SENSOR TUNING =================
     public static double COLOR_MIN_SUM = 300;   // minimum RGB sum to consider "ball present"
@@ -56,14 +69,16 @@ public class FinalSorter {
 
     // ================= MODEL =================
     private final Slot[] slots = new Slot[SLOT_COUNT];
-    private int currentSlot = 0;          // physical slot at intake
-    private int targetSlot = -1;
 
     // ================= STATE =================
     private boolean busy = false;
     private boolean lastBeamClear = true;
     private BallColor pendingBall = BallColor.NONE;
-    private double wheelAngleDeg = 0.0; // 0° = intake-aligned at init
+    private int targetTicks = 0;
+    public static int POS_DONE_TICKS = 2;   // settle window
+    public static double POS_MAX_POWER = 0.5;
+    public static double POS_I_MAX = 2000; // tune
+
 
     // ================= INIT =================
     public void init(HardwareMap hw, Telemetry telemetry) {
@@ -72,13 +87,7 @@ public class FinalSorter {
         motor = hw.get(DcMotorEx.class, "sorterMotor");
         motor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
         motor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
-
-        motor.setPIDFCoefficients(
-                DcMotorEx.RunMode.RUN_USING_ENCODER,
-                new PIDFCoefficients(
-                        SORTER_P, SORTER_I, SORTER_D, SORTER_F
-                )
-        );
+        motor.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
 
         beamBreak = hw.get(DigitalChannel.class, "outtakeBeamBreak");
         beamBreak.setMode(DigitalChannel.Mode.INPUT);
@@ -94,35 +103,12 @@ public class FinalSorter {
 
         for (int i = 0; i < SLOT_COUNT; i++)
             slots[i] = new Slot();
+
+        targetTicks = motor.getCurrentPosition(); // after reset, this is 0
+        posIntegral = 0;
+        lastPosError = 0;
+        busy = false;
     }
-
-    // ================= PUBLIC API =================
-
-    /** Rotate one slot forward for intake */
-    public void rotateForIntake() {
-        if (busy) return;
-        commandRotationDeg(120.0);
-    }
-
-    /** Rotate closest slot of given color to outtake (slot 0) */
-    public void rotateClosestToOuttake(BallColor color) {
-        if (busy) return;
-
-        int bestSlot = findClosestSlotToPlane(color, 180);
-        if (bestSlot == -1) return;
-
-        double slotAngle =
-                normalize(wheelAngleDeg + bestSlot * 120.0);
-
-        double delta = 180.0 - slotAngle;
-
-        // shortest path
-        if (delta > 180) delta -= 360;
-        if (delta < -180) delta += 360;
-
-        commandRotationDeg(delta);
-    }
-
     /** Mark color detected at intake */
     public void markPendingBall(BallColor color) {
         pendingBall = color;
@@ -142,9 +128,14 @@ public class FinalSorter {
 
         updateBeamBreak();
 
-        packet.put("sorter/currentSlot", currentSlot);
-        packet.put("sorter/targetSlot", targetSlot);
-        packet.put("sorter/busy", busy);
+        int currentTicks = motor.getCurrentPosition();
+        int errorTicks = targetTicks - currentTicks;
+        double errorDeg = errorTicks / TICKS_PER_REV * 360.0;
+
+        packet.put("sorter/targetTicks", targetTicks);
+        packet.put("sorter/currentTicks", currentTicks);
+        packet.put("sorter/errorTicks", errorTicks);
+        packet.put("sorter/errorDeg", errorDeg);
 
         packet.put("color/r", colorSensor.red());
         packet.put("color/g", colorSensor.green());
@@ -152,18 +143,52 @@ public class FinalSorter {
         packet.put("color/sum", colorSensor.red() + colorSensor.green() + colorSensor.blue());
 
 
-        FtcDashboard.getInstance().sendTelemetryPacket(packet);
 
         updateStatusLED();
 
-        if (!busy) return;
+        int current = motor.getCurrentPosition();
+        int error = targetTicks - current;
 
-        if (!motor.isBusy()) {
-            motor.setPower(0);
-            motor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
-            finalizeRotation(pendingDeltaDeg);
-            pendingDeltaDeg = 0;
+        // PID terms
+        if (Math.abs(error) <= POS_DONE_TICKS) {
+            posIntegral = 0; // or slowly decay
+        } else {
+            posIntegral += error;
+            posIntegral = Math.max(-POS_I_MAX, Math.min(POS_I_MAX, posIntegral));
+        }
+
+        double derivative = error - lastPosError;
+
+        double pid =
+                POS_P * error +
+                        POS_I * posIntegral +
+                        POS_D * derivative;
+
+        // F term for position: constant assist toward target
+        double ff = 0.0;
+        if (Math.abs(error) > POS_DONE_TICKS) {
+            ff = Math.copySign(POS_F, error); // pushes toward target
+        }
+
+        double output = pid + ff;
+
+        // Clamp
+        output = Math.max(-POS_MAX_POWER, Math.min(POS_MAX_POWER, output));
+
+        motor.setPower(output);
+        lastPosError = error;
+
+        // Telemetry for graphing
+        packet.put("sorter/pid", pid);
+        packet.put("sorter/ff", ff);
+        packet.put("sorter/output", output);
+
+        FtcDashboard.getInstance().sendTelemetryPacket(packet);
+
+        if (busy && Math.abs(error) <= POS_DONE_TICKS) {
+            finalizeMove();     // encoder-based
             busy = false;
+            posIntegral = 0;    // prevent windup while holding
         }
     }
 
@@ -175,7 +200,7 @@ public class FinalSorter {
             return;
         }
 
-        int intakeSlot = getSlotAtPlane(0);
+        int intakeSlot = getPocketClosestTo(INTAKE_TICKS);
         if (intakeSlot != -1) {
             BallColor sensed = readColorSensor();
             if (sensed != BallColor.NONE) {
@@ -188,7 +213,7 @@ public class FinalSorter {
             }
         }
 
-        int outtakeSlot = getSlotAtPlane(180);
+        int outtakeSlot = getPocketClosestTo(OUTTAKE_TICKS);
         if (outtakeSlot != -1) {
             BallColor stored = slots[outtakeSlot].color;
             if (stored != BallColor.NONE) {
@@ -240,30 +265,57 @@ public class FinalSorter {
     }
 
     // ================= INTERNAL =================
+    public void movePocketToIntake(int pocket) {
+        if (busy || !validPocket(pocket)) return;
+        targetTicks = INTAKE_TICKS[pocket];
+        startMove();
+    }
 
-    private double pendingDeltaDeg = 0;
+    public void movePocketToOuttake(int pocket) {
+        if (busy || !validPocket(pocket)) return;
+        targetTicks = OUTTAKE_TICKS[pocket];
+        startMove();
+    }
 
-    private void commandRotationDeg(double deltaDeg) {
-        pendingDeltaDeg = deltaDeg;
+    public int getPocketClosestTo(int[] tickTable) {
+        int cur = motor.getCurrentPosition();
+        int best = -1;
+        int bestErr = Integer.MAX_VALUE;
 
-        int ticks = (int)(deltaDeg / 360.0 * TICKS_PER_REV);
+        for (int i = 0; i < SLOT_COUNT; i++) {
+            int err = Math.abs(tickTable[i] - cur);
+            if (err < bestErr) {
+                bestErr = err;
+                best = i;
+            }
+        }
+        return best;
+    }
 
-        motor.setTargetPosition(motor.getCurrentPosition() + ticks);
-        motor.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
-        motor.setVelocity(SORTER_VELOCITY);
-
+    private void startMove() {
+        posIntegral = 0;
+        lastPosError = 0;
         busy = true;
     }
 
-    private void finalizeRotation(double deltaDeg) {
-        wheelAngleDeg = normalize(wheelAngleDeg + deltaDeg);
-
-        // store pending ball into the slot now at intake plane (0°)
-        int intakeSlot = getSlotAtPlane(0);
+    private void finalizeMove() {
+        // if a ball was just detected at intake, commit it to whichever pocket is at intake now
+        int intakeSlot = getPocketClosestTo(INTAKE_TICKS);
         if (intakeSlot != -1 && pendingBall != BallColor.NONE && slots[intakeSlot].color == BallColor.NONE) {
             slots[intakeSlot].color = pendingBall;
             pendingBall = BallColor.NONE;
         }
+    }
+
+    private boolean validPocket(int p) { return p >= 0 && p < SLOT_COUNT; }
+
+    public int getPocketWithColor(BallColor color) {
+        for (int i = 0; i < SLOT_COUNT; i++) {
+            if (slots[i].color == color) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private void updateBeamBreak() {
@@ -278,90 +330,23 @@ public class FinalSorter {
     }
 
     private void onBallEjected() {
-        int outtakeSlot = getSlotAtPlane(180);
+        int outtakeSlot = getPocketClosestTo(OUTTAKE_TICKS);
         if (outtakeSlot != -1) {
             slots[outtakeSlot].color = BallColor.NONE;
         }
     }
 
-    private int findClosestSlot(BallColor color) {
-        int best = -1;
-        int bestDist = Integer.MAX_VALUE;
+    public BallColor getPendingBall() {
+        return pendingBall;
+    }
 
+    public BallColor[] getSlotColors() {
+        BallColor[] c = new BallColor[SLOT_COUNT];
         for (int i = 0; i < SLOT_COUNT; i++) {
-            if (slots[i].color == color) {
-                int d = Math.abs(deltaSlots(currentSlot, i));
-                if (d < bestDist) {
-                    bestDist = d;
-                    best = i;
-                }
-            }
+            c[i] = slots[i].color;
         }
-        return best;
+        return c;
     }
 
-    private int deltaSlots(int from, int to) {
-        int d = to - from;
-        if (d > SLOT_COUNT / 2) d -= SLOT_COUNT;
-        if (d < -SLOT_COUNT / 2) d += SLOT_COUNT;
-        return d;
-    }
-
-    private int mod(int x, int m) {
-        return (x % m + m) % m;
-    }
-
-    private double normalize(double deg) {
-        deg %= 360;
-        if (deg < 0) deg += 360;
-        return deg;
-    }
-
-    private int getSlotAtPlane(double planeDeg) {
-        for (int i = 0; i < SLOT_COUNT; i++) {
-            double angle = normalize(wheelAngleDeg + i * 120.0);
-            if (Math.abs(angle - planeDeg) < 10) { // tolerance
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private int findClosestSlotToPlane(BallColor color, double planeDeg) {
-        int best = -1;
-        double bestDist = Double.MAX_VALUE;
-
-        for (int i = 0; i < SLOT_COUNT; i++) {
-            if (slots[i].color == color) {
-                double angle = normalize(wheelAngleDeg + i * 120.0);
-                double d = Math.abs(angle - planeDeg);
-                d = Math.min(d, 360 - d);
-                if (d < bestDist) {
-                    bestDist = d;
-                    best = i;
-                }
-            }
-        }
-        return best;
-    }
-
-    /** Rotate the currently selected pocket to the intake plane (0°) */
-    public void rotateIntakePocketToOuttakePlane() {
-        if (busy) return;
-        commandRotationDeg(180.0); // or -180, but pick one direction preference
-    }
-
-
-    /** Rotate the currently selected pocket to the outtake plane (180°) */
-    public void rotateOuttakePocketToIntakePlane() {
-        if (busy) return;
-        commandRotationDeg(-180.0);
-    }
-
-    /** Manually rotate sorter by a fixed number of slots (positive or negative) */
-    public void rotateBySlots(int slotDelta) {
-        if (busy) return;
-        commandRotationDeg(slotDelta * 120.0);
-    }
 
 }

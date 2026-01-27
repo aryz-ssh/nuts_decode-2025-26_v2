@@ -24,6 +24,7 @@ public class MasterDrivetrain {
     public static double MIN_POWER = 0.15;
     public static double KICK_MULT = 1.4;
     public static long KICK_TIME_MS = 100;
+    public static double TURN_MULT = 1.0; // dashboard-tunable
 
     public static double FL_SCALE = 1.0;
     public static double FR_SCALE = 1.0;
@@ -40,6 +41,7 @@ public class MasterDrivetrain {
     private double lastImuYawDeg = 0.0;
     private double continuousHeadingDeg = 0.0;
     private boolean imuInitialized = false;
+    private boolean isRedAlliance = false;
 
     public MasterDrivetrain() {}
 
@@ -74,6 +76,10 @@ public class MasterDrivetrain {
         imu.resetYaw();
     }
 
+    public void setAlliance(boolean red) {
+        isRedAlliance = red;
+    }
+
     // ----------------------------------------------------------
     // ROBOT-CENTRIC DRIVE (NO HEADING HOLD)
     // ----------------------------------------------------------
@@ -83,7 +89,7 @@ public class MasterDrivetrain {
         if (brake) {
             x *= BRAKE_MULT;
             y *= BRAKE_MULT;
-            turn *= BRAKE_MULT;
+            // turn *= BRAKE_MULT;
         }
 
         // No heading hold — driver or auto-turn always controls rotation
@@ -91,18 +97,33 @@ public class MasterDrivetrain {
     }
 
     // ----------------------------------------------------------
-    // FIELD-CENTRIC DRIVE (still works)
+    // FIELD-CENTRIC DRIVE
     // ----------------------------------------------------------
-    public void driveFieldCentric(double x, double y, double turn) {
+    public void driveFieldCentric(double x, double y, double turn, boolean brake) {
         updateContinuousHeading();
+
+        if (brake) {
+            x *= BRAKE_MULT;
+            y *= BRAKE_MULT;
+            // turn *= BRAKE_MULT;
+        }
 
         double headingRad = Math.toRadians(continuousHeadingDeg);
 
         double cosA = Math.cos(headingRad);
         double sinA = Math.sin(headingRad);
 
-        double fieldX = x * cosA - y * sinA;
-        double fieldY = x * sinA + y * cosA;
+        double fx = x;
+        double fy = y;
+
+        // Flip field axes for RED alliance
+        if (isRedAlliance) {
+            fx = -fx;
+            fy = -fy;
+        }
+
+        double fieldX = fx * cosA - fy * sinA;
+        double fieldY = fx * sinA + fy * cosA;
 
         driveMecanum(fieldX, fieldY, turn);
     }
@@ -126,10 +147,12 @@ public class MasterDrivetrain {
                         (System.currentTimeMillis() - kickStartTime < KICK_TIME_MS);
 
         // ---------------- Mecanum math ----------------
-        double fl = y + x + turn;
-        double fr = y - x - turn;
-        double bl = y - x + turn;
-        double br = y + x - turn;
+        double t = turn * TURN_MULT;
+
+        double fl = y + x + t;
+        double fr = y - x - t;
+        double bl = y - x + t;
+        double br = y + x - t;
 
         // ---------------- Strafe detection ----------------
         boolean isStrafing = Math.abs(x) > Math.abs(y) * 1.2;
@@ -227,6 +250,10 @@ public class MasterDrivetrain {
         imuInitialized = false;
         lastImuYawDeg = 0.0;
         continuousHeadingDeg = 0.0;
+    }
+
+    public double getHeadingDeg() {
+        return continuousHeadingDeg;
     }
 
     // ----------------------------------------------------------

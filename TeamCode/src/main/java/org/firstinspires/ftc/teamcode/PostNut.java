@@ -81,6 +81,9 @@ public class PostNut extends LinearOpMode {
         mechanisms = new Mechanisms();
         mechanisms.initMechanisms(hardwareMap, telemetry, true);
 
+        selectedPocket = mechanisms.sorter.getPocketClosestTo(FinalSorter.INTAKE_TICKS);
+        sorterMode = SorterMode.INTAKE;
+
         drivetrain = new MasterDrivetrain();
         drivetrain.init(hardwareMap);
 
@@ -268,27 +271,38 @@ public class PostNut extends LinearOpMode {
             boolean dpadUp    = gamepad2.dpad_up;
             boolean dpadDown  = gamepad2.dpad_down;
 
+            // ----- MODE SWITCH -----
+            if (gamepad2.a) {
+                sorterMode = SorterMode.INTAKE;
+                mechanisms.sorter.movePocketToIntake(selectedPocket);
+            }
+
+            if (gamepad2.x) {
+                sorterMode = SorterMode.OUTTAKE;
+                mechanisms.sorter.movePocketToOuttake(selectedPocket);
+            }
+
             // Only allow manual commands if sorter is NOT moving
             if (!mechanisms.isSorterBusy()) {
 
-                // Cycle pocket LEFT
-                if (dpadLeft && !lastDpadLeft2) {
-                    selectedPocket = (selectedPocket + 2) % 3; // -1 mod 3
-                }
+                boolean moved = false;
 
-                // Cycle pocket RIGHT
                 if (dpadRight && !lastDpadRight2) {
                     selectedPocket = (selectedPocket + 1) % 3;
+                    moved = true;
                 }
 
-                // Move selected pocket to INTAKE
-                if (gamepad2.a) {
-                    mechanisms.sorter.movePocketToIntake(selectedPocket);
+                if (dpadLeft && !lastDpadLeft2) {
+                    selectedPocket = (selectedPocket + 2) % 3; // -1 mod 3
+                    moved = true;
                 }
 
-                // Move selected pocket to OUTTAKE
-                if (gamepad2.x) {
-                    mechanisms.sorter.movePocketToOuttake(selectedPocket);
+                if (moved) {
+                    if (sorterMode == SorterMode.INTAKE) {
+                        mechanisms.sorter.movePocketToIntake(selectedPocket);
+                    } else if (sorterMode == SorterMode.OUTTAKE) {
+                        mechanisms.sorter.movePocketToOuttake(selectedPocket);
+                    }
                 }
             }
 

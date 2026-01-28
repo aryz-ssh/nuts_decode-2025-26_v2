@@ -8,7 +8,7 @@ public class StatusLED_RGB {
 
     private final Servo led;
     public static double OFF     = 0.00;   // 500 µs
-    public static double RED     = 0.277;  // 1100 µs
+    public static double RED     = 0.28;  // 1100 µs
     public static double ORANGE  = 0.333;  // 1200 µs
     public static double YELLOW  = 0.388;  // 1300 µs
     public static double GREEN   = 0.500;  // 1500 µs

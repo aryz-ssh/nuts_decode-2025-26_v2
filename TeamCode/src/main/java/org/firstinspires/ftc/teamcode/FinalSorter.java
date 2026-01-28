@@ -20,10 +20,10 @@ public class FinalSorter {
     public static final double TICKS_PER_REV = 537.4;
     private static final int SLOT_COUNT = 3;
 
-    public static double POS_P = 0.01;     // power per tick of error
+    public static double POS_P = 0.0028;     // power per tick of error
     public static double POS_I = 0.0;
-    public static double POS_D = 0.006;
-    public static double POS_F = 0.08;      // 0..1 constant push toward target
+    public static double POS_D = 0.001;
+    public static double POS_F = 0.07;      // 0..1 constant push toward target
 
     private double posIntegral = 0;
     private double lastPosError = 0;
@@ -42,15 +42,22 @@ public class FinalSorter {
             114 // pocket 2
     };
 
-    // ================= COLOR SENSOR TUNING =================
-    public static double COLOR_MIN_SUM = 300;   // minimum RGB sum to consider "ball present"
+// ================= COLOR CLASSIFICATION (DATA-DRIVEN) =================
 
-    // Ratio thresholds (tune on Dashboard)
-    public static double GREEN_G_OVER_R = 1.4;
-    public static double GREEN_G_OVER_B = 1.4;
+    // Chroma-based presence detection
+    public static int CHROMA_ON  = 90;   // detects holes reliably
+    public static int CHROMA_OFF = 60;   // hysteresis floor
 
-    public static double PURPLE_R_OVER_G = 1.3;
-    public static double PURPLE_R_OVER_B = 1.3;
+    // GREEN detection (very strong separation)
+    public static double GREEN_G_OVER_R = 2.0;  // hole min was 2.29
+    public static double GREEN_G_OVER_B = 1.2;  // hole min was 1.30
+
+    // PURPLE detection (blue-dominant)
+    public static double PURPLE_B_OVER_G = 1.1; // hole min was ~1.17
+    public static double PURPLE_B_OVER_R = 1.5; // conservative, solid ~1.9
+
+    private boolean ballPresent = false;
+    private boolean lastBallPresent = false;
 
     // ================= TYPES =================
     public enum BallColor { NONE, GREEN, PURPLE }
@@ -75,9 +82,13 @@ public class FinalSorter {
     private boolean lastBeamClear = true;
     private BallColor pendingBall = BallColor.NONE;
     private int targetTicks = 0;
-    public static int POS_DONE_TICKS = 2;   // settle window
+    public static int POS_DONE_TICKS = 6;   // settle window
     public static double POS_MAX_POWER = 0.5;
     public static double POS_I_MAX = 2000; // tune
+
+    // ================= EJECTION FLASH =================
+    public static long EJECT_FLASH_MS = 200; // tunable
+    private long lastEjectTimeMs = -1;
 
 
     // ================= INIT =================
@@ -125,6 +136,20 @@ public class FinalSorter {
     // ================= UPDATE LOOP =================
     public void update() {
         TelemetryPacket packet = new TelemetryPacket();
+
+        boolean currentPresent = detectPresence(
+                colorSensor.red(),
+                colorSensor.green(),
+                colorSensor.blue()
+        );
+
+// RISING EDGE: no ball → ball
+        if (!lastBallPresent && currentPresent) {
+            pendingBall = readColorSensor();   // <-- THIS IS THE FIX
+            commitPendingBallToIntake();
+        }
+
+        lastBallPresent = currentPresent;
 
         updateBeamBreak();
 
@@ -186,7 +211,6 @@ public class FinalSorter {
         FtcDashboard.getInstance().sendTelemetryPacket(packet);
 
         if (busy && Math.abs(error) <= POS_DONE_TICKS) {
-            finalizeMove();     // encoder-based
             busy = false;
             posIntegral = 0;    // prevent windup while holding
         }
@@ -194,6 +218,18 @@ public class FinalSorter {
 
     private void updateStatusLED() {
         if (statusLED == null) return;
+
+        long now = System.currentTimeMillis();
+        // --- EJECTION ALERT OVERRIDE ---
+        if (lastEjectTimeMs > 0) {
+            if (now - lastEjectTimeMs < EJECT_FLASH_MS) {
+                statusLED.setState(StatusLED_RGB.LEDState.RED);
+                return;
+            } else {
+                // flash window expired → clear latch
+                lastEjectTimeMs = -1;
+            }
+        }
 
         if (busy) {
             statusLED.setState(StatusLED_RGB.LEDState.YELLOW);
@@ -230,34 +266,25 @@ public class FinalSorter {
     }
 
     private BallColor readColorSensor() {
-        if (colorSensor == null) return BallColor.NONE;
+        int r = colorSensor.red();
+        int g = colorSensor.green();
+        int b = colorSensor.blue();
 
-        double r = colorSensor.red();
-        double g = colorSensor.green();
-        double b = colorSensor.blue();
-
-        double sum = r + g + b;
-
-        if (sum < COLOR_MIN_SUM) {
+        if (!detectPresence(r, g, b)) {
             return BallColor.NONE;
         }
 
-        // Avoid divide-by-zero
-        if (r < 1) r = 1;
-        if (g < 1) g = 1;
-        if (b < 1) b = 1;
+        double rr = Math.max(1, r);
+        double gg = Math.max(1, g);
+        double bb = Math.max(1, b);
 
-        double gOverR = g / r;
-        double gOverB = g / b;
-
-        double rOverG = r / g;
-        double rOverB = r / b;
-
-        if (gOverR > GREEN_G_OVER_R && gOverB > GREEN_G_OVER_B) {
+        // GREEN: strongly green-dominant
+        if (gg / rr > GREEN_G_OVER_R && gg / bb > GREEN_G_OVER_B) {
             return BallColor.GREEN;
         }
 
-        if (rOverG > PURPLE_R_OVER_G && rOverB > PURPLE_R_OVER_B) {
+        // PURPLE: blue-dominant (NOT red-dominant)
+        if (bb / gg > PURPLE_B_OVER_G && bb / rr > PURPLE_B_OVER_R) {
             return BallColor.PURPLE;
         }
 
@@ -298,15 +325,6 @@ public class FinalSorter {
         busy = true;
     }
 
-    private void finalizeMove() {
-        // if a ball was just detected at intake, commit it to whichever pocket is at intake now
-        int intakeSlot = getPocketClosestTo(INTAKE_TICKS);
-        if (intakeSlot != -1 && pendingBall != BallColor.NONE && slots[intakeSlot].color == BallColor.NONE) {
-            slots[intakeSlot].color = pendingBall;
-            pendingBall = BallColor.NONE;
-        }
-    }
-
     private boolean validPocket(int p) { return p >= 0 && p < SLOT_COUNT; }
 
     public int getPocketWithColor(BallColor color) {
@@ -318,15 +336,41 @@ public class FinalSorter {
         return -1;
     }
 
-    private void updateBeamBreak() {
-        boolean beamClear = beamBreak.getState();
+    private void commitPendingBallToIntake() {
+        if (pendingBall == BallColor.NONE) return;
 
-        // falling edge = ball ejected
-        if (lastBeamClear && !beamClear) {
+        int intakeSlot = getPocketClosestTo(INTAKE_TICKS);
+
+        if (intakeSlot != -1 && slots[intakeSlot].color == BallColor.NONE) {
+            slots[intakeSlot].color = pendingBall;
+            pendingBall = BallColor.NONE;
+        }
+    }
+
+    private boolean detectPresence(int r, int g, int b) {
+        int max = Math.max(r, Math.max(g, b));
+        int min = Math.min(r, Math.min(g, b));
+        int chroma = max - min;
+
+        if (!ballPresent && chroma > CHROMA_ON) {
+            ballPresent = true;
+        } else if (ballPresent && chroma < CHROMA_OFF) {
+            ballPresent = false;
+        }
+
+        return ballPresent;
+    }
+
+    private void updateBeamBreak() {
+        // Normalize: true = clear, false = blocked
+        boolean beamClearNow = !beamBreak.getState();
+
+        // FALLING EDGE: clear → blocked (ball ENTERS beam)
+        if (lastBeamClear && !beamClearNow) {
             onBallEjected();
         }
 
-        lastBeamClear = beamClear;
+        lastBeamClear = beamClearNow;
     }
 
     private void onBallEjected() {
@@ -334,6 +378,9 @@ public class FinalSorter {
         if (outtakeSlot != -1) {
             slots[outtakeSlot].color = BallColor.NONE;
         }
+
+        // trigger red flash
+        lastEjectTimeMs = System.currentTimeMillis();
     }
 
     public BallColor getPendingBall() {
@@ -348,5 +395,27 @@ public class FinalSorter {
         return c;
     }
 
+    // ================= DEBUG / TUNING ACCESS =================
 
+    public int getColorR() {
+        return colorSensor.red();
+    }
+
+    public int getColorG() {
+        return colorSensor.green();
+    }
+
+    public int getColorB() {
+        return colorSensor.blue();
+    }
+
+    /** Raw detected color at intake (no slot commit) */
+    public BallColor getDetectedColorAtIntake() {
+        return readColorSensor();
+    }
+
+    /** Presence state (for tuning hysteresis) */
+    public boolean isBallPresent() {
+        return ballPresent;
+    }
 }

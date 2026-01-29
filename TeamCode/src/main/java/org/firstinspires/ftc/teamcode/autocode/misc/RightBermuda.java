@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.misc;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
@@ -17,7 +17,7 @@ import java.util.ArrayList;
 
 @Autonomous(name = "RightBermuda", group = "Autonomous")
 @Configurable
-public class Right9BallBermuda extends LinearOpMode {
+public class RightBermuda extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
@@ -60,44 +60,23 @@ public class Right9BallBermuda extends LinearOpMode {
                     follower.followPath(paths.scanAprilTag);
                     state = 1;
                     break;
-
                 case 1:
                     follower.followPath(paths.shootPreload);
                     state = 2;
                     break;
-
                 case 2:
                     follower.followPath(paths.toFirstBalls);
                     state = 3;
                     break;
-
                 case 3:
                     follower.followPath(paths.throughFirstBalls);
                     state = 4;
                     break;
-
                 case 4:
                     follower.followPath(paths.shootFirstBalls);
                     state = 5;
                     break;
-
-                case 5:
-                    follower.followPath(paths.toSecondBalls);
-                    state = 6;
-                    break;
-
-                case 6:
-                    follower.followPath(paths.throughSecondBalls);
-                    state = 7;
-                    break;
-
-                case 7:
-                    follower.followPath(paths.shootSecondBalls);
-                    state = 8;
-                    break;
-
             }
-
 
             panelsTelemetry.debug("State", state);
             panelsTelemetry.debug("X", follower.getPose().getX());
@@ -114,20 +93,18 @@ public class Right9BallBermuda extends LinearOpMode {
         public PathChain toFirstBalls;
         public PathChain throughFirstBalls;
         public PathChain shootFirstBalls;
-        public PathChain toSecondBalls;
-        public PathChain throughSecondBalls;
-        public PathChain shootSecondBalls;
 
         public RobotPaths(Follower follower) {
+
             scanAprilTag = follower.pathBuilder().addPath(
-                            new BezierLine(
-                                    new Pose(111.000, 136.000),
+                                new BezierLine(
+                                        new Pose(111.000, 136.000),
 
-                                    new Pose(84.000, 110.000)
-                            )
-                    ).setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(100))
+                                        new Pose(84.000, 110.000)
+                                )
+                        ).setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(100))
 
-                    .build();
+                        .build();
 
             shootPreload = follower.pathBuilder().addPath(
                             new BezierLine(
@@ -143,7 +120,7 @@ public class Right9BallBermuda extends LinearOpMode {
                             new BezierLine(
                                     new Pose(111.000, 110.000),
 
-                                    new Pose(100.000, 87.000)
+                                    new Pose(96.000, 87.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
 
@@ -151,7 +128,7 @@ public class Right9BallBermuda extends LinearOpMode {
 
             throughFirstBalls = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(100.000, 87.000),
+                                    new Pose(96.000, 87.000),
 
                                     new Pose(128.000, 87.000)
                             )
@@ -162,36 +139,6 @@ public class Right9BallBermuda extends LinearOpMode {
             shootFirstBalls = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(128.000, 87.000),
-
-                                    new Pose(111.000, 110.000)
-                            )
-                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
-
-                    .build();
-
-            toSecondBalls = follower.pathBuilder().addPath(
-                            new BezierLine(
-                                    new Pose(111.000, 110.000),
-
-                                    new Pose(100.000, 63.000)
-                            )
-                    ).setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
-
-                    .build();
-
-            throughSecondBalls = follower.pathBuilder().addPath(
-                            new BezierLine(
-                                    new Pose(100.000, 63.000),
-
-                                    new Pose(128.000, 63.000)
-                            )
-                    ).setTangentHeadingInterpolation()
-
-                    .build();
-
-            shootSecondBalls = follower.pathBuilder().addPath(
-                            new BezierLine(
-                                    new Pose(128.000, 63.000),
 
                                     new Pose(111.000, 110.000)
                             )

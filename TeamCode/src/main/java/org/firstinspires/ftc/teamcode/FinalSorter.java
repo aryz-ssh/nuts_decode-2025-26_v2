@@ -80,15 +80,27 @@ public class FinalSorter {
     // ================= STATE =================
     private boolean busy = false;
     private boolean lastBeamClear = true;
+    private boolean autoMode = false;
     private BallColor pendingBall = BallColor.NONE;
     private int targetTicks = 0;
     public static int POS_DONE_TICKS = 6;   // settle window
     public static double POS_MAX_POWER = 0.5;
     public static double POS_I_MAX = 2000; // tune
 
+    // ================= BUSY TIMEOUT =================
+    public static long BUSY_TIMEOUT_MS = 800; // dashboard tunable
+    private long busyStartTimeMs = 0;
+    private int lastBusyTicks = 0;
+
     // ================= EJECTION FLASH =================
     public static long EJECT_FLASH_MS = 200; // tunable
     private long lastEjectTimeMs = -1;
+
+    // ================= MOTIF LOCK FLASH =================
+    private boolean motifFlashActive = false;
+    private long motifFlashStartMs = 0;
+    public static long MOTIF_FLASH_MS = 200;
+
 
 
     // ================= INIT =================
@@ -143,10 +155,14 @@ public class FinalSorter {
                 colorSensor.blue()
         );
 
-// RISING EDGE: no ball → ball
+        // RISING EDGE: no ball → ball
         if (!lastBallPresent && currentPresent) {
-            pendingBall = readColorSensor();   // <-- THIS IS THE FIX
+            pendingBall = readColorSensor();
             commitPendingBallToIntake();
+
+            if (autoMode) {
+                advanceIntakePocketIfPossible();
+            }
         }
 
         lastBallPresent = currentPresent;
@@ -210,6 +226,21 @@ public class FinalSorter {
 
         FtcDashboard.getInstance().sendTelemetryPacket(packet);
 
+        if (busy) {
+            long now = System.currentTimeMillis();
+            int curTicks = motor.getCurrentPosition();
+
+            // Detect lack of movement
+            boolean stalled = Math.abs(curTicks - lastBusyTicks) < 2;
+
+            if (stalled && now - busyStartTimeMs > BUSY_TIMEOUT_MS) {
+                busy = false;
+                posIntegral = 0;
+            }
+
+            lastBusyTicks = curTicks;
+        }
+
         if (busy && Math.abs(error) <= POS_DONE_TICKS) {
             busy = false;
             posIntegral = 0;    // prevent windup while holding
@@ -217,6 +248,19 @@ public class FinalSorter {
     }
 
     private void updateStatusLED() {
+    // --- MOTIF LOCK FLASH (CYAN) ---
+        if (motifFlashActive) {
+            long now = System.currentTimeMillis();
+
+            if (now - motifFlashStartMs < MOTIF_FLASH_MS) {
+                statusLED.setState(StatusLED_RGB.LEDState.CYAN);
+                return;
+            } else {
+                motifFlashActive = false;
+                // fall through to normal LED behavior
+            }
+        }
+
         if (statusLED == null) return;
 
         long now = System.currentTimeMillis();
@@ -323,6 +367,9 @@ public class FinalSorter {
         posIntegral = 0;
         lastPosError = 0;
         busy = true;
+
+        busyStartTimeMs = System.currentTimeMillis();
+        lastBusyTicks = motor.getCurrentPosition();
     }
 
     private boolean validPocket(int p) { return p >= 0 && p < SLOT_COUNT; }
@@ -373,7 +420,7 @@ public class FinalSorter {
         lastBeamClear = beamClearNow;
     }
 
-    private void onBallEjected() {
+    public void onBallEjected() {
         int outtakeSlot = getPocketClosestTo(OUTTAKE_TICKS);
         if (outtakeSlot != -1) {
             slots[outtakeSlot].color = BallColor.NONE;
@@ -393,6 +440,52 @@ public class FinalSorter {
             c[i] = slots[i].color;
         }
         return c;
+    }
+
+    // ================= AUTOS PEOPLE, AUTOS =================
+    public void setAutoMode(boolean enabled) {
+        autoMode = enabled;
+    }
+
+    private void advanceIntakePocketIfPossible() {
+        if (busy) return;
+
+        int currentIntake = getPocketClosestTo(INTAKE_TICKS);
+        if (currentIntake == -1) return;
+
+        // Check if current intake pocket is now occupied
+        if (slots[currentIntake].color == BallColor.NONE) return;
+
+        // Find next empty pocket
+        for (int i = 1; i <= SLOT_COUNT; i++) {
+            int next = (currentIntake + i) % SLOT_COUNT;
+
+            if (slots[next].color == BallColor.NONE) {
+                movePocketToIntake(next);
+                return;
+            }
+        }
+
+        // All slots full → do nothing
+    }
+
+    public void triggerMotifLockedFlash() {
+        motifFlashActive = true;
+        motifFlashStartMs = System.currentTimeMillis();
+    }
+
+    public void forceSetSlotColors(BallColor[] colors) {
+        if (colors == null || colors.length != SLOT_COUNT) return;
+
+        for (int i = 0; i < SLOT_COUNT; i++) {
+            slots[i].color = colors[i];
+        }
+    }
+
+    public void clearAllSlots() {
+        for (int i = 0; i < SLOT_COUNT; i++) {
+            slots[i].color = BallColor.NONE;
+        }
     }
 
     // ================= DEBUG / TUNING ACCESS =================

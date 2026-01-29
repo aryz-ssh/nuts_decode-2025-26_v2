@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode.pathingOnly;
+package org.firstinspires.ftc.teamcode.autocode.misc;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.follower.Follower;

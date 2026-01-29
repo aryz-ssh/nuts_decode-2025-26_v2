@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.misc;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
@@ -15,9 +15,9 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-@Autonomous(name = "RightBermuda", group = "Autonomous")
+@Autonomous(name = "LeftBermuda", group = "Autonomous")
 @Configurable
-public class RightBermuda extends LinearOpMode {
+public class LeftBermuda extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
     private Follower follower;
@@ -37,7 +37,7 @@ public class RightBermuda extends LinearOpMode {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(111, 136, Math.toRadians(270)));
+        follower.setStartingPose(new Pose(33, 136, Math.toRadians(270)));
 
         paths = new RobotPaths(follower);
 
@@ -95,42 +95,41 @@ public class RightBermuda extends LinearOpMode {
         public PathChain shootFirstBalls;
 
         public RobotPaths(Follower follower) {
-
             scanAprilTag = follower.pathBuilder().addPath(
-                                new BezierLine(
-                                        new Pose(111.000, 136.000),
+                            new BezierLine(
+                                    new Pose(33.000, 136.000),
 
-                                        new Pose(84.000, 110.000)
-                                )
-                        ).setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(100))
+                                    new Pose(60.000, 110.000)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(80))
 
-                        .build();
+                    .build();
 
             shootPreload = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(84.000, 110.000),
+                                    new Pose(60.000, 110.000),
 
-                                    new Pose(111.000, 110.000)
+                                    new Pose(32.000, 110.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(100), Math.toRadians(45))
+                    ).setLinearHeadingInterpolation(Math.toRadians(80), Math.toRadians(135))
 
                     .build();
 
             toFirstBalls = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(111.000, 110.000),
+                                    new Pose(32.000, 110.000),
 
-                                    new Pose(96.000, 87.000)
+                                    new Pose(48.000, 87.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
+                    ).setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(180))
 
                     .build();
 
             throughFirstBalls = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(96.000, 87.000),
+                                    new Pose(48.000, 87.000),
 
-                                    new Pose(128.000, 87.000)
+                                    new Pose(16.000, 87.000)
                             )
                     ).setTangentHeadingInterpolation()
 
@@ -138,11 +137,11 @@ public class RightBermuda extends LinearOpMode {
 
             shootFirstBalls = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(128.000, 87.000),
+                                    new Pose(16.000, 87.000),
 
-                                    new Pose(111.000, 110.000)
+                                    new Pose(32.000, 110.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(135))
 
                     .build();
         }

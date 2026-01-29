@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -27,6 +28,7 @@ public class AprilTagLimelight {
     public static double HEADING_DEADBAND_D = 1.0;  // 1 deg
 
     private static final int AUTO_ALIGN_PIPELINE = 3;
+    private static final int MOTIF_PIPELINE = 0;
 
     // ================= INIT =================
     public AprilTagLimelight(HardwareMap hw) {
@@ -137,17 +139,16 @@ public class AprilTagLimelight {
     /**
      * Returns turn correction ONLY when heading lock is enabled
      */
-    public double getTurnCorrection(boolean headingLockEnabled) {
-        if (!headingLockEnabled) return 0.0;
-        if (!isAutoAlignPipeline()) return 0.0;
+    public double getTurnCorrection(boolean enabled) {
+        if (!enabled) return 0.0;
 
-        Double headingErr = getHeadingErrorDeg();
-        if (headingErr == null) return 0.0;
+        LLResult r = limelight.getLatestResult();
+        if (r == null || !r.isValid()) return 0.0;
 
-        if (Math.abs(headingErr) < HEADING_DEADBAND_D) return 0.0;
+        double tx = r.getTx();
+        if (Math.abs(tx) < 1.0) return 0.0;
 
-        double cmd = headingErr * TURN_KP;
-        return clamp(cmd, MAX_TURN);
+        return clamp(tx * TURN_KP, MAX_TURN);
     }
 
     public void enableAutoAlign() {
@@ -161,10 +162,24 @@ public class AprilTagLimelight {
 
 
     // ================= MOTIF =================
+    public void enableMotifScan() {
+        limelight.pipelineSwitch(MOTIF_PIPELINE);
+    }
+
     public Integer getMotifNumber() {
         LLResult r = getValidResult();
-        if (r == null || r.getFiducialResults().isEmpty()) return null;
-        return r.getFiducialResults().get(0).getFiducialId();
+        if (r == null) return null;
+
+        if (r.getFiducialResults().isEmpty()) return null;
+
+        for (LLResultTypes.FiducialResult fid : r.getFiducialResults()) {
+            int id = fid.getFiducialId();
+            if (id == 21 || id == 22 || id == 23) {
+                return id;
+            }
+        }
+
+        return null; // no motif tag visible
     }
 
     public String getMotif() {

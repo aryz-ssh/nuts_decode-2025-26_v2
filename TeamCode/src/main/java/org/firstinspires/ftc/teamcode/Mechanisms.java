@@ -35,8 +35,8 @@ public class Mechanisms {
     private boolean outtakeActive = false;
     private double manualOuttakeSpeed = 0.7;
 
-    private static double RAMP_ANGLE_MIN_POS = 0.24;
-    private static double RAMP_ANGLE_MAX_POS = 0.99;
+    public static double RAMP_ANGLE_MIN_POS = 0.24;
+    public static double RAMP_ANGLE_MAX_POS = 0.99;
 
     private static final double RAMP_RANGE =
             RAMP_ANGLE_MAX_POS - RAMP_ANGLE_MIN_POS;
@@ -136,6 +136,10 @@ public class Mechanisms {
         if (pocket != -1) {
             sorter.movePocketToOuttake(pocket);
         }
+    }
+
+    public void setSorterAutoMode(boolean enabled) {
+        sorter.setAutoMode(enabled);
     }
 
     public boolean isSorterBusy() {

@@ -20,11 +20,11 @@ public class MasterDrivetrain {
 
     // ---------------- Tuning ----------------
     public static double BRAKE_MULT = 0.5;
-    public static double RAMP_RATE = 0.4;
+    public static double RAMP_RATE = 0.8;
     public static double MIN_POWER = 0.15;
     public static double KICK_MULT = 1.4;
     public static long KICK_TIME_MS = 100;
-    public static double TURN_MULT = 1.0; // dashboard-tunable
+    public static double TURN_MULT = 0.8; // dashboard-tunable
 
     public static double FL_SCALE = 1.0;
     public static double FR_SCALE = 1.0;

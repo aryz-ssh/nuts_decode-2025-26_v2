@@ -8,7 +8,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 @Config
-@TeleOp(name = "PostNut")
+@TeleOp(name = "PostNut", group = "0")
 public class PostNut extends LinearOpMode {
     private ElapsedTime runtime = new ElapsedTime();
     private long lastTelem = 0;
@@ -206,15 +206,18 @@ public class PostNut extends LinearOpMode {
             double rx = applyDeadband(gamepad1.right_stick_x);
 
             boolean brake = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
-            // ---------- Auto Align Toggle (GP1 X) ----------
-                if (gamepad1.x && !lastX1) {
-                    autoAlignEnabled = !autoAlignEnabled;
 
-                    if (autoAlignEnabled) {
-                        limelight.enableAutoAlign(); // switches to pipeline 3
-                    }
+            // ---------- Auto Align Toggle (GP1 X) ----------
+            if (gamepad1.x && !lastX1) {
+                autoAlignEnabled = !autoAlignEnabled;
+
+                if (autoAlignEnabled) {
+                    limelight.enableAutoAlign(); // pipeline 3
+                } else {
+                    limelight.setPipeline(isRedAlliance ? 8 : 9);
                 }
-                lastX1 = gamepad1.x;
+            }
+            lastX1 = gamepad1.x;
 
             // ---------- DRIVE (Robot-Centric + HEADING ALIGN ONLY) ----------
             double driveX = x;
@@ -247,6 +250,8 @@ public class PostNut extends LinearOpMode {
             lastIntakeTrigger = intakeTriggerNow;
 
             if (intakeToggle) mechanisms.engageIntake(1.0, reversePressed);
+
+            if (gamepad1.right_stick_button) mechanisms.sorter.onBallEjected();
 
             // =============================================================
             // GAMEPAD 2 — MECHANISMS / SORTER
@@ -319,6 +324,8 @@ public class PostNut extends LinearOpMode {
                 else mechanisms.disengageOuttake();
             }
             lastB2 = gamepad2.b;
+
+            if (gamepad2.right_stick_button) mechanisms.sorter.onBallEjected();
 
             // Outtake speed adjustments
             if (gamepad2.dpad_up && !lastDpadUp) mechanisms.increaseOuttakeSpeed(0.1);

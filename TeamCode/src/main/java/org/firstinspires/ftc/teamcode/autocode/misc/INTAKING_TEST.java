@@ -1,5 +1,6 @@
-package org.firstinspires.ftc.teamcode.autocode;
+package org.firstinspires.ftc.teamcode.autocode.misc;
 
+import com.acmerobotics.dashboard.config.Config;
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
@@ -13,19 +14,26 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @Autonomous(name = "Intake in a straight line test", group = "Autonomous")
 @Configurable
+@Config
 public class INTAKING_TEST extends LinearOpMode {
 
     private Follower follower;
-    private INTAKING_TEST.Paths paths;
+    private Paths paths;
     private Mechanisms mechanisms;
 
+    private IntakeTestState state = IntakeTestState.START_SWEEP;
+    private long settleStartMs = 0;
+
+    public static final double INTAKE_POWER = 1.0;
+    public static final double INTAKE_SPEED_LIMIT = 0.5;
+    public static final long INTAKE_SETTLE_MS = 250;
+
     private enum IntakeTestState {
-        START_PATH,
-        WAIT_PATH,
+        START_SWEEP,
+        WAIT_SWEEP,
+        SETTLE,
         DONE
     }
-
-    private IntakeTestState state = IntakeTestState.START_PATH;
 
     @Override
     public void runOpMode() {
@@ -33,12 +41,12 @@ public class INTAKING_TEST extends LinearOpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(new Pose(42.4, 84.4, Math.toRadians(180)));
 
-        paths = new INTAKING_TEST.Paths(follower);
+        paths = new Paths(follower);
 
         mechanisms = new Mechanisms();
         mechanisms.initMechanisms(hardwareMap, telemetry, true);
 
-        telemetry.addLine("INTAKE TEST READY");
+        telemetry.addLine("INTAKE AUTO TEST READY");
         telemetry.update();
 
         waitForStart();
@@ -50,23 +58,35 @@ public class INTAKING_TEST extends LinearOpMode {
 
             switch (state) {
 
-                case START_PATH:
-                    // Turn intake ON before moving
-                    mechanisms.engageIntake(1.0, false);
-
+                case START_SWEEP:
+                    // EXACTLY what autos do
+                    follower.setMaxPower(INTAKE_SPEED_LIMIT);
                     follower.followPath(paths.Path1);
-                    state = IntakeTestState.WAIT_PATH;
+
+                    mechanisms.engageIntake(INTAKE_POWER, false);
+                    mechanisms.sorter.setAutoMode(true);
+
+                    state = IntakeTestState.WAIT_SWEEP;
                     break;
 
-                case WAIT_PATH:
+                case WAIT_SWEEP:
                     if (!follower.isBusy()) {
+                        follower.setMaxPower(Constants.driveConstants.maxPower);
+                        settleStartMs = System.currentTimeMillis();
+                        state = IntakeTestState.SETTLE;
+                    }
+                    break;
+
+                case SETTLE:
+                    // Let balls finish seating
+                    if (System.currentTimeMillis() - settleStartMs > INTAKE_SETTLE_MS) {
                         mechanisms.disengageIntake();
+                        mechanisms.sorter.setAutoMode(false);
                         state = IntakeTestState.DONE;
                     }
                     break;
 
                 case DONE:
-                    // Hold everything off
                     mechanisms.disengageIntake();
                     break;
             }
@@ -78,13 +98,12 @@ public class INTAKING_TEST extends LinearOpMode {
         }
     }
 
-    // ---------------- PATHS ----------------
+    // ---------------- PATH ----------------
     public static class Paths {
 
         public PathChain Path1;
 
         public Paths(Follower follower) {
-
             Path1 = follower.pathBuilder()
                     .addPath(
                             new BezierLine(
@@ -98,5 +117,6 @@ public class INTAKING_TEST extends LinearOpMode {
                     )
                     .build();
         }
-    }
 }
+}
+

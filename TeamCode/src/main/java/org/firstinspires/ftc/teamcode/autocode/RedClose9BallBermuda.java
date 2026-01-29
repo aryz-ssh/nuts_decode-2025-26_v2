@@ -19,7 +19,7 @@ import org.firstinspires.ftc.teamcode.Mechanisms;
 import org.firstinspires.ftc.teamcode.autocode.pathingOnly.RedClose9BallBermudaPathOnly;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Red Bermuda Close 9 Ball", group = "Autonomous")
+@Autonomous(name = "RedClose", group = "Autonomous")
 @Configurable
 @Config
 public class RedClose9BallBermuda extends LinearOpMode {

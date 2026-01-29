@@ -19,7 +19,7 @@ import org.firstinspires.ftc.teamcode.Mechanisms;
 import org.firstinspires.ftc.teamcode.autocode.pathingOnly.BlueFar9BallBermudaPathOnly;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Blue Bermuda Far 9 Ball", group = "Autonomous")
+@Autonomous(name = "BlueFar", group = "Autonomous")
 @Configurable
 @Config
 public class BlueFar9BallBermuda extends LinearOpMode {

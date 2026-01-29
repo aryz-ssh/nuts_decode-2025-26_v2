@@ -1,4 +1,4 @@
-/* package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -6,14 +6,14 @@ public class MotifShoot {
 
     private final Mechanisms mechanisms;
 
-    private String motif;   // <-- PASSED IN FROM AUTO
+    private String motifPattern;
     private int motifIndex = 0;
     private boolean active = false;
 
     private final ElapsedTime timer = new ElapsedTime();
 
     private enum State {
-        MOVE_TO_POCKET,
+        MOVE_TO_OUTTAKE,
         WAIT_FOR_SORTER,
         SHOOT,
         WAIT_AFTER_SHOT,
@@ -26,46 +26,47 @@ public class MotifShoot {
         this.mechanisms = mechanisms;
     }
 
-    // ---------------- ENTRY POINT ----------------
-    public void start(String motif) {
-        this.motif = motif;        // "GPP", "PGP", "PPG"
+    // ================= ENTRY POINT =================
+    public void start(String motifPattern) {
+        this.motifPattern = motifPattern; // e.g. "GPP"
         motifIndex = 0;
         active = true;
-        state = State.MOVE_TO_POCKET;
+        state = State.MOVE_TO_OUTTAKE;
+
+        // visual feedback
+        mechanisms.sorter.triggerMotifLockedFlash();
     }
 
     public boolean isFinished() {
         return state == State.DONE;
     }
 
-    // ---------------- CALL IN AUTO LOOP ----------------
+    // ================= CALL IN AUTO LOOP =================
     public void update() {
         if (!active) return;
 
         switch (state) {
 
-            case MOVE_TO_POCKET: {
-                char desired = motif.charAt(motifIndex);
+            case MOVE_TO_OUTTAKE: {
+                char c = motifPattern.charAt(motifIndex);
 
-                SorterLogicColor.BallColor wanted =
-                        (desired == 'G')
-                                ? SorterLogicColor.BallColor.GREEN
-                                : SorterLogicColor.BallColor.PURPLE;
+                FinalSorter.BallColor wanted =
+                        (c == 'G')
+                                ? FinalSorter.BallColor.GREEN
+                                : FinalSorter.BallColor.PURPLE;
 
-                Integer pocket =
-                        mechanisms.sorterLogic.getPocketWithColor(wanted);
+                int pocket = mechanisms.sorter.getPocketWithColor(wanted);
 
-                if (pocket == null) pocket = 1; // safety fallback
+                // safety fallback (should never happen if autos correct)
+                if (pocket == -1) pocket = 0;
 
-                mechanisms.sorterGoToOuttake(pocket);
-                mechanisms.setShotPocket(pocket);
-
+                mechanisms.sorter.movePocketToOuttake(pocket);
                 state = State.WAIT_FOR_SORTER;
                 break;
             }
 
             case WAIT_FOR_SORTER:
-                if (!mechanisms.isSorterMoving()) {
+                if (!mechanisms.isSorterBusy()) {
                     state = State.SHOOT;
                 }
                 break;
@@ -77,13 +78,15 @@ public class MotifShoot {
                 break;
 
             case WAIT_AFTER_SHOT:
-                if (timer.seconds() > 0.9) {
+                // allow beam-break + kicker cycle
+                if (timer.seconds() > 0.6) {
                     motifIndex++;
+
                     if (motifIndex >= 3) {
                         state = State.DONE;
                         active = false;
                     } else {
-                        state = State.MOVE_TO_POCKET;
+                        state = State.MOVE_TO_OUTTAKE;
                     }
                 }
                 break;
@@ -94,4 +97,3 @@ public class MotifShoot {
         }
     }
 }
-*/

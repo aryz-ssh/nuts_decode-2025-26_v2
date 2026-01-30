@@ -10,7 +10,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "VIVEK IS MY BIG DADDY", group = "Autonomous")
+@Autonomous(name = "RedFar3_PathingOnly", group = "Autonomous")
 @Config
 public class RedFar3Pathing extends LinearOpMode {
 
@@ -18,12 +18,9 @@ public class RedFar3Pathing extends LinearOpMode {
     private Paths paths;
 
     public static class Paths {
-        public PathChain Path1; // forward
-        public PathChain Path2; // into triangle
-        public PathChain Path3; // park
+        public PathChain Path1, Path2, Path3;
 
         public Paths(Follower follower) {
-
             Path1 = follower.pathBuilder()
                     .addPath(new BezierLine(
                             new Pose(51.317, 8.780),
@@ -50,12 +47,7 @@ public class RedFar3Pathing extends LinearOpMode {
         }
     }
 
-    private enum AutoState {
-        PATH1,
-        PATH2,
-        PATH3,
-        DONE
-    }
+    private enum AutoState { PATH1, PATH2, PATH3, DONE }
 
     @Override
     public void runOpMode() {
@@ -68,9 +60,7 @@ public class RedFar3Pathing extends LinearOpMode {
 
         AutoState state = AutoState.PATH1;
 
-        boolean path1Started = false;
-        boolean path2Started = false;
-        boolean path3Started = false;
+        boolean path1Started = false, path2Started = false, path3Started = false;
 
         while (opModeIsActive()) {
             follower.update();
@@ -81,10 +71,7 @@ public class RedFar3Pathing extends LinearOpMode {
                         follower.followPath(paths.Path1);
                         path1Started = true;
                     }
-                    if (!follower.isBusy()) {
-                        path1Started = false;
-                        state = AutoState.PATH2;
-                    }
+                    if (!follower.isBusy()) state = AutoState.PATH2;
                     break;
 
                 case PATH2:
@@ -92,10 +79,7 @@ public class RedFar3Pathing extends LinearOpMode {
                         follower.followPath(paths.Path2);
                         path2Started = true;
                     }
-                    if (!follower.isBusy()) {
-                        path2Started = false;
-                        state = AutoState.PATH3;
-                    }
+                    if (!follower.isBusy()) state = AutoState.PATH3;
                     break;
 
                 case PATH3:
@@ -103,13 +87,10 @@ public class RedFar3Pathing extends LinearOpMode {
                         follower.followPath(paths.Path3);
                         path3Started = true;
                     }
-                    if (!follower.isBusy()) {
-                        state = AutoState.DONE;
-                    }
+                    if (!follower.isBusy()) state = AutoState.DONE;
                     break;
 
                 case DONE:
-                    // Stop all movement
                     break;
             }
         }

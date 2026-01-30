@@ -77,7 +77,6 @@ public class RedClose9BallBermuda extends LinearOpMode {
     public static long TAG_SCAN_WINDOW_MS = 500;
     private long tagScanStartMs = -1;
     private boolean tagScanArmed = false;
-
     private String motif = null;
     private long motifStartTimeMs = 0;
     private static final long MOTIF_TIMEOUT_MS = 600;

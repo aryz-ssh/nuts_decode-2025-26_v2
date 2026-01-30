@@ -19,12 +19,12 @@ public class AprilTagLimelight {
 
     // ================= TUNING =================
     public static double STRAFE_KP = 1.4;   // meters → strafe power
-    public static double TURN_KP   = 0.02;  // degrees → turn power
+    public static double TURN_KP   = 0.03;  // degrees → turn power
 
-    public static double TX_OFFSET_DEG = -2.0; // tune this
+    public static double TX_OFFSET_DEG = -4.0; // tune this
 
     public static double MAX_STRAFE = 0.6;
-    public static double MAX_TURN   = 0.5;
+    public static double MAX_TURN   = 0.3;
 
     public static double LATERAL_DEADBAND_M = 0.02; // 2 cm
     public static double HEADING_DEADBAND_D = 1.0;  // 1 deg

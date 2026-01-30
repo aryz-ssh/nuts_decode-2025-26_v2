@@ -20,9 +20,9 @@ public class FinalSorter {
     public static final double TICKS_PER_REV = 537.4;
     private static final int SLOT_COUNT = 3;
 
-    public static double POS_P = 0.006;     // power per tick of error
+    public static double POS_P = 0.0045;     // power per tick of error
     public static double POS_I = 0.0;
-    public static double POS_D = 0.003;
+    public static double POS_D = 0.004;
     public static double POS_F = 0.06;      // 0..1 constant push toward target
 
     private double posIntegral = 0;
@@ -31,15 +31,15 @@ public class FinalSorter {
     // encoder ticks for each pocket at INTAKE plane
     public static int[] INTAKE_TICKS = {
             0, // pocket 0
-            190, // pocket 1
-            373 // pocket 2
+            175, // pocket 1
+            360 // pocket 2
     };
 
     // encoder ticks for each pocket at OUTTAKE plane
     public static int[] OUTTAKE_TICKS = {
-            -240, // pocket 0
-            -56, // pocket 1
-            120 // pocket 2
+            -270, // pocket 0
+            -90, // pocket 1
+            90 // pocket 2
     };
 
 // ================= COLOR CLASSIFICATION (DATA-DRIVEN) =================
@@ -158,22 +158,22 @@ public class FinalSorter {
         );
 
         // ================= AUTO MODE: CYCLE ON CONFIRMED COLOR =================
-        if (autoMode && !busy) {
-
-            BallColor detected = readColorSensor();  // SAME logic as LED
+        // Detect ball color at intake
+        if (!busy) {
+            BallColor detected = readColorSensor();
 
             if (detected != BallColor.NONE) {
-
                 int intakeSlot = getPocketClosestTo(INTAKE_TICKS);
 
-                // Only act if the intake pocket is empty
                 if (intakeSlot != -1 && slots[intakeSlot].color == BallColor.NONE) {
 
-                    // Commit ball to this pocket
+                    // ALWAYS store
                     slots[intakeSlot].color = detected;
 
-                    // Immediately advance to the next available pocket
-                    advanceIntakePocketIfPossible();
+                    // ONLY advance in auto mode
+                    if (autoMode) {
+                        advanceIntakePocketIfPossible();
+                    }
                 }
             }
         }

@@ -34,10 +34,15 @@ public class BlueClose9BallBermuda extends LinearOpMode {
     // ================= SHOOTING CONFIG =================
 
     // Global shooter settings (used at every shooting point)
-    public static final double OUTTAKE_POWER = 0.6;   // 60%
-    public static final double RAMP_ANGLE = 0.70;
-    public static final int SHOT_SPACING_MS = 300;
-
+    public static double OUTTAKE_POWER = 0.6;   // 60%
+    public static double RAMP_ANGLE = 0.70;
+    public static int SHOT_SPACING_MS = 600;
+    public static long PRE_SHOOT_DELAY_MS = 1000; // tune this (250–500)
+    private long preshootDelayStart = -1;
+    private long outtakeSpinupStart = -1;
+    public static long OUTTAKE_SPINUP_MS = 400; // tune this
+    private long sorterNotBusySince = -1;
+    public static long SORTER_POST_BUSY_MS = 400; // tune 150–250
 
     // Timing
     private long shootStartTimeMs = 0;
@@ -47,28 +52,55 @@ public class BlueClose9BallBermuda extends LinearOpMode {
     private boolean shootPreloadPathStarted = false;
     private boolean outtakeSpinning = false;
     private boolean pocketAligned = false;
+    private boolean transitionArmed = false;
+
+    public static long SETTLE_DELAY_MS = 1000;
+    // private long settleStartTime = -1;
+
+    // ================= GLOBAL TIMING =================
+    public static long POST_PATH_DELAY_MS = 5000;   // delay after EVERY path
+    private long postShotDelayStart = -1;
 
     // ================= INTAKE CONFIG =================
 
     // Intake behavior during collection paths
-    private static final double INTAKE_POWER = 1.0;
-    public static final double INTAKE_SPEED_LIMIT = 0.5;   // path slowdown
-    public static final long INTAKE_SETTLE_MS = 250;
+    private static double INTAKE_POWER = 1.0;
+    public static double INTAKE_SPEED_LIMIT = 0.35;   // path slowdown
+    public static long INTAKE_SETTLE_MS = 1200;
+    private boolean firstSweepPowerSet = false;
+    private boolean secondSweepPowerSet = false;
+    private boolean sorterPreAligned = false;
 
 
     // ================= MOTIF =================
-
+    // Scan motif ONLY when stopped at tag
+    public static long TAG_SCAN_WINDOW_MS = 500;
+    private long tagScanStartMs = -1;
+    private boolean tagScanArmed = false;
     private String motif = null;
     private long motifStartTimeMs = 0;
     private static final long MOTIF_TIMEOUT_MS = 600;
     private boolean motifLocked = false;
     private int motifIndex = 0;
 
+    // ================= TELEMETRY / DASH THROTTLING =================
+    public static boolean LOG_ENABLED = true;
+    public static boolean DASH_POSE_ENABLED = false;
+
+    public static long LOG_PERIOD_MS = 100;      // telemetry + panels
+    public static long DASH_PERIOD_MS = 75;     // dashboard pose
+
+    private long lastLogMs = 0;
+    private long lastDashMs = 0;
+
     private enum AutoState {
 
         DRIVE_TO_TAG,          // Path: toAprilTag
+        WAIT_AFTER_TAG,
 
         DRIVE_TO_SHOOT_POS,    // Path: shootPreload (global shooting spot)
+        WAIT_AFTER_PRESHOT_POS,
+
         SHOOT_PRELOADS,      // <--- ADD THIS
 
         DRIVE_TO_FIRST_SET,    // Path: toFirstBalls
@@ -101,9 +133,27 @@ public class BlueClose9BallBermuda extends LinearOpMode {
     private boolean firstSweepStarted = false;
     private boolean secondSweepStarted = false;
 
+    private boolean driveToShoot1Started = false;
+    private boolean driveToShoot2Started = false;
+    private boolean driveToEndStarted = false;
+
     private boolean shootNextMotifBall(long delayMs) {
 
-        if (motifIndex >= motif.length()) return true; // done
+        if (motifIndex >= motif.length()) {
+
+            // wait AFTER last shot
+            if (postShotDelayStart < 0) {
+                postShotDelayStart = System.currentTimeMillis();
+                return false;
+            }
+
+            if (System.currentTimeMillis() - postShotDelayStart >= delayMs) {
+                postShotDelayStart = -1;
+                return true;
+            }
+
+            return false;
+        }
 
         char target = motif.charAt(motifIndex);
         FinalSorter.BallColor color =
@@ -113,24 +163,46 @@ public class BlueClose9BallBermuda extends LinearOpMode {
 
         // STEP 1: find correct pocket
         int pocket = mechanisms.sorter.getPocketWithColor(color);
+
+        // FALLBACK: requested color not available
         if (pocket == -1) {
-            // No such ball left → skip
-            motifIndex++;
-            return false;
+            pocket = mechanisms.sorter.getPocketWithAnyBall();
+            if (pocket == -1) {
+                // No balls left at all → motif step is effectively done
+                motifIndex++;
+                return false;
+            }
         }
 
         // STEP 2: command move once
         if (!pocketAligned && !mechanisms.isSorterBusy()) {
+            sorterNotBusySince = -1; // reset settle timer
             mechanisms.sorter.movePocketToOuttake(pocket);
             pocketAligned = true;
             return false;
         }
 
         // STEP 3: wait for move to finish, then kick
-        if (pocketAligned && !shotInProgress && !mechanisms.isSorterBusy()) {
+// Track when sorter becomes NOT busy
+        if (pocketAligned && !mechanisms.isSorterBusy()) {
+            if (sorterNotBusySince < 0) {
+                sorterNotBusySince = System.currentTimeMillis();
+                return false;
+            }
+        } else {
+            sorterNotBusySince = -1; // reset if sorter moves again
+        }
+
+// Fire ONLY after sorter has been stable for 200ms
+        if (pocketAligned &&
+                !shotInProgress &&
+                sorterNotBusySince > 0 &&
+                System.currentTimeMillis() - sorterNotBusySince >= SORTER_POST_BUSY_MS) {
+
             mechanisms.ejectBall();
             shotInProgress = true;
             shootStartTimeMs = System.currentTimeMillis();
+            sorterNotBusySince = -1;
             return false;
         }
 
@@ -138,11 +210,21 @@ public class BlueClose9BallBermuda extends LinearOpMode {
         if (shotInProgress &&
                 System.currentTimeMillis() - shootStartTimeMs > delayMs) {
 
-            mechanisms.sorter.onBallEjected();
+            mechanisms.sorter.onBallEjected(); // clear PREVIOUS shot
             shotInProgress = false;
             pocketAligned = false;
+            sorterNotBusySince = -1;
             motifIndex++;
         }
+
+        // FAILSAFE: force eject if aligned too long
+//        if (pocketAligned && !shotInProgress &&
+//                System.currentTimeMillis() - shootStartTimeMs > 500) {
+//
+//            mechanisms.ejectBall();
+//            shotInProgress = true;
+//            shootStartTimeMs = System.currentTimeMillis();
+//        }
 
         return false;
     }
@@ -165,6 +247,22 @@ public class BlueClose9BallBermuda extends LinearOpMode {
         }
     }
 
+    private void preAlignSorterAtInit() {
+        // First motif character determines preload
+        char target = motif.charAt(0);
+
+        FinalSorter.BallColor color =
+                (target == 'G')
+                        ? FinalSorter.BallColor.GREEN
+                        : FinalSorter.BallColor.PURPLE;
+
+        int pocket = mechanisms.sorter.getPocketWithColor(color);
+
+        if (pocket != -1) {
+            mechanisms.sorter.movePocketToOuttake(pocket);
+        }
+    }
+
     private void log(String caption, Object value) {
         panelsTelemetry.debug(caption, value);
         telemetry.addData(caption, value);
@@ -176,7 +274,7 @@ public class BlueClose9BallBermuda extends LinearOpMode {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(33, 136, Math.toRadians(90)));
+        follower.setStartingPose(new Pose(111, 136, Math.toRadians(90)));
 
         paths = new BlueClose9BallBermudaPathOnly.RobotPaths(follower);
 
@@ -193,10 +291,15 @@ public class BlueClose9BallBermuda extends LinearOpMode {
                 FinalSorter.BallColor.PURPLE
         });
 
+        FinalSorter.DASH_ENABLED = false;
+
         mechanisms.setRampAngle(RAMP_ANGLE);
 
         aprilTagLimelight = new AprilTagLimelight(hardwareMap);
         aprilTagLimelight.enableMotifScan();
+
+        motif = "GPP"; // DEFAULT fallback (or whatever you choose)
+        preAlignSorterAtInit();
 
         panelsTelemetry.debug("Status", "Initialized");
         panelsTelemetry.update(telemetry);
@@ -206,7 +309,6 @@ public class BlueClose9BallBermuda extends LinearOpMode {
         AutoState state = AutoState.DRIVE_TO_TAG;
 
         motifStartTimeMs = System.currentTimeMillis();
-        motif = "GPP"; // DEFAULT fallback (or whatever you choose)
 
         while (opModeIsActive()) {
 
@@ -220,217 +322,364 @@ public class BlueClose9BallBermuda extends LinearOpMode {
 
             switch (state) {
 
+                /* ===================== DRIVE TO TAG ===================== */
+
                 case DRIVE_TO_TAG:
 
-//                    if (!follower.isBusy()) {
-//                        follower.followPath(paths.toAprilTag);
-//                    }
+                    if (!sorterPreAligned) {
+                        preAlignSorterAtInit();
+                        sorterPreAligned = true;
+                    }
+
+                    // Start the path once
                     if (!driveToTagStarted) {
                         follower.followPath(paths.toAprilTag);
                         driveToTagStarted = true;
+
+                        // Reset scan state for this run
+                        tagScanStartMs = -1;
+                        tagScanArmed = false;
+                        motifLocked = false;              // optional: if you want fresh scan each run
+                        motif = "GPP";                    // optional default/fallback
                     }
 
+                    // While Pedro is moving: NEVER touch Limelight
+                    if (follower.isBusy()) {
+                        break;
+                    }
+
+                    // We are stopped at tag. Arm a 500ms scan window.
+                    if (!tagScanArmed) {
+                        tagScanArmed = true;
+                        tagScanStartMs = System.currentTimeMillis();
+                    }
+
+                    // Scan for up to 500ms total
                     if (!motifLocked) {
-                        String m = aprilTagLimelight.getMotif();
+                        long elapsed = System.currentTimeMillis() - tagScanStartMs;
 
-                        if (!m.equals("UNKNOWN")) {
-                            motif = m;
-                            motifLocked = true;
-                            mechanisms.sorter.triggerMotifLockedFlash();
-
-                        } else if (System.currentTimeMillis() - motifStartTimeMs > MOTIF_TIMEOUT_MS) {
+                        if (elapsed <= TAG_SCAN_WINDOW_MS) {
+                            String m = aprilTagLimelight.getMotif(); // only called while stopped
+                            if (!m.equals("UNKNOWN")) {
+                                motif = m;
+                                motifLocked = true;
+                                mechanisms.sorter.triggerMotifLockedFlash();
+                            }
+                        } else {
+                            // Window expired -> lock whatever we have (fallback stays)
                             motifLocked = true;
                         }
                     }
 
-                    if (!follower.isBusy()) {
-                        state = AutoState.DRIVE_TO_SHOOT_POS;
+                    // After scan window (or early lock), move on
+                    if (motifLocked) {
                         driveToTagStarted = false;
+                        state = AutoState.DRIVE_TO_SHOOT_POS;
                     }
+
                     break;
 
-                case DRIVE_TO_SHOOT_POS:
+//                case WAIT_AFTER_TAG:
+//
+//                    // Safety: outtake MUST be off
+//                    mechanisms.disengageOuttake();
+//
+//                    if (follower.isBusy()) {
+//                        settleStartTime = -1; // reset if Pedro corrects
+//                        break;
+//                    }
+//
+//                    if (settleStartTime < 0) {
+//                        settleStartTime = System.currentTimeMillis();
+//                        break;
+//                    }
+//
+//                    if (System.currentTimeMillis() - settleStartTime >= SETTLE_DELAY_MS) {
+//                        settleStartTime = -1;
+//                        state = AutoState.DRIVE_TO_SHOOT_POS;
+//                    }
+//                    break;
 
-                    // 1) Start path ONCE
+
+                /* ===================== DRIVE TO PRELOAD SHOOT ===================== */
+
+                case DRIVE_TO_SHOOT_POS:
                     if (!shootPreloadPathStarted) {
                         follower.followPath(paths.shootPreload);
-                        mechanisms.engageOuttake(OUTTAKE_POWER); // spin up EARLY
                         shootPreloadPathStarted = true;
                     }
 
-                    // 2) Wait for path to finish
-                    if (shootPreloadPathStarted && !follower.isBusy()) {
+                    if (!follower.isBusy()) {
                         shootPreloadPathStarted = false;
-                        shotsFired = 0;
-                        shotInProgress = false;
-                        shootStartTimeMs = System.currentTimeMillis();
-
                         state = AutoState.SHOOT_PRELOADS;
                     }
                     break;
 
+//                case WAIT_AFTER_PRESHOT_POS:
+//
+//                    // Still NO outtake here
+//                    mechanisms.disengageOuttake();
+//
+//                    if (follower.isBusy()) {
+//                        settleStartTime = -1;
+//                        break;
+//                    }
+//
+//                    if (settleStartTime < 0) {
+//                        settleStartTime = System.currentTimeMillis();
+//                        break;
+//                    }
+//
+//                    if (System.currentTimeMillis() - settleStartTime >= SETTLE_DELAY_MS) {
+//
+//                        // NOW it is safe to spin shooter
+//                        mechanisms.engageOuttake(OUTTAKE_POWER);
+//
+//                        motifIndex = 0;
+//                        shotInProgress = false;
+//
+//                        settleStartTime = -1;
+//                        state = AutoState.SHOOT_PRELOADS;
+//                    }
+//                    break;
+
+
+                /* ===================== SHOOT PRELOADS ===================== */
 
                 case SHOOT_PRELOADS:
+                    // --- Spin-up gate ---
+                    if (!outtakeSpinning) {
+                        if (outtakeSpinupStart < 0) {
+                            mechanisms.engageOuttake(OUTTAKE_POWER);
+                            outtakeSpinupStart = System.currentTimeMillis();
+                            break;
+                        }
 
-                    if (shootNextMotifBall(SHOT_SPACING_MS)) {
-                        // finished motif (3 balls)
-                        motifIndex = 0; // reset for later sets
+                        if (System.currentTimeMillis() - outtakeSpinupStart < OUTTAKE_SPINUP_MS) {
+                            break; // wait for RPM
+                        }
 
-                        follower.followPath(paths.toFirstBalls);
-                        mechanisms.disengageOuttake();
-                        state = AutoState.DRIVE_TO_FIRST_SET;
+                        outtakeSpinning = true;
+                        outtakeSpinupStart = -1;
                     }
 
+                    if (shootNextMotifBall(SHOT_SPACING_MS)) {
+                        mechanisms.disengageOuttake();
+                        outtakeSpinning = false;
+                        outtakeSpinupStart = -1;
+
+                        motifIndex = 0;
+                        state = AutoState.DRIVE_TO_FIRST_SET;
+                    }
                     break;
+
+                /* ===================== DRIVE TO FIRST SET ===================== */
 
                 case DRIVE_TO_FIRST_SET:
                     if (!toFirstSetStarted) {
+                        mechanisms.sorter.movePocketToIntake(0); // force intake pocket
                         follower.followPath(paths.toFirstBalls);
                         toFirstSetStarted = true;
                     }
+
                     if (!follower.isBusy()) {
                         toFirstSetStarted = false;
                         state = AutoState.COLLECT_FIRST_SET;
                     }
                     break;
 
-                case COLLECT_FIRST_SET:
-                    // Slow ONLY the intake sweep path
-                    if (!firstSweepStarted) {
-                        follower.setMaxPower(INTAKE_SPEED_LIMIT);
-                        follower.followPath(paths.throughFirstBalls);
+                /* ===================== COLLECT FIRST SET ===================== */
 
+                case COLLECT_FIRST_SET:
+                    if (!firstSweepStarted) {
+                        follower.followPath(paths.throughFirstBalls);
                         mechanisms.engageIntake(INTAKE_POWER, false);
                         mechanisms.sorter.setAutoMode(true);
                         firstSweepStarted = true;
+                        firstSweepPowerSet = false;
+                    }
+
+                    // Apply power change ONE LOOP AFTER start
+                    if (firstSweepStarted && !firstSweepPowerSet) {
+                        follower.setMaxPower(INTAKE_SPEED_LIMIT);
+                        firstSweepPowerSet = true;
                     }
 
                     if (!follower.isBusy()) {
-                        firstSweepStarted = false;
                         follower.setMaxPower(Constants.driveConstants.maxPower);
-
-                        // KEEP intake + sorter running during settle
+                        firstSweepStarted = false;
                         delayStart = System.currentTimeMillis();
                         state = AutoState.INTAKE_DELAY_1;
                     }
                     break;
 
                 case INTAKE_DELAY_1:
-                    if (System.currentTimeMillis() - delayStart > INTAKE_SETTLE_MS) {
-                        mechanisms.disengageIntake();
-                        mechanisms.sorter.setAutoMode(false);
-                        preAlignFirstMotifBall();
-
-                        follower.followPath(paths.shootFirstBalls);
-                        state = AutoState.DRIVE_TO_SHOOT_1;
+                    // keep intake + sorter running
+                    if (System.currentTimeMillis() - delayStart < INTAKE_SETTLE_MS) {
+                        break;
                     }
+
+                    mechanisms.disengageIntake();
+                    mechanisms.sorter.setAutoMode(false);
+                    state = AutoState.DRIVE_TO_SHOOT_1;
                     break;
 
+                /* ===================== DRIVE TO SHOOT 1 ===================== */
+
                 case DRIVE_TO_SHOOT_1:
-                    // Start spin-up ONCE while driving
-                    if (!outtakeSpinning) {
-                        mechanisms.engageOuttake(OUTTAKE_POWER);
-                        outtakeSpinning = true;
+                    if (!driveToShoot1Started) {
+                        follower.followPath(paths.shootFirstBalls);
+                        driveToShoot1Started = true;
                     }
 
-                    // Wait until path finishes
                     if (!follower.isBusy()) {
-                        shootStartTimeMs = System.currentTimeMillis();
-                        motifIndex = 0;           // reset motif sequence
-                        shotInProgress = false;  // safety
+                        driveToShoot1Started = false;
+                        motifIndex = 0;
+                        shotInProgress = false;
                         state = AutoState.SHOOT_SET_1;
                     }
                     break;
 
+                /* ===================== SHOOT SET 1 ===================== */
+
                 case SHOOT_SET_1:
-                    // Keep outtake spinning — DO NOT disengage yet
-                    if (shootNextMotifBall(SHOT_SPACING_MS)) {
+                    // --- Spin-up gate ---
+                    if (!outtakeSpinning) {
+                        if (outtakeSpinupStart < 0) {
+                            mechanisms.engageOuttake(OUTTAKE_POWER);
+                            outtakeSpinupStart = System.currentTimeMillis();
+                            break;
+                        }
 
-                        // Finished full motif (GPP etc.)
-                        motifIndex = 0;
-                        outtakeSpinning = false;
+                        if (System.currentTimeMillis() - outtakeSpinupStart < OUTTAKE_SPINUP_MS) {
+                            break; // wait for RPM
+                        }
 
-                        mechanisms.disengageOuttake();   // now safe to stop
-                        follower.followPath(paths.toSecondBalls);
-                        state = AutoState.DRIVE_TO_SECOND_SET;
+                        outtakeSpinning = true;
+                        outtakeSpinupStart = -1;
                     }
 
+                    if (shootNextMotifBall(SHOT_SPACING_MS)) {
+                        mechanisms.disengageOuttake();
+                        outtakeSpinning = false;
+                        outtakeSpinupStart = -1;
+
+                        motifIndex = 0;
+                        state = AutoState.DRIVE_TO_SECOND_SET;
+                    }
                     break;
+
+                /* ===================== DRIVE TO SECOND SET ===================== */
 
                 case DRIVE_TO_SECOND_SET:
                     if (!toSecondSetStarted) {
+                        mechanisms.sorter.movePocketToIntake(0); // force intake pocket
                         follower.followPath(paths.toSecondBalls);
                         toSecondSetStarted = true;
                     }
+
                     if (!follower.isBusy()) {
                         toSecondSetStarted = false;
                         state = AutoState.COLLECT_SECOND_SET;
                     }
                     break;
 
-                case COLLECT_SECOND_SET:
-                    // Slow ONLY the intake sweep path
-                    if (!secondSweepStarted) {
-                        follower.setMaxPower(INTAKE_SPEED_LIMIT);
-                        follower.followPath(paths.throughSecondBalls);
+                /* ===================== COLLECT SECOND SET ===================== */
 
+                case COLLECT_SECOND_SET:
+                    if (!secondSweepStarted) {
+                        follower.followPath(paths.throughSecondBalls);
                         mechanisms.engageIntake(INTAKE_POWER, false);
                         mechanisms.sorter.setAutoMode(true);
                         secondSweepStarted = true;
+                        secondSweepPowerSet = false;
+                    }
+
+                    // Apply power change ONE LOOP AFTER start
+                    if (secondSweepStarted && !secondSweepPowerSet) {
+                        follower.setMaxPower(INTAKE_SPEED_LIMIT);
+                        secondSweepPowerSet = true;
                     }
 
                     if (!follower.isBusy()) {
-                        firstSweepStarted = false;
                         follower.setMaxPower(Constants.driveConstants.maxPower);
-
-                        // KEEP intake + sorter running during settle
+                        mechanisms.sorter.setAutoMode(false);
+                        secondSweepStarted = false;
                         delayStart = System.currentTimeMillis();
                         state = AutoState.INTAKE_DELAY_2;
                     }
                     break;
 
                 case INTAKE_DELAY_2:
-                    if (System.currentTimeMillis() - delayStart > INTAKE_SETTLE_MS) {
-                        mechanisms.disengageIntake();
-                        mechanisms.sorter.setAutoMode(false);
-                        preAlignFirstMotifBall();
-
-                        follower.followPath(paths.shootSecondBalls);
-                        state = AutoState.DRIVE_TO_SHOOT_2;
+                    // keep intake + sorter running
+                    if (System.currentTimeMillis() - delayStart < INTAKE_SETTLE_MS) {
+                        break;
                     }
+
+                    mechanisms.disengageIntake();
+                    mechanisms.sorter.setAutoMode(false);
+                    state = AutoState.DRIVE_TO_SHOOT_2;
                     break;
 
+                /* ===================== DRIVE TO SHOOT 2 ===================== */
+
                 case DRIVE_TO_SHOOT_2:
-                    if (!outtakeSpinning) {
-                        mechanisms.engageOuttake(OUTTAKE_POWER);
-                        outtakeSpinning = true;
+                    if (!driveToShoot2Started) {
+                        follower.followPath(paths.shootSecondBalls);
+                        driveToShoot2Started = true;
                     }
 
                     if (!follower.isBusy()) {
-                        shootStartTimeMs = System.currentTimeMillis();
+                        driveToShoot2Started = false;
                         motifIndex = 0;
                         shotInProgress = false;
                         state = AutoState.SHOOT_SET_2;
                     }
                     break;
 
-                case SHOOT_SET_2:
-                    if (shootNextMotifBall(SHOT_SPACING_MS)) {
-                        motifIndex = 0;
-                        outtakeSpinning = false;
+                /* ===================== SHOOT SET 2 ===================== */
 
-                        mechanisms.disengageOuttake();
-                        follower.followPath(paths.toEndPosition);
-                        state = AutoState.DRIVE_TO_END;
+                case SHOOT_SET_2:
+                    // --- Spin-up gate ---
+                    if (!outtakeSpinning) {
+                        if (outtakeSpinupStart < 0) {
+                            mechanisms.engageOuttake(OUTTAKE_POWER);
+                            outtakeSpinupStart = System.currentTimeMillis();
+                            break;
+                        }
+
+                        if (System.currentTimeMillis() - outtakeSpinupStart < OUTTAKE_SPINUP_MS) {
+                            break; // wait for RPM
+                        }
+
+                        outtakeSpinning = true;
+                        outtakeSpinupStart = -1;
                     }
 
+                    if (shootNextMotifBall(SHOT_SPACING_MS)) {
+                        mechanisms.disengageOuttake();
+                        outtakeSpinning = false;
+                        outtakeSpinupStart = -1;
+                        motifIndex = 0;
+                        state = AutoState.DRIVE_TO_END;
+                    }
                     break;
 
+                /* ===================== DRIVE TO END ===================== */
+
                 case DRIVE_TO_END:
+                    if (!driveToEndStarted) {
+                        follower.followPath(paths.toEndPosition);
+                        driveToEndStarted = true;
+                    }
+
                     if (!follower.isBusy()) {
+                        driveToEndStarted = false;
                         state = AutoState.DONE;
                     }
                     break;
+
+                /* ===================== DONE ===================== */
 
                 case DONE:
                     mechanisms.disengageIntake();
@@ -438,26 +687,37 @@ public class BlueClose9BallBermuda extends LinearOpMode {
                     break;
             }
 
-            log("State", state);
-            log("State Time (ms)", System.currentTimeMillis() - stateEntryTime);
-            log("X", follower.getPose().getX());
-            log("Y", follower.getPose().getY());
-            log("Follower Busy", follower.isBusy());
-            log("Heading (deg)", Math.toDegrees(follower.getPose().getHeading()));
-            log("Motif", motif);
-            log("Motif Index", motifIndex);
-            log("Pocket Aligned", pocketAligned);
-            log("Shot In Progress", shotInProgress);
-            log("Sorter Busy", mechanisms.isSorterBusy());
+            long now = System.currentTimeMillis();
+            boolean doLog = LOG_ENABLED && (now - lastLogMs >= LOG_PERIOD_MS);
 
-            telemetry.update();
-            panelsTelemetry.update(telemetry);
+            if (doLog) {
+                telemetry.clearAll();
+                log("State", state);
+                log("State Time (ms)", System.currentTimeMillis() - stateEntryTime);
+                log("X", follower.getPose().getX());
+                log("Y", follower.getPose().getY());
+                log("Follower Busy", follower.isBusy());
+                log("Heading (deg)", Math.toDegrees(follower.getPose().getHeading()));
+                log("Motif", motif);
+                log("Motif Index", motifIndex);
+                log("Pocket Aligned", pocketAligned);
+                log("Shot In Progress", shotInProgress);
+                log("Sorter Busy", mechanisms.isSorterBusy());
+                telemetry.update();
+                panelsTelemetry.update(telemetry);
+                lastLogMs = now;
+            }
 
-            TelemetryPacket packet = new TelemetryPacket();
-            packet.put("x", follower.getPose().getX());
-            packet.put("y", follower.getPose().getY());
-            packet.put("heading", Math.toDegrees(follower.getPose().getHeading()));
-            FtcDashboard.getInstance().sendTelemetryPacket(packet);
+
+            now = System.currentTimeMillis();
+            if (DASH_POSE_ENABLED && now - lastDashMs >= DASH_PERIOD_MS) {
+                TelemetryPacket packet = new TelemetryPacket();
+                packet.put("x", follower.getPose().getX());
+                packet.put("y", follower.getPose().getY());
+                packet.put("heading", Math.toDegrees(follower.getPose().getHeading()));
+                FtcDashboard.getInstance().sendTelemetryPacket(packet);
+                lastDashMs = now;
+            }
         }
     }
 }

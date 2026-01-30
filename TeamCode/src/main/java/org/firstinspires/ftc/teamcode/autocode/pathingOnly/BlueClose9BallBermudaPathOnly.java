@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-@Autonomous(name = "Red Close 9 Ball Bermuda Path Only", group = "Autonomous")
+@Autonomous(name = "Blue Close 9 Ball Bermuda Path Only", group = "Autonomous")
 @Configurable
 public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
 

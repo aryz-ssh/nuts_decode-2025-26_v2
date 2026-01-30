@@ -35,13 +35,13 @@ public class AprilTagLimelight {
         limelight = hw.get(Limelight3A.class, "limelight");
         limelight.pipelineSwitch(9); // AprilTag pipeline
 
-        imu = hw.get(IMU.class, "imu");
-        imu.initialize(new IMU.Parameters(
-                new RevHubOrientationOnRobot(
-                        RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                        RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
-                )
-        ));
+//        imu = hw.get(IMU.class, "imu");
+//        imu.initialize(new IMU.Parameters(
+//                new RevHubOrientationOnRobot(
+//                        RevHubOrientationOnRobot.LogoFacingDirection.UP,
+//                        RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
+//                )
+//        ));
 
         limelight.start();
     }

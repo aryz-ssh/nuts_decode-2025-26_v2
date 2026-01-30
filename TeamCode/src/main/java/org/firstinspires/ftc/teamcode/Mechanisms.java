@@ -73,7 +73,7 @@ public class Mechanisms {
     private void initIntake(HardwareMap hw) {
         intakeMotor = hw.get(DcMotorEx.class, "intakeMotor");
         intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        intakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        // intakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         intakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
     }
@@ -85,7 +85,7 @@ public class Mechanisms {
         outtakeBeamBreak = hw.get(DigitalChannel.class, "outtakeBeamBreak");
 
         outtakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        outtakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        // outtakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         outtakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         outtakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 

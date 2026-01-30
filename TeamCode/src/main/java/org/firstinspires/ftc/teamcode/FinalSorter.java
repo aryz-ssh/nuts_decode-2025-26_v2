@@ -101,7 +101,11 @@ public class FinalSorter {
     private long motifFlashStartMs = 0;
     public static long MOTIF_FLASH_MS = 200;
 
+    // Dashboard control
+    public static boolean DASH_ENABLED = true;
+    public static long DASH_PERIOD_MS = 75; // optional throttle
 
+    private long lastDashMs = 0;
 
     // ================= INIT =================
     public void init(HardwareMap hw, Telemetry telemetry) {
@@ -109,7 +113,7 @@ public class FinalSorter {
 
         motor = hw.get(DcMotorEx.class, "sorterMotor");
         motor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
-        motor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        // motor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         motor.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
 
         beamBreak = hw.get(DigitalChannel.class, "outtakeBeamBreak");
@@ -147,43 +151,39 @@ public class FinalSorter {
 
     // ================= UPDATE LOOP =================
     public void update() {
-        TelemetryPacket packet = new TelemetryPacket();
-
         boolean currentPresent = detectPresence(
                 colorSensor.red(),
                 colorSensor.green(),
                 colorSensor.blue()
         );
 
-        // RISING EDGE: no ball → ball
-        if (!lastBallPresent && currentPresent) {
-            pendingBall = readColorSensor();
-            commitPendingBallToIntake();
+        // ================= AUTO MODE: CYCLE ON CONFIRMED COLOR =================
+        if (autoMode && !busy) {
 
-            if (autoMode) {
-                advanceIntakePocketIfPossible();
+            BallColor detected = readColorSensor();  // SAME logic as LED
+
+            if (detected != BallColor.NONE) {
+
+                int intakeSlot = getPocketClosestTo(INTAKE_TICKS);
+
+                // Only act if the intake pocket is empty
+                if (intakeSlot != -1 && slots[intakeSlot].color == BallColor.NONE) {
+
+                    // Commit ball to this pocket
+                    slots[intakeSlot].color = detected;
+
+                    // Immediately advance to the next available pocket
+                    advanceIntakePocketIfPossible();
+                }
             }
         }
 
-        lastBallPresent = currentPresent;
-
         updateBeamBreak();
+
 
         int currentTicks = motor.getCurrentPosition();
         int errorTicks = targetTicks - currentTicks;
         double errorDeg = errorTicks / TICKS_PER_REV * 360.0;
-
-        packet.put("sorter/targetTicks", targetTicks);
-        packet.put("sorter/currentTicks", currentTicks);
-        packet.put("sorter/errorTicks", errorTicks);
-        packet.put("sorter/errorDeg", errorDeg);
-
-        packet.put("color/r", colorSensor.red());
-        packet.put("color/g", colorSensor.green());
-        packet.put("color/b", colorSensor.blue());
-        packet.put("color/sum", colorSensor.red() + colorSensor.green() + colorSensor.blue());
-
-
 
         updateStatusLED();
 
@@ -219,15 +219,32 @@ public class FinalSorter {
         motor.setPower(output);
         lastPosError = error;
 
-        // Telemetry for graphing
-        packet.put("sorter/pid", pid);
-        packet.put("sorter/ff", ff);
-        packet.put("sorter/output", output);
+        long now = System.currentTimeMillis();
 
-        FtcDashboard.getInstance().sendTelemetryPacket(packet);
+        if (DASH_ENABLED && now - lastDashMs >= DASH_PERIOD_MS) {
+            TelemetryPacket packet = new TelemetryPacket();
+
+            packet.put("sorter/targetTicks", targetTicks);
+            packet.put("sorter/currentTicks", currentTicks);
+            packet.put("sorter/errorTicks", errorTicks);
+            packet.put("sorter/errorDeg", errorDeg);
+
+            packet.put("color/r", colorSensor.red());
+            packet.put("color/g", colorSensor.green());
+            packet.put("color/b", colorSensor.blue());
+            packet.put("color/sum", colorSensor.red() + colorSensor.green() + colorSensor.blue());
+
+            packet.put("sorter/targetTicks", targetTicks);
+            packet.put("sorter/currentTicks", motor.getCurrentPosition());
+            packet.put("sorter/errorTicks", error);
+            packet.put("sorter/output", output);
+
+            FtcDashboard.getInstance().sendTelemetryPacket(packet);
+            lastDashMs = now;
+        }
 
         if (busy) {
-            long now = System.currentTimeMillis();
+            now = System.currentTimeMillis();
             int curTicks = motor.getCurrentPosition();
 
             // Detect lack of movement
@@ -391,6 +408,11 @@ public class FinalSorter {
         if (intakeSlot != -1 && slots[intakeSlot].color == BallColor.NONE) {
             slots[intakeSlot].color = pendingBall;
             pendingBall = BallColor.NONE;
+
+            // 🔥 AUTO ADVANCE TRIGGER HERE 🔥
+            if (autoMode) {
+                advanceIntakePocketIfPossible();
+            }
         }
     }
 
@@ -445,6 +467,15 @@ public class FinalSorter {
     // ================= AUTOS PEOPLE, AUTOS =================
     public void setAutoMode(boolean enabled) {
         autoMode = enabled;
+    }
+
+    public int getPocketWithAnyBall() {
+        for (int i = 0; i < SLOT_COUNT; i++) {
+            if (slots[i].color != BallColor.NONE) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private void advanceIntakePocketIfPossible() {

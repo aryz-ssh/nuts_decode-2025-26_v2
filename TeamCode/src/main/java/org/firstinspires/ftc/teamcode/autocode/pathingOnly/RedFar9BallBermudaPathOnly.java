@@ -31,14 +31,13 @@ public class RedFar9BallBermudaPathOnly extends LinearOpMode {
 
     private String lastDetectedColor = null;
 
-
     @Override
     public void runOpMode() {
 
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(91.84933171324423, 8, Math.toRadians(90)));
+        follower.setStartingPose(new Pose(91.84933171324423, 8, Math.toRadians(270)));
 
         paths = new RobotPaths(follower);
 

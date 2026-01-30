@@ -24,9 +24,9 @@ public class INTAKING_TEST extends LinearOpMode {
     private IntakeTestState state = IntakeTestState.START_SWEEP;
     private long settleStartMs = 0;
 
-    public static final double INTAKE_POWER = 1.0;
-    public static final double INTAKE_SPEED_LIMIT = 0.5;
-    public static final long INTAKE_SETTLE_MS = 250;
+    public static double INTAKE_POWER = 1.0;
+    public static double INTAKE_SPEED_LIMIT = 0.35;
+    public static long INTAKE_SETTLE_MS = 1000;
 
     private enum IntakeTestState {
         START_SWEEP,

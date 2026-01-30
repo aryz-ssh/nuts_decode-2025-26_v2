@@ -1,3 +1,4 @@
+/*
 package org.firstinspires.ftc.teamcode.autocode.misc;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -78,3 +79,4 @@ public class WALNUT extends LinearOpMode {
         }
     }
 }
+*/

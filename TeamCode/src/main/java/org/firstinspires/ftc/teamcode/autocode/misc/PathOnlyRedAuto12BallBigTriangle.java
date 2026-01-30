@@ -1,3 +1,4 @@
+/*
 package org.firstinspires.ftc.teamcode.autocode.misc;
 
 import com.pedropathing.follower.Follower;
@@ -205,3 +206,4 @@ public class PathOnlyRedAuto12BallBigTriangle extends LinearOpMode {
                 .build();
     }
 }
+*/

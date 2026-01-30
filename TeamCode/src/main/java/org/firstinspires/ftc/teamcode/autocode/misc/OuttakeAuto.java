@@ -1,3 +1,4 @@
+/*
 package org.firstinspires.ftc.teamcode.autocode.misc;
 
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -27,3 +28,4 @@ public class OuttakeAuto {
 
 
 }
+*/

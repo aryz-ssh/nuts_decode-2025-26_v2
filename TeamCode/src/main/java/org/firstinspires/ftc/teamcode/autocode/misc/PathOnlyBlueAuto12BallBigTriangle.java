@@ -1,3 +1,4 @@
+/*
 package org.firstinspires.ftc.teamcode.autocode.misc;
 
 import com.bylazar.configurables.annotations.Configurable;
@@ -236,3 +237,4 @@ public class PathOnlyBlueAuto12BallBigTriangle extends LinearOpMode {
     }
 }
 
+*/

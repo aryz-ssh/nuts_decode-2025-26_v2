@@ -1,3 +1,4 @@
+/*
 package org.firstinspires.ftc.teamcode.autocode.misc;
 
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -28,12 +29,14 @@ public class SorterAuto {
        // newMechanisms.sorterLogic
     }
 
+*/
 /*
 * PSEUDOCODE FOR SORTER:
 * PRELOAD: Preload all 3 balls in order GPP (Green is top, purple is other 2 slots
 * For motif GPP: just start with top slot and rotate right, shooting each slot
 * For motif PGP: just rotate to bottom left slot (purple2), then keep rotating right and shoot
 * For motif PPG: just rotate to bottom right slot (purple1), then keep rotating right and shoot
-* */
+* *//*
 
-}
+
+}*/

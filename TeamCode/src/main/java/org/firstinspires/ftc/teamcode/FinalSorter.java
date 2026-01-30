@@ -30,16 +30,16 @@ public class FinalSorter {
 
     // encoder ticks for each pocket at INTAKE plane
     public static int[] INTAKE_TICKS = {
-            0, // pocket 0
-            175, // pocket 1
-            360 // pocket 2
+            -270, // pocket 0
+            -90, // pocket 1
+            90 // pocket 2
     };
 
     // encoder ticks for each pocket at OUTTAKE plane
     public static int[] OUTTAKE_TICKS = {
-            -270, // pocket 0
-            -90, // pocket 1
-            90 // pocket 2
+            0, // pocket 0
+            175, // pocket 1
+            360 // pocket 2
     };
 
 // ================= COLOR CLASSIFICATION (DATA-DRIVEN) =================
@@ -158,22 +158,22 @@ public class FinalSorter {
         );
 
         // ================= AUTO MODE: CYCLE ON CONFIRMED COLOR =================
-        // Detect ball color at intake
-        if (!busy) {
-            BallColor detected = readColorSensor();
+        if (autoMode && !busy) {
+
+            BallColor detected = readColorSensor();  // SAME logic as LED
 
             if (detected != BallColor.NONE) {
+
                 int intakeSlot = getPocketClosestTo(INTAKE_TICKS);
 
+                // Only act if the intake pocket is empty
                 if (intakeSlot != -1 && slots[intakeSlot].color == BallColor.NONE) {
 
-                    // ALWAYS store
+                    // Commit ball to this pocket
                     slots[intakeSlot].color = detected;
 
-                    // ONLY advance in auto mode
-                    if (autoMode) {
-                        advanceIntakePocketIfPossible();
-                    }
+                    // Immediately advance to the next available pocket
+                    advanceIntakePocketIfPossible();
                 }
             }
         }

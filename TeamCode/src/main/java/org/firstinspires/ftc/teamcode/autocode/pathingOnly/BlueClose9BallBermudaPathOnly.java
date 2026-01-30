@@ -15,8 +15,8 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-//@Autonomous(name = "Blue Close 9 Ball Bermuda Path Only", group = "Autonomous")
-//@Configurable
+@Autonomous(name = "Blue Close 9 Ball Bermuda Path Only", group = "Autonomous")
+@Configurable
 public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;
@@ -145,7 +145,7 @@ public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
                             new BezierLine(
                                     new Pose(33.000, 136.000),
 
-                                    new Pose(44.000, 100.000)
+                                    new Pose(44.000, 125.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(50))
 
@@ -153,17 +153,17 @@ public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
 
             shootPreload = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(44.000, 100.000),
+                                    new Pose(44.000, 125.000),
 
-                                    new Pose(44.000, 87.000)
+                                    new Pose(39.000, 99.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(70), Math.toRadians(135))
+                    ).setLinearHeadingInterpolation(Math.toRadians(50), Math.toRadians(135))
 
                     .build();
 
             toFirstBalls = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(44.000, 87.000),
+                                    new Pose(39.000, 99.000),
 
                                     new Pose(42.000, 81.000)
                             )
@@ -175,7 +175,7 @@ public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
                             new BezierLine(
                                     new Pose(42.000, 81.000),
 
-                                    new Pose(11.000, 81.000)
+                                    new Pose(18.000, 81.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
 
@@ -183,9 +183,9 @@ public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
 
             shootFirstBalls = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(11.000, 81.000),
+                                    new Pose(18.000, 81.000),
 
-                                    new Pose(44.000, 87.000)
+                                    new Pose(39.000, 99.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(135))
 
@@ -193,7 +193,7 @@ public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
 
             toSecondBalls = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(44.000, 87.000),
+                                    new Pose(39.000, 99.000),
 
                                     new Pose(42.000, 56.000)
                             )
@@ -205,7 +205,7 @@ public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
                             new BezierLine(
                                     new Pose(42.000, 56.000),
 
-                                    new Pose(11.000, 56.000)
+                                    new Pose(18.000, 56.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
 
@@ -213,9 +213,9 @@ public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
 
             shootSecondBalls = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(11.000, 56.000),
+                                    new Pose(18.000, 56.000),
 
-                                    new Pose(44.000, 87.000)
+                                    new Pose(39.000, 99.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(135))
 
@@ -223,7 +223,7 @@ public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
 
             toEndPosition = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(44.000, 87.000),
+                                    new Pose(39.000, 99.000),
 
                                     new Pose(20.000, 69.548)
                             )

@@ -24,7 +24,7 @@ public class RedFar3 extends LinearOpMode {
 
     /* ================= SHOOTING CONFIG (FROM RedClose) ================= */
 
-    public static double OUTTAKE_POWER = 0.6;
+    public static double OUTTAKE_POWER = 1.0;
     public static long OUTTAKE_SPINUP_MS = 400;
     public static long SHOT_SPACING_MS = 600;
     public static long SORTER_POST_BUSY_MS = 400;
@@ -133,7 +133,7 @@ public class RedFar3 extends LinearOpMode {
                     ))
                     .setLinearHeadingInterpolation(
                             Math.toRadians(90),
-                            Math.toRadians(110)
+                            Math.toRadians(85)
                     )
                     .build();
 

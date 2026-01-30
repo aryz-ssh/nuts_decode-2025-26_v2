@@ -34,7 +34,7 @@ public class RedFar3Pathing extends LinearOpMode {
                             new Pose(51.707, 22.341),
                             new Pose(65.561, 13.049)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(110))
+                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(60))
                     .build();
 
             Path3 = follower.pathBuilder()

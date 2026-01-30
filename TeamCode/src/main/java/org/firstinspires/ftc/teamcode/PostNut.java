@@ -98,29 +98,6 @@ public class PostNut extends LinearOpMode {
             telemetry.clearAll();
 
             switch (prestartStage) {
-
-                // DRIVE MODE SELECTION
-                case DRIVE_MODE:
-                    telemetry.addLine("=== DRIVE MODE SELECT ===");
-                    telemetry.addLine("DPAD UP   = FIELD-CENTRIC");
-                    telemetry.addLine("DPAD DOWN = ROBOT-CENTRIC");
-                    telemetry.addLine();
-                    telemetry.addData("Selected", fieldCentric ? "FIELD-CENTRIC" : "ROBOT-CENTRIC");
-                    telemetry.addLine();
-                    telemetry.addLine("Press A to confirm");
-
-                    if (gamepad1.dpad_up && !lastDpadUp) {
-                        fieldCentric = true;
-                    }
-                    if (gamepad1.dpad_down && !lastDpadDown) {
-                        fieldCentric = false;
-                    }
-
-                    if (gamepad1.a) {
-                        prestartStage = PrestartStage.ALLIANCE;
-                    }
-                    break;
-
                 // ALLIANCE SELECTION
                 case ALLIANCE:
                     telemetry.addLine("=== ALLIANCE SELECT ===");

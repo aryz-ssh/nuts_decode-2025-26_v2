@@ -519,8 +519,7 @@ public class RedClose9BallBermuda extends LinearOpMode {
                         break;
                     }
 
-                    mechanisms.disengageIntake();
-                    mechanisms.sorter.setAutoMode(false);
+
                     state = AutoState.DRIVE_TO_SHOOT_1;
                     break;
 
@@ -536,6 +535,10 @@ public class RedClose9BallBermuda extends LinearOpMode {
                         driveToShoot1Started = false;
                         motifIndex = 0;
                         shotInProgress = false;
+
+                        mechanisms.disengageIntake();
+                        mechanisms.sorter.setAutoMode(false);
+
                         state = AutoState.SHOOT_SET_1;
                     }
                     break;
@@ -589,8 +592,7 @@ public class RedClose9BallBermuda extends LinearOpMode {
                 case COLLECT_SECOND_SET:
                     if (!secondSweepStarted) {
                         follower.followPath(paths.throughSecondBalls);
-                        mechanisms.engageIntake(INTAKE_POWER, false);
-                        mechanisms.sorter.setAutoMode(true);
+
                         secondSweepStarted = true;
                         secondSweepPowerSet = false;
                     }
@@ -616,8 +618,6 @@ public class RedClose9BallBermuda extends LinearOpMode {
                         break;
                     }
 
-                    mechanisms.disengageIntake();
-                    mechanisms.sorter.setAutoMode(false);
                     state = AutoState.DRIVE_TO_SHOOT_2;
                     break;
 
@@ -633,6 +633,10 @@ public class RedClose9BallBermuda extends LinearOpMode {
                         driveToShoot2Started = false;
                         motifIndex = 0;
                         shotInProgress = false;
+
+                        mechanisms.disengageIntake();
+                        mechanisms.sorter.setAutoMode(false);
+
                         state = AutoState.SHOOT_SET_2;
                     }
                     break;

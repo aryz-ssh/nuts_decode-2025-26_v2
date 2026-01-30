@@ -24,7 +24,7 @@ public class MasterDrivetrain {
     public static double MIN_POWER = 0.15;
     public static double KICK_MULT = 1.4;
     public static long KICK_TIME_MS = 100;
-    public static double TURN_MULT = 0.8; // dashboard-tunable
+    public static double TURN_MULT = 0.6; // dashboard-tunable
 
     public static double FL_SCALE = 1.0;
     public static double FR_SCALE = 1.0;

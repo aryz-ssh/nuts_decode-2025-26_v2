@@ -356,7 +356,11 @@ public class PostNut extends LinearOpMode {
             telemetry.addData("Lateral Err (m)", limelight.getLateralErrorMeters());
             telemetry.addData("Heading Err (deg)", limelight.getHeadingErrorDeg());
             telemetry.addData("Forward Dist (m)", limelight.getForwardDistanceMeters());
-            telemetry.addData("Distance", limelight.getDistance());
+
+            Double dist = limelight.getDistance();
+            if (dist != null) {
+                telemetry.addData("Distance", limelight.getDistance());
+            }
 
             telemetry.addLine("---- OUTTAKE STATUS ----");
             telemetry.addData("Outtake Power", mechanisms.getManualOuttakeSpeed());

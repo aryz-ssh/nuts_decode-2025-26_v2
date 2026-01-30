@@ -48,7 +48,7 @@ public class RedClose9BallBermudaPathOnly extends LinearOpMode {
     public static double TAG_H = 130;
 
     // ---------- PRELOAD SHOT ----------
-    public static double PRELOAD_X = 100.0;
+    public static double PRELOAD_X = 105.0;
     public static double PRELOAD_Y = 99.0;
     public static double PRELOAD_H = 45;
 
@@ -56,14 +56,14 @@ public class RedClose9BallBermudaPathOnly extends LinearOpMode {
     public static double FIRST_ENTRY_X = 102.0;
     public static double FIRST_ENTRY_Y = 81.0;
 
-    public static double FIRST_EXIT_X = 124.0;
+    public static double FIRST_EXIT_X = 126.0;
     public static double FIRST_EXIT_Y = 81.0;
 
     // ---------- SECOND BALL LINE ----------
     public static double SECOND_ENTRY_X = 102.0;
     public static double SECOND_ENTRY_Y = 56.0;
 
-    public static double SECOND_EXIT_X = 124.0;
+    public static double SECOND_EXIT_X = 126.0;
     public static double SECOND_EXIT_Y = 56.0;
 
     // ---------- END ----------

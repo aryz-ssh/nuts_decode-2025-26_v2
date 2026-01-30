@@ -21,6 +21,8 @@ public class AprilTagLimelight {
     public static double STRAFE_KP = 1.4;   // meters → strafe power
     public static double TURN_KP   = 0.02;  // degrees → turn power
 
+    public static double TX_OFFSET_DEG = -2.0; // tune this
+
     public static double MAX_STRAFE = 0.6;
     public static double MAX_TURN   = 0.5;
 
@@ -55,25 +57,24 @@ public class AprilTagLimelight {
         return limelight.getLatestResult().getTy();
     }
 
-    public double getDistance(){
-        double targetOffsetAngle_Vertical = getTy();
+    public Double getDistance() {
 
-        // how many degrees back is your limelight rotated from perfectly vertical?
-        double limelightMountAngleDegrees = 10.0;
+        LLResult r = limelight.getLatestResult();
+        if (r == null || !r.isValid()) return null;
 
-        // distance from the center of the Limelight lens to the floor
+        if (r.getFiducialResults().isEmpty()) return null;
+
+        double ty = r.getTy();
+
+        double limelightMountAngleDegrees = -10.0;
         double limelightLensHeightInches = 16.1;
-
-        // distance from the target to the floor
         double goalHeightInches = 25.0;
 
-        double angleToGoalDegrees = limelightMountAngleDegrees + targetOffsetAngle_Vertical;
-        double angleToGoalRadians = angleToGoalDegrees * (3.14159 / 180.0);
+        double angleToGoalDegrees = limelightMountAngleDegrees + ty;
+        double angleToGoalRadians = Math.toRadians(angleToGoalDegrees);
 
-        //calculate distance
-        double distanceFromLimelightToGoalInches = (goalHeightInches - limelightLensHeightInches) / Math.tan(angleToGoalRadians);
-        return distanceFromLimelightToGoalInches;
-
+        return (goalHeightInches - limelightLensHeightInches)
+                / Math.tan(angleToGoalRadians);
     }
 
     // ================= INTERNAL HELPERS =================
@@ -145,7 +146,8 @@ public class AprilTagLimelight {
         LLResult r = limelight.getLatestResult();
         if (r == null || !r.isValid()) return 0.0;
 
-        double tx = r.getTx();
+        double tx = r.getTx() - TX_OFFSET_DEG;
+
         if (Math.abs(tx) < 1.0) return 0.0;
 
         return clamp(tx * TURN_KP, MAX_TURN);

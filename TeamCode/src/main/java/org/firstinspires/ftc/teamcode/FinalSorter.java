@@ -20,10 +20,10 @@ public class FinalSorter {
     public static final double TICKS_PER_REV = 537.4;
     private static final int SLOT_COUNT = 3;
 
-    public static double POS_P = 0.0028;     // power per tick of error
+    public static double POS_P = 0.006;     // power per tick of error
     public static double POS_I = 0.0;
-    public static double POS_D = 0.001;
-    public static double POS_F = 0.07;      // 0..1 constant push toward target
+    public static double POS_D = 0.003;
+    public static double POS_F = 0.06;      // 0..1 constant push toward target
 
     private double posIntegral = 0;
     private double lastPosError = 0;
@@ -31,15 +31,15 @@ public class FinalSorter {
     // encoder ticks for each pocket at INTAKE plane
     public static int[] INTAKE_TICKS = {
             0, // pocket 0
-            176, // pocket 1
+            190, // pocket 1
             373 // pocket 2
     };
 
     // encoder ticks for each pocket at OUTTAKE plane
     public static int[] OUTTAKE_TICKS = {
-            -259, // pocket 0
-            -80, // pocket 1
-            114 // pocket 2
+            -240, // pocket 0
+            -56, // pocket 1
+            120 // pocket 2
     };
 
 // ================= COLOR CLASSIFICATION (DATA-DRIVEN) =================

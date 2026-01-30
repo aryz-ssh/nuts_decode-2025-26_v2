@@ -34,7 +34,7 @@ public class RedClose9BallBermuda extends LinearOpMode {
     // ================= SHOOTING CONFIG =================
 
     // Global shooter settings (used at every shooting point)
-    public static double OUTTAKE_POWER = 0.7;   // 60%
+    public static double OUTTAKE_POWER = 0.6;   // 60%
     public static double RAMP_ANGLE = 0.70;
     public static int SHOT_SPACING_MS = 600;
     public static long PRE_SHOOT_DELAY_MS = 1000; // tune this (250–500)

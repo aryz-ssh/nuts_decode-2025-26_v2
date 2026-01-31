@@ -1,3 +1,4 @@
+/*
 package org.firstinspires.ftc.teamcode.autocode;
 
 import com.acmerobotics.dashboard.FtcDashboard;
@@ -29,18 +30,24 @@ public class BlueFar9GPT extends LinearOpMode {
     private Mechanisms mechanisms;
     private AprilTagLimelight aprilTagLimelight;
 
-    /* ================= SHOOT CONFIG ================= */
+    */
+/* ================= SHOOT CONFIG ================= *//*
+
     public static double OUTTAKE_POWER = 0.6;
     public static double RAMP_ANGLE = 0.70;
     public static int SHOT_SPACING_MS = 600;
     public static long OUTTAKE_SPINUP_MS = 400;
 
-    /* ================= INTAKE CONFIG ================= */
+    */
+/* ================= INTAKE CONFIG ================= *//*
+
     public static double INTAKE_POWER = 1.0;
     public static double INTAKE_SPEED_LIMIT = 0.35;
     public static long INTAKE_SETTLE_MS = 1200;
 
-    /* ================= MOTIF ================= */
+    */
+/* ================= MOTIF ================= *//*
+
     public static long TAG_SCAN_WINDOW_MS = 500;
     private String motif = "GPP";
     private int motifIndex = 0;
@@ -52,7 +59,9 @@ public class BlueFar9GPT extends LinearOpMode {
     private long shotStartMs = 0;
     private long sorterNotBusySince = -1;
 
-    /* ================= STATE ================= */
+    */
+/* ================= STATE ================= *//*
+
     private enum AutoState {
         DRIVE_TO_TAG,
         DRIVE_TO_SHOOT_PRELOAD,
@@ -77,9 +86,12 @@ public class BlueFar9GPT extends LinearOpMode {
     private AutoState state = AutoState.DRIVE_TO_TAG;
     private long delayStart = 0;
 
-    /* ================= SHOOT LOGIC (UNCHANGED) ================= */
+    */
+/* ================= SHOOT LOGIC (UNCHANGED) ================= *//*
 
-    private boolean shootNextMotifBall(long delayMs) {
+
+    private boolean shootNextMotifBal
+    (long delayMs) {
 
         if (motifIndex >= motif.length()) return true;
 
@@ -130,7 +142,9 @@ public class BlueFar9GPT extends LinearOpMode {
         return false;
     }
 
-    /* ================= RUN ================= */
+    */
+/* ================= RUN ================= *//*
+
 
     @Override
     public void runOpMode() {
@@ -280,7 +294,9 @@ public class BlueFar9GPT extends LinearOpMode {
         }
     }
 
-    /* ================= PATHS (VISUALIZER) ================= */
+    */
+/* ================= PATHS (VISUALIZER) ================= *//*
+
 
     public static class RobotPaths {
 
@@ -329,3 +345,4 @@ public class BlueFar9GPT extends LinearOpMode {
         }
     }
 }
+*/

@@ -17,6 +17,9 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 public class FinalSorter {
 
     // ================= CONSTANTS =================
+    private enum Plane { INTAKE, OUTTAKE }
+    private Plane commandedPlane = Plane.INTAKE;
+
     public static final double TICKS_PER_REV = 537.4;
     private static final int SLOT_COUNT = 3;
 
@@ -164,7 +167,9 @@ public class FinalSorter {
 
             if (detected != BallColor.NONE) {
 
+                if (commandedPlane != Plane.INTAKE) return;
                 int intakeSlot = getPocketClosestTo(INTAKE_TICKS);
+
 
                 // Only act if the intake pocket is empty
                 if (intakeSlot != -1 && slots[intakeSlot].color == BallColor.NONE) {
@@ -355,13 +360,18 @@ public class FinalSorter {
     // ================= INTERNAL =================
     public void movePocketToIntake(int pocket) {
         if (busy || !validPocket(pocket)) return;
+
         targetTicks = INTAKE_TICKS[pocket];
+        commandedPlane = Plane.INTAKE;   // 🔒 LOCK PLANE
         startMove();
     }
 
+
     public void movePocketToOuttake(int pocket) {
         if (busy || !validPocket(pocket)) return;
+
         targetTicks = OUTTAKE_TICKS[pocket];
+        commandedPlane = Plane.OUTTAKE;  // 🔒 LOCK PLANE
         startMove();
     }
 
@@ -403,7 +413,10 @@ public class FinalSorter {
     private void commitPendingBallToIntake() {
         if (pendingBall == BallColor.NONE) return;
 
-        int intakeSlot = getPocketClosestTo(INTAKE_TICKS);
+        int intakeSlot = (commandedPlane == Plane.INTAKE)
+                ? getPocketClosestTo(INTAKE_TICKS)
+                : -1;
+
 
         if (intakeSlot != -1 && slots[intakeSlot].color == BallColor.NONE) {
             slots[intakeSlot].color = pendingBall;
@@ -445,7 +458,10 @@ public class FinalSorter {
     }
 
     public void onBallEjected() {
-        int outtakeSlot = getPocketClosestTo(OUTTAKE_TICKS);
+        int outtakeSlot = (commandedPlane == Plane.OUTTAKE)
+                ? getPocketClosestTo(OUTTAKE_TICKS)
+                : -1;
+
         if (outtakeSlot != -1) {
             slots[outtakeSlot].color = BallColor.NONE;
         }

@@ -40,7 +40,6 @@ public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
     public static double START_Y = 136.0;
     public static double START_H = 90;
 
-
     // ---------- APRIL TAG ----------
     public static double TAG_X = 44.0;
     public static double TAG_Y = 125.0;

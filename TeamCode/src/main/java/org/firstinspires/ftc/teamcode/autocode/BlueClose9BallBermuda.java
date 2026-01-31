@@ -327,7 +327,7 @@ public class BlueClose9BallBermuda extends LinearOpMode {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(111, 136, Math.toRadians(90)));
+        follower.setStartingPose(new Pose(33.0, 136.0, Math.toRadians(90)));
 
         paths = new BlueClose9BallBermudaPathOnly.RobotPaths(follower);
 

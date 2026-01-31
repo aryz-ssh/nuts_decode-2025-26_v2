@@ -47,22 +47,22 @@ public class BlueClose9BallBermudaPathOnly extends LinearOpMode {
 
     // ---------- PRELOAD SHOT ----------
     public static double PRELOAD_X = 39.0;
-    public static double PRELOAD_Y = 99.0;
+    public static double PRELOAD_Y = 113.0;
     public static double PRELOAD_H = 135;
 
     // ---------- FIRST BALL LINE ----------
     public static double FIRST_ENTRY_X = 42.0;
-    public static double FIRST_ENTRY_Y = 81.0;
+    public static double FIRST_ENTRY_Y = 95.0;
 
     public static double FIRST_EXIT_X = 18.0;
-    public static double FIRST_EXIT_Y = 81.0;
+    public static double FIRST_EXIT_Y = 95.0;
 
     // ---------- SECOND BALL LINE ----------
     public static double SECOND_ENTRY_X = 42.0;
-    public static double SECOND_ENTRY_Y = 56.0;
+    public static double SECOND_ENTRY_Y = 70.0;
 
     public static double SECOND_EXIT_X = 18.0;
-    public static double SECOND_EXIT_Y = 56.0;
+    public static double SECOND_EXIT_Y = 70.0;
 
     // ---------- END ----------
     public static double END_X = 20.0;

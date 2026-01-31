@@ -223,8 +223,6 @@ public class RedClose9BallBermuda extends LinearOpMode {
                 kickCount = 2;
                 shootStartTimeMs = now;
                 shotInProgress = true;
-                sorterNotBusySince = -1;
-                return false;
             }
         }
 

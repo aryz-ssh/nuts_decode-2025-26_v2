@@ -86,7 +86,7 @@ public class BlueClose9BallBermuda extends LinearOpMode {
     private static final long MOTIF_TIMEOUT_MS = 600;
     private boolean motifLocked = false;
     private int motifIndex = 0;
-    public static int GOAL_PIPELINE = 8;
+    public static int GOAL_PIPELINE = 9;
 
     // ================= TELEMETRY / DASH THROTTLING =================
     public static boolean LOG_ENABLED = true;

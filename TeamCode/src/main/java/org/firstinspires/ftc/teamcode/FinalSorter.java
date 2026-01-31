@@ -431,6 +431,8 @@ public class FinalSorter {
     }
 
     private void updateBeamBreak() {
+        if (autoMode) return;
+
         // Normalize: true = clear, false = blocked
         boolean beamClearNow = !beamBreak.getState();
 

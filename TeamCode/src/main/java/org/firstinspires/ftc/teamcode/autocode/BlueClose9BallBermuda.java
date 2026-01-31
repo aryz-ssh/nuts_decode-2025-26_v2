@@ -44,6 +44,10 @@ public class BlueClose9BallBermuda extends LinearOpMode {
     private long sorterNotBusySince = -1;
     public static long SORTER_POST_BUSY_MS = 400; // tune 150–250
 
+    private int kickCount = 0;
+    private long lastKickTimeMs = 0;
+    public static long DOUBLE_KICK_DELAY_MS = 120;
+
     // Timing
     private long shootStartTimeMs = 0;
     private static final long KICK_DELAY_MS = 200;
@@ -82,6 +86,7 @@ public class BlueClose9BallBermuda extends LinearOpMode {
     private static final long MOTIF_TIMEOUT_MS = 600;
     private boolean motifLocked = false;
     private int motifIndex = 0;
+    public static int GOAL_PIPELINE = 8;
 
     // ================= TELEMETRY / DASH THROTTLING =================
     public static boolean LOG_ENABLED = true;
@@ -136,6 +141,11 @@ public class BlueClose9BallBermuda extends LinearOpMode {
     private boolean driveToShoot1Started = false;
     private boolean driveToShoot2Started = false;
     private boolean driveToEndStarted = false;
+    private boolean endSorterResetDone = false;
+
+
+    // ================= LIMELIGHT ONE-SHOT TURN =================
+    private boolean headingCorrectedThisShot = false;
 
     private boolean shootNextMotifBall(long delayMs) {
 
@@ -195,25 +205,39 @@ public class BlueClose9BallBermuda extends LinearOpMode {
 
 // Fire ONLY after sorter has been stable for 200ms
         if (pocketAligned &&
-                !shotInProgress &&
                 sorterNotBusySince > 0 &&
                 System.currentTimeMillis() - sorterNotBusySince >= SORTER_POST_BUSY_MS) {
 
-            mechanisms.ejectBall();
-            shotInProgress = true;
-            shootStartTimeMs = System.currentTimeMillis();
-            sorterNotBusySince = -1;
-            return false;
+            long now = System.currentTimeMillis();
+
+            // First kick
+            if (kickCount == 0) {
+                mechanisms.ejectBall();
+                kickCount = 1;
+                lastKickTimeMs = now;
+                return false;
+            }
+
+            // Second kick
+            if (kickCount == 1 && now - lastKickTimeMs >= DOUBLE_KICK_DELAY_MS) {
+                mechanisms.ejectBall();
+                kickCount = 2;
+                shootStartTimeMs = now;
+                shotInProgress = true;
+                sorterNotBusySince = -1;
+                return false;
+            }
         }
 
         // STEP 4: delay + manual clear
         if (shotInProgress &&
                 System.currentTimeMillis() - shootStartTimeMs > delayMs) {
 
-            mechanisms.sorter.onBallEjected(); // clear PREVIOUS shot
+            mechanisms.sorter.onBallEjected();
             shotInProgress = false;
             pocketAligned = false;
             sorterNotBusySince = -1;
+            kickCount = 0;
             motifIndex++;
         }
 
@@ -228,6 +252,7 @@ public class BlueClose9BallBermuda extends LinearOpMode {
 
         return false;
     }
+
 
     private void preAlignFirstMotifBall() {
 
@@ -261,6 +286,34 @@ public class BlueClose9BallBermuda extends LinearOpMode {
         if (pocket != -1) {
             mechanisms.sorter.movePocketToOuttake(pocket);
         }
+    }
+
+    private void applyOneTimeLimelightHeadingCorrection() {
+
+        if (headingCorrectedThisShot) return;
+        if (follower.isBusy()) return;   // only when settled
+
+        // This is your EXISTING tuning
+        double turnCmd = aprilTagLimelight.getTurnCorrection(true);
+
+        if (Math.abs(turnCmd) < 1e-3) {
+            headingCorrectedThisShot = true;
+            return;
+        }
+
+        // Convert turn command → heading delta
+        // Small scale because this is a one-shot
+        double deltaDeg = Math.toDegrees(turnCmd) * 0.5;
+
+        Pose p = follower.getPose();
+
+        follower.setPose(new Pose(
+                p.getX(),
+                p.getY(),
+                p.getHeading() + Math.toRadians(deltaDeg)
+        ));
+
+        headingCorrectedThisShot = true;
     }
 
     private void log(String caption, Object value) {
@@ -411,6 +464,12 @@ public class BlueClose9BallBermuda extends LinearOpMode {
 
                     if (!follower.isBusy()) {
                         shootPreloadPathStarted = false;
+
+                        kickCount = 0;
+
+                        headingCorrectedThisShot = false;              // ADD
+                        aprilTagLimelight.setPipeline(GOAL_PIPELINE);              // ADD (BLUE ALIGN)
+
                         state = AutoState.SHOOT_PRELOADS;
                     }
                     break;
@@ -447,6 +506,7 @@ public class BlueClose9BallBermuda extends LinearOpMode {
                 /* ===================== SHOOT PRELOADS ===================== */
 
                 case SHOOT_PRELOADS:
+                    applyOneTimeLimelightHeadingCorrection();
                     // --- Spin-up gate ---
                     if (!outtakeSpinning) {
                         if (outtakeSpinupStart < 0) {
@@ -519,8 +579,8 @@ public class BlueClose9BallBermuda extends LinearOpMode {
                         break;
                     }
 
-                    mechanisms.disengageIntake();
-                    mechanisms.sorter.setAutoMode(false);
+//                    mechanisms.disengageIntake();
+//                    mechanisms.sorter.setAutoMode(false);
                     state = AutoState.DRIVE_TO_SHOOT_1;
                     break;
 
@@ -536,6 +596,12 @@ public class BlueClose9BallBermuda extends LinearOpMode {
                         driveToShoot1Started = false;
                         motifIndex = 0;
                         shotInProgress = false;
+
+                        kickCount = 0;
+
+                        headingCorrectedThisShot = false;              // ADD
+                        aprilTagLimelight.setPipeline(GOAL_PIPELINE);              // ADD
+
                         state = AutoState.SHOOT_SET_1;
                     }
                     break;
@@ -543,6 +609,10 @@ public class BlueClose9BallBermuda extends LinearOpMode {
                 /* ===================== SHOOT SET 1 ===================== */
 
                 case SHOOT_SET_1:
+                    mechanisms.disengageIntake();
+                    mechanisms.sorter.setAutoMode(false);
+
+                    applyOneTimeLimelightHeadingCorrection();
                     // --- Spin-up gate ---
                     if (!outtakeSpinning) {
                         if (outtakeSpinupStart < 0) {
@@ -616,8 +686,8 @@ public class BlueClose9BallBermuda extends LinearOpMode {
                         break;
                     }
 
-                    mechanisms.disengageIntake();
-                    mechanisms.sorter.setAutoMode(false);
+//                    mechanisms.disengageIntake();
+//                    mechanisms.sorter.setAutoMode(false);
                     state = AutoState.DRIVE_TO_SHOOT_2;
                     break;
 
@@ -633,6 +703,12 @@ public class BlueClose9BallBermuda extends LinearOpMode {
                         driveToShoot2Started = false;
                         motifIndex = 0;
                         shotInProgress = false;
+
+                        kickCount = 0;
+
+                        headingCorrectedThisShot = false;              // ADD
+                        aprilTagLimelight.setPipeline(GOAL_PIPELINE);              // ADD
+
                         state = AutoState.SHOOT_SET_2;
                     }
                     break;
@@ -640,6 +716,10 @@ public class BlueClose9BallBermuda extends LinearOpMode {
                 /* ===================== SHOOT SET 2 ===================== */
 
                 case SHOOT_SET_2:
+                    mechanisms.disengageIntake();
+                    mechanisms.sorter.setAutoMode(false);
+
+                    applyOneTimeLimelightHeadingCorrection();
                     // --- Spin-up gate ---
                     if (!outtakeSpinning) {
                         if (outtakeSpinupStart < 0) {
@@ -682,8 +762,18 @@ public class BlueClose9BallBermuda extends LinearOpMode {
                 /* ===================== DONE ===================== */
 
                 case DONE:
+
+                    // Safety
                     mechanisms.disengageIntake();
                     mechanisms.disengageOuttake();
+
+                    // One-time sorter reset to pocket 1 at intake position
+                    if (!endSorterResetDone && !mechanisms.isSorterBusy()) {
+
+                        mechanisms.sorter.movePocketToIntake(1); // POCKET 1 → INTAKE
+                        endSorterResetDone = true;
+                    }
+
                     break;
             }
 

@@ -16,8 +16,8 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 
-/*@Autonomous(name = "Red Close 9 Ball Bermuda Path Only", group = "Autonomous")
-@Config*/
+@Autonomous(name = "Red Close 9 Ball Bermuda Path Only", group = "Autonomous")
+@Config
 public class RedClose9BallBermudaPathOnly extends LinearOpMode {
 
     private TelemetryManager panelsTelemetry;

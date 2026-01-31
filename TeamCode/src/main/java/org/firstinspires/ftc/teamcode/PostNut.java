@@ -1,8 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
-import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -10,12 +8,11 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 @Config
 @TeleOp(name = "PostNut", group = "0")
 public class PostNut extends LinearOpMode {
-    private ElapsedTime runtime = new ElapsedTime();
-    private long lastTelem = 0;
 
-    // ---------- Gamepad ----------
-    public static double DEADZONE = 0.05;
-    public static double GAMEPAD_TRIGGER_THRESHOLD = 0.25;
+    private static final double DEADZONE = 0.05;
+    private static final double TRIGGER_THRESH = 0.25;
+
+    private ElapsedTime runtime = new ElapsedTime();
 
     // ---------- Mechanisms ----------
     private Mechanisms mechanisms;
@@ -27,233 +24,74 @@ public class PostNut extends LinearOpMode {
     private boolean lastIntakeTrigger = false;
 
     // ---------- Sorter ----------
-    private enum SorterMode { NONE, INTAKE, OUTTAKE }
+    private enum SorterMode { INTAKE, OUTTAKE }
     private SorterMode sorterMode = SorterMode.INTAKE;
     private int selectedPocket = 0;
 
-    // ---------- Outtake ----------
-    private boolean outtakeOn = false;
-    private boolean lastB1 = false; // gamepad1
-    private boolean lastB2 = false; // gamepad2
-
-    // ---------- Ramp angle debounce ----------
-    private boolean lastRB2 = false;
-    private boolean lastLB2 = false;
-
-    // ---------- Outtake speed debounce ----------
-    private boolean lastDpadUp = false;
-    private boolean lastDpadDown = false;
-
-    // ---------- Drive / Limelight ----------
-    private boolean allianceChosen = false;
-    private boolean pipelineSet = false;
-    private boolean isRedAlliance = false;
+    // ---------- Debounce ----------
     private boolean lastBack1 = false;
-
-    // ---------- Gamepad2 sorter buttons ----------
-    private boolean lastX = false;
-    private boolean lastY = false;
-
-    // ---------- Auto Align ----------
-    private boolean autoAlignEnabled = false;
-    private boolean lastX1 = false;
-
-    // ---------- Sorter Manual Controls ----------
+    private boolean lastB2 = false;
     private boolean lastDpadLeft2 = false;
     private boolean lastDpadRight2 = false;
-    private boolean lastDpadUp2 = false;
-    private boolean lastDpadDown2 = false;
-
-    private enum PrestartStage {
-        DRIVE_MODE,
-        ALLIANCE,
-        CONFIRM
-    }
-
-    private PrestartStage prestartStage = PrestartStage.DRIVE_MODE;
-
-    private boolean fieldCentric = false;
-
 
     @Override
-    public void runOpMode() throws InterruptedException {
-        // ----- Init -----
+    public void runOpMode() {
+
+        // ================= INIT =================
         mechanisms = new Mechanisms();
         mechanisms.initMechanisms(hardwareMap, telemetry, true);
-
-        selectedPocket = mechanisms.sorter.getPocketClosestTo(FinalSorter.INTAKE_TICKS);
-        sorterMode = SorterMode.INTAKE;
 
         drivetrain = new MasterDrivetrain();
         drivetrain.init(hardwareMap);
 
         limelight = new AprilTagLimelight(hardwareMap);
 
-        telemetry.addData("Status", "Initialized");
+        // 🔒 FORCE KNOWN SORTER STATE (NO GUESSING)
+        selectedPocket = 0;
+        sorterMode = SorterMode.INTAKE;
+        mechanisms.sorter.movePocketToIntake(0);
+
+        telemetry.addLine("Initialized — Sorter locked to INTAKE pocket 0");
         telemetry.update();
-
-        // ----- Pre-start: alliance select -----
-        while (!isStarted() && !isStopRequested()) {
-
-            telemetry.clearAll();
-
-            switch (prestartStage) {
-                // ALLIANCE SELECTION
-                case ALLIANCE:
-                    telemetry.addLine("=== ALLIANCE SELECT ===");
-                    telemetry.addLine("X = BLUE  (Pipeline 9)");
-                    telemetry.addLine("B = RED   (Pipeline 8)");
-                    telemetry.addLine();
-
-                    if (gamepad1.x && !lastX) {
-                        isRedAlliance = false;
-                        allianceChosen = true;
-                    }
-                    if (gamepad1.b && !lastB1) {
-                        isRedAlliance = true;
-                        allianceChosen = true;
-                    }
-
-                    telemetry.addData("Alliance",
-                            allianceChosen ? (isRedAlliance ? "RED" : "BLUE") : "CHOOSE");
-
-                    if (allianceChosen && !pipelineSet) {
-                        limelight.setPipeline(isRedAlliance ? 8 : 9);
-                        drivetrain.setAlliance(isRedAlliance);
-                        pipelineSet = true;
-                    }
-
-                    telemetry.addLine();
-                    telemetry.addLine("Press A to confirm");
-
-                    if (gamepad1.a && allianceChosen) {
-                        prestartStage = PrestartStage.CONFIRM;
-                    }
-                    break;
-
-                // CONFIRMATION / RECAP
-                case CONFIRM:
-                    telemetry.addLine("=== SUMMARY ===");
-                    telemetry.addLine();
-
-                    telemetry.addData("Drive Mode",
-                            fieldCentric ? "FIELD-CENTRIC" : "ROBOT-CENTRIC");
-                    telemetry.addData("Alliance",
-                            isRedAlliance ? "RED" : "BLUE");
-                    telemetry.addData("Limelight Pipeline",
-                            isRedAlliance ? "8 (RED)" : "9 (BLUE)");
-
-                    telemetry.addLine();
-                    telemetry.addLine("Waiting for START...");
-                    telemetry.addLine("Press BACK to reconfigure");
-
-                    if (gamepad1.back) {
-                        prestartStage = PrestartStage.DRIVE_MODE;
-                        allianceChosen = false;
-                        pipelineSet = false;
-                    }
-                    break;
-            }
-
-            telemetry.update();
-
-            // update debounce
-            lastX = gamepad1.x;
-            lastB1 = gamepad1.b;
-            lastDpadUp = gamepad1.dpad_up;
-            lastDpadDown = gamepad1.dpad_down;
-
-            sleep(20);
-        }
 
         waitForStart();
         runtime.reset();
 
+        // ================= LOOP =================
         while (opModeIsActive()) {
-            // =============================================================
-            // GAMEPAD 1 — DRIVE AND INTAKE
-            // =============================================================
+
+            // ---------- DRIVE ----------
             if (gamepad1.back && !lastBack1) {
                 drivetrain.resetImuYaw();
             }
             lastBack1 = gamepad1.back;
 
-            double y = applyDeadband(-gamepad1.left_stick_y);
-            double x = applyDeadband(gamepad1.left_stick_x);
-            double rx = applyDeadband(gamepad1.right_stick_x);
+            double y = deadband(-gamepad1.left_stick_y);
+            double x = deadband(gamepad1.left_stick_x);
+            double rx = deadband(gamepad1.right_stick_x);
 
-            boolean brake = gamepad1.left_trigger > GAMEPAD_TRIGGER_THRESHOLD;
+            drivetrain.driveRobotCentric(x, y, rx, false);
 
-            // ---------- Auto Align Toggle (GP1 X) ----------
-            if (gamepad1.x && !lastX1) {
-                autoAlignEnabled = !autoAlignEnabled;
-
-                if (autoAlignEnabled) {
-                    limelight.enableAutoAlign(); // pipeline 3
-                } else {
-                    limelight.setPipeline(isRedAlliance ? 8 : 9);
-                }
-            }
-            lastX1 = gamepad1.x;
-
-            // ---------- DRIVE (Robot-Centric + HEADING ALIGN ONLY) ----------
-            double driveX = x;
-            double driveY = y;
-            double driveTurn = rx;
-
-            if (autoAlignEnabled) {
-                // ONLY rotate — no strafe, no forward correction
-                driveTurn += limelight.getTurnCorrection(true);
-            }
-
-            if (fieldCentric) {
-                drivetrain.driveFieldCentric(driveX, driveY, driveTurn, brake);
-            } else {
-                drivetrain.driveRobotCentric(driveX, driveY, driveTurn, brake);
-            }
-
-            boolean intakeTriggerNow = gamepad1.right_trigger > GAMEPAD_TRIGGER_THRESHOLD;
-            boolean reversePressed = gamepad1.left_bumper;
+            // ---------- INTAKE TOGGLE ----------
+            boolean intakeTriggerNow = gamepad1.right_trigger > TRIGGER_THRESH;
+            boolean reverse = gamepad1.left_bumper;
 
             if (intakeTriggerNow && !lastIntakeTrigger) {
                 intakeToggle = !intakeToggle;
                 if (intakeToggle) {
                     sorterMode = SorterMode.INTAKE;
-                    mechanisms.engageIntake(1.0, reversePressed);
+                    mechanisms.engageIntake(1.0, reverse);
                 } else {
                     mechanisms.disengageIntake();
                 }
             }
             lastIntakeTrigger = intakeTriggerNow;
 
-            if (intakeToggle) mechanisms.engageIntake(1.0, reversePressed);
-
-            if (gamepad1.right_stick_button) mechanisms.sorter.onBallEjected();
-
-            // =============================================================
-            // GAMEPAD 2 — MECHANISMS / SORTER
-            // =============================================================
-
-            // Rotate closest ball to top
-            if (gamepad2.left_trigger > 0.1) {
-                mechanisms.moveBallToTop(true); // GREEN
-            }
-            lastX = gamepad2.x;
-
-            if (gamepad2.right_trigger > 0.1) {
-                mechanisms.moveBallToTop(false); // PURPLE
+            if (intakeToggle) {
+                mechanisms.engageIntake(1.0, reverse);
             }
 
-            if (gamepad2.y) {
-                mechanisms.ejectBall();
-            }
-
-            boolean dpadLeft  = gamepad2.dpad_left;
-            boolean dpadRight = gamepad2.dpad_right;
-            boolean dpadUp    = gamepad2.dpad_up;
-            boolean dpadDown  = gamepad2.dpad_down;
-
-            // ----- MODE SWITCH -----
+            // ---------- SORTER MODE ----------
             if (gamepad2.a) {
                 sorterMode = SorterMode.INTAKE;
                 mechanisms.sorter.movePocketToIntake(selectedPocket);
@@ -264,7 +102,10 @@ public class PostNut extends LinearOpMode {
                 mechanisms.sorter.movePocketToOuttake(selectedPocket);
             }
 
-            // Only allow manual commands if sorter is NOT moving
+            // ---------- MANUAL POCKET STEP ----------
+            boolean dpadLeft  = gamepad2.dpad_left;
+            boolean dpadRight = gamepad2.dpad_right;
+
             if (!mechanisms.isSorterBusy()) {
 
                 boolean moved = false;
@@ -275,97 +116,47 @@ public class PostNut extends LinearOpMode {
                 }
 
                 if (dpadLeft && !lastDpadLeft2) {
-                    selectedPocket = (selectedPocket + 2) % 3; // -1 mod 3
+                    selectedPocket = (selectedPocket + 2) % 3;
                     moved = true;
                 }
 
                 if (moved) {
                     if (sorterMode == SorterMode.INTAKE) {
                         mechanisms.sorter.movePocketToIntake(selectedPocket);
-                    } else if (sorterMode == SorterMode.OUTTAKE) {
+                    } else {
                         mechanisms.sorter.movePocketToOuttake(selectedPocket);
                     }
                 }
             }
 
-            // Update debounce states
-            lastDpadLeft2  = dpadLeft;
+            lastDpadLeft2 = dpadLeft;
             lastDpadRight2 = dpadRight;
-            lastDpadUp2    = dpadUp;
-            lastDpadDown2  = dpadDown;
 
-            // Outtake toggle
+            // ---------- OUTTAKE TOGGLE ----------
             if (gamepad2.b && !lastB2) {
-                outtakeOn = !outtakeOn;
-                if (outtakeOn) mechanisms.engageOuttake(mechanisms.getManualOuttakeSpeed());
-                else mechanisms.disengageOuttake();
+                mechanisms.toggleOuttake();
             }
             lastB2 = gamepad2.b;
 
-            if (gamepad2.right_stick_button) mechanisms.sorter.onBallEjected();
-
-            // Outtake speed adjustments
-            if (gamepad2.dpad_up && !lastDpadUp) mechanisms.increaseOuttakeSpeed(0.1);
-            if (gamepad2.dpad_down && !lastDpadDown) mechanisms.decreaseOuttakeSpeed(0.1);
-            lastDpadUp = gamepad2.dpad_up;
-            lastDpadDown = gamepad2.dpad_down;
-
-            // Ramp adjustments
-            boolean rb2 = gamepad2.right_bumper;
-            boolean lb2 = gamepad2.left_bumper;
-            if (rb2 && !lastRB2) mechanisms.adjustOuttakeAngle(true);
-            if (lb2 && !lastLB2) mechanisms.adjustOuttakeAngle(false);
-            lastRB2 = rb2;
-            lastLB2 = lb2;
-
-            // Update mechanisms
+            // ---------- UPDATE ----------
             mechanisms.updateMechanisms();
 
-            // =============================================================
-            // TELEMETRY
-            // =============================================================
-            telemetry.addLine("---- BASIC DRIVETRAIN ----");
-            telemetry.addData("Heading (deg)", drivetrain.getHeadingDeg());
-
-            telemetry.addLine("---- LIMELIGHT AUTO ALIGN ----");
-            telemetry.addData("Auto Align", autoAlignEnabled ? "ON" : "OFF");
-            telemetry.addData("Pipeline", limelight.getCurrentPipeline());
-            telemetry.addData("Lateral Err (m)", limelight.getLateralErrorMeters());
-            telemetry.addData("Heading Err (deg)", limelight.getHeadingErrorDeg());
-            telemetry.addData("Forward Dist (m)", limelight.getForwardDistanceMeters());
-
-            Double dist = limelight.getDistance();
-            if (dist != null) {
-                telemetry.addData("Distance", limelight.getDistance());
-            }
-
-            telemetry.addLine("---- OUTTAKE STATUS ----");
-            telemetry.addData("Outtake Power", mechanisms.getManualOuttakeSpeed());
-            telemetry.addData("Current Outtake Velocity", "%.0f t/s", mechanisms.outtakeMotor.getVelocity());
-            telemetry.addData("Ramp Angle", "%.2f / %.2f", mechanisms.getRampAngleCurrent(), mechanisms.getRampAngleTarget());
-            telemetry.addData("Time", runtime.seconds());
-
-            telemetry.addLine("---- SORTER ----");
+            // ---------- TELEMETRY (NO PLANE GUESSING) ----------
+            telemetry.addData("Runtime", "%.1f", runtime.seconds());
             telemetry.addData("Sorter Busy", mechanisms.isSorterBusy());
+            telemetry.addData("Sorter Mode", sorterMode);
             telemetry.addData("Selected Pocket", selectedPocket);
-            telemetry.addData("Intake Pocket", mechanisms.sorter.getPocketClosestTo(FinalSorter.INTAKE_TICKS));
-            telemetry.addData("Outtake Pocket", mechanisms.sorter.getPocketClosestTo(FinalSorter.OUTTAKE_TICKS));
-            telemetry.addData("Pending Ball", mechanisms.sorter.getPendingBall());
 
             FinalSorter.BallColor[] colors = mechanisms.sorter.getSlotColors();
             telemetry.addData("Slot 0", colors[0]);
             telemetry.addData("Slot 1", colors[1]);
             telemetry.addData("Slot 2", colors[2]);
 
-            if (System.currentTimeMillis() - lastTelem > 100) {
-                lastTelem = System.currentTimeMillis();
-                telemetry.update();
-            }
+            telemetry.update();
         }
     }
 
-    // ---------- Helpers ----------
-    private double applyDeadband(double value) {
-        return Math.abs(value) > DEADZONE ? value : 0;
+    private double deadband(double v) {
+        return Math.abs(v) > DEADZONE ? v : 0.0;
     }
 }

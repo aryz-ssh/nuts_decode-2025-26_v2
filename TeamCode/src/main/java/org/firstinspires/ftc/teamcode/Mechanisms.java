@@ -21,17 +21,18 @@ public class Mechanisms {
     // ---------- SORTER ----------
     public FinalSorter sorter;
 
-    // ---------- INTAKE SYSTEM ----------
+    // ---------- INTAKE ----------
     public DcMotorEx intakeMotor;
     private boolean intakeActive = false;
     private double intakePowerRequested = 0;
     private boolean intakeDirectionFlipRequested = true;
 
-    // ---------- OUTTAKE SYSTEM ----------
+    // ---------- OUTTAKE ----------
     public DcMotorEx outtakeMotor;
     public Servo rampAngleAdjust;
     public Servo kickerServo;
     private DigitalChannel outtakeBeamBreak;
+
     private boolean outtakeActive = false;
     private double manualOuttakeSpeed = 0.7;
 
@@ -40,7 +41,7 @@ public class Mechanisms {
 
     private static final double RAMP_RANGE =
             RAMP_ANGLE_MAX_POS - RAMP_ANGLE_MIN_POS;
-    private static final double RAMP_STEP_FRACTION = 0.20; // 20%
+    private static final double RAMP_STEP_FRACTION = 0.20;
     private static final double RAMP_STEP = RAMP_RANGE * RAMP_STEP_FRACTION;
 
     private double rampAngleTarget = RAMP_ANGLE_MIN_POS;
@@ -73,7 +74,6 @@ public class Mechanisms {
     private void initIntake(HardwareMap hw) {
         intakeMotor = hw.get(DcMotorEx.class, "intakeMotor");
         intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        // intakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         intakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
     }
@@ -85,7 +85,6 @@ public class Mechanisms {
         outtakeBeamBreak = hw.get(DigitalChannel.class, "outtakeBeamBreak");
 
         outtakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        // outtakeMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         outtakeMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         outtakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
@@ -125,7 +124,6 @@ public class Mechanisms {
         sorter.markPendingBall(
                 isGreen ? FinalSorter.BallColor.GREEN : FinalSorter.BallColor.PURPLE
         );
-        // NO rotation here — sorter finalizes on its own when commanded
     }
 
     public void moveBallToTop(boolean isGreen) {
@@ -156,10 +154,16 @@ public class Mechanisms {
         outtakeActive = false;
     }
 
-    public void adjustOuttakeAngle(boolean increase) {
-        if (increase)  rampAngleTarget += RAMP_STEP;
-        if (!increase)  rampAngleTarget -= RAMP_STEP;
+    // 🔥 THIS IS WHAT YOUR TELEOP WAS MISSING
+    public void toggleOuttake() {
+        outtakeActive = !outtakeActive;
+        if (outtakeActive && manualOuttakeSpeed <= 0) {
+            manualOuttakeSpeed = 0.7;
+        }
+    }
 
+    public void adjustOuttakeAngle(boolean increase) {
+        rampAngleTarget += increase ? RAMP_STEP : -RAMP_STEP;
         rampAngleTarget = Math.max(
                 RAMP_ANGLE_MIN_POS,
                 Math.min(RAMP_ANGLE_MAX_POS, rampAngleTarget)
@@ -167,7 +171,10 @@ public class Mechanisms {
     }
 
     public void setRampAngle(double target) {
-        rampAngleTarget = Math.max(RAMP_ANGLE_MIN_POS, Math.min(RAMP_ANGLE_MAX_POS, target));
+        rampAngleTarget = Math.max(
+                RAMP_ANGLE_MIN_POS,
+                Math.min(RAMP_ANGLE_MAX_POS, target)
+        );
     }
 
     public void ejectBall() {
@@ -194,20 +201,28 @@ public class Mechanisms {
         return angles.getYaw(AngleUnit.RADIANS);
     }
 
-    public void resetHeading() { imu.resetYaw(); }
+    public void resetHeading() {
+        imu.resetYaw();
+    }
 
-    // ---------- MAIN UPDATE LOOP ----------
+    // ---------- UPDATE LOOP ----------
     public void updateMechanisms() {
+
         // INTAKE
-        intakeMotor.setPower(intakeActive ? (intakeDirectionFlipRequested ? 1.0 : -1.0) * intakePowerRequested : 0);
+        intakeMotor.setPower(
+                intakeActive
+                        ? (intakeDirectionFlipRequested ? 1.0 : -1.0) * intakePowerRequested
+                        : 0
+        );
 
         // OUTTAKE
-        outtakeMotor.setVelocity(outtakeActive ? manualOuttakeSpeed * 28.0 * 6000 / 60.0 : 0);
+        outtakeMotor.setVelocity(
+                outtakeActive
+                        ? manualOuttakeSpeed * 28.0 * 6000 / 60.0
+                        : 0
+        );
 
-        // RAMP SERVO
-//        double currentRamp = rampAngleAdjust.getPosition();
-//        double smoothedRamp = currentRamp + Math.signum(rampAngleTarget - currentRamp) * 0.01;
-//        if (Math.abs(rampAngleTarget - currentRamp) < 0.01) smoothedRamp = rampAngleTarget;
+        // RAMP
         rampAngleAdjust.setPosition(rampAngleTarget);
 
         if (sorter != null) {
